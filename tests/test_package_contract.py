@@ -17,7 +17,7 @@ from blender_to_sprites_batch_exporter import logic, properties  # noqa: E402
 
 class RegistrationContractTest(unittest.TestCase):
     def test_bl_info(self):
-        self.assertEqual(addon.bl_info["version"], (1, 3, 0))
+        self.assertEqual(addon.bl_info["version"], (1, 3, 1))
         self.assertEqual(addon.bl_info["blender"], (5, 2, 0))
 
     def test_operator_ids(self):
@@ -62,6 +62,9 @@ class RegistrationContractTest(unittest.TestCase):
             "node_naming",
             "node_override_base",
             "write_main_output",
+            "nodes_connected_only",
+            "use_prefix_fallback",
+            "overwrite_policy",
             "camera_axis",
             "camera_margin",
             "auto_cleanup_camera",

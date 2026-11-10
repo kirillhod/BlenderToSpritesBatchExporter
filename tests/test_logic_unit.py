@@ -166,5 +166,252 @@ class FrameTest(unittest.TestCase):
         self.assertEqual((frame["res_x"], frame["res_y"]), (1, 1))
 
 
+class OutputPlanningTest(unittest.TestCase):
+    def make_output_settings(self, output_dir, **overrides):
+        values = {
+            "output_dir": output_dir,
+            "file_format": "PNG",
+            "color_mode": "RGBA",
+            "color_depth": "8",
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def test_sanitize_path_component(self):
+        self.assertEqual(logic.sanitize_path_component("A/B"), "A_B")
+        self.assertEqual(logic.sanitize_path_component("CON"), "_CON")
+        self.assertEqual(logic.sanitize_path_component("con.png"), "_con.png")
+        self.assertEqual(logic.sanitize_path_component("lpt9"), "_lpt9")
+        self.assertEqual(logic.sanitize_path_component(" name. "), "name")
+        self.assertEqual(logic.sanitize_path_component("Sprite-Ünïcode"), "Sprite-Ünïcode")
+
+    def test_build_output_path(self):
+        base, path = logic.build_output_path("//out/", "Body", "PNG")
+        self.assertEqual(base, "//out/Body")
+        self.assertEqual(path, "//out/Body.png")
+        base, path = logic.build_output_path("//out/", "Body.png", "PNG")
+        self.assertEqual(base, "//out/Body")
+        self.assertEqual(path, "//out/Body.png")
+        base, path = logic.build_output_path("//out/", "CON", "JPEG")
+        self.assertEqual(base, "//out/_CON")
+        self.assertEqual(path, "//out/_CON.jpg")
+
+    def test_plan_detects_collisions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = self.make_output_settings(tmp)
+            plans = logic.plan_output_paths(["A/B", "A\\B"], settings)
+            self.assertEqual(plans[0].path, plans[1].path)
+            self.assertEqual(plans[1].collision_with, "A/B")
+            self.assertFalse(plans[0].exists)
+
+    def test_overwrite_policies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with open(os.path.join(tmp, "Body.png"), "wb") as handle:
+                handle.write(b"x")
+            settings = self.make_output_settings(tmp)
+
+            plans = logic.plan_output_paths(["Body"], settings)
+            self.assertTrue(plans[0].exists)
+
+            plans = logic.plan_output_paths(["Body"], settings)
+            plans, errors, conflicts, _ = logic.apply_overwrite_policy(
+                plans, "ERROR", headless=False, file_format="PNG"
+            )
+            self.assertEqual(len(errors), 1)
+            self.assertTrue(plans[0].skipped)
+            self.assertFalse(conflicts)
+
+            plans = logic.plan_output_paths(["Body"], settings)
+            plans, errors, conflicts, _ = logic.apply_overwrite_policy(
+                plans, "SKIP", headless=False, file_format="PNG"
+            )
+            self.assertFalse(errors)
+            self.assertTrue(plans[0].skipped)
+
+            plans = logic.plan_output_paths(["Body"], settings)
+            plans, errors, conflicts, _ = logic.apply_overwrite_policy(
+                plans, "OVERWRITE", headless=False, file_format="PNG"
+            )
+            self.assertFalse(errors)
+            self.assertFalse(plans[0].skipped)
+
+            plans = logic.plan_output_paths(["Body"], settings)
+            plans, errors, conflicts, _ = logic.apply_overwrite_policy(
+                plans, "SUFFIX", headless=False, file_format="PNG"
+            )
+            self.assertFalse(errors)
+            self.assertTrue(plans[0].path.endswith("Body_2.png"))
+
+            plans = logic.plan_output_paths(["Body"], settings)
+            plans, errors, conflicts, notes = logic.apply_overwrite_policy(
+                plans, "ASK", headless=False, file_format="PNG"
+            )
+            self.assertFalse(errors)
+            self.assertEqual(len(conflicts), 1)
+            self.assertFalse(plans[0].skipped)
+
+            plans = logic.plan_output_paths(["Body"], settings)
+            plans, errors, conflicts, notes = logic.apply_overwrite_policy(
+                plans, "ASK", headless=True, file_format="PNG"
+            )
+            self.assertEqual(len(errors), 1)
+            self.assertTrue(notes)
+            self.assertTrue(plans[0].skipped)
+
+    def test_collision_suffix_and_skip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = self.make_output_settings(tmp)
+            plans = logic.plan_output_paths(["A/B", "A\\B"], settings)
+            plans, errors, _, _ = logic.apply_overwrite_policy(
+                plans, "SUFFIX", headless=False, file_format="PNG"
+            )
+            self.assertFalse(errors)
+            self.assertNotEqual(plans[0].path, plans[1].path)
+            self.assertTrue(plans[1].path.endswith("A_B_2.png"))
+
+            plans = logic.plan_output_paths(["A/B", "A\\B"], settings)
+            plans, errors, _, _ = logic.apply_overwrite_policy(
+                plans, "SKIP", headless=False, file_format="PNG"
+            )
+            self.assertFalse(errors)
+            self.assertTrue(plans[1].skipped)
+
+            plans = logic.plan_output_paths(["A/B", "A\\B"], settings)
+            plans, errors, _, _ = logic.apply_overwrite_policy(
+                plans, "ERROR", headless=False, file_format="PNG"
+            )
+            self.assertEqual(len(errors), 1)
+
+    def test_node_names(self):
+        collisions = logic.plan_node_name_collisions(["A/B", "A\\B"])
+        self.assertEqual(collisions, [("A\\B", "A/B")])
+
+        mapping, errors, skipped = logic.resolve_node_safe_names(
+            ["A/B", "A\\B"], "SUFFIX"
+        )
+        self.assertFalse(errors)
+        self.assertEqual(mapping["A\\B"], "A_B_2")
+
+        mapping, errors, skipped = logic.resolve_node_safe_names(
+            ["A/B", "A\\B"], "SKIP"
+        )
+        self.assertEqual(skipped, {"A\\B"})
+
+        mapping, errors, skipped = logic.resolve_node_safe_names(
+            ["A/B", "A\\B"], "ERROR"
+        )
+        self.assertEqual(len(errors), 1)
+
+
+class ImageSettingsTest(unittest.TestCase):
+    def test_valid_png(self):
+        settings = SimpleNamespace(file_format="PNG", color_mode="RGBA", color_depth="8")
+        file_format, mode, depth, problems = logic.normalize_image_settings(settings)
+        self.assertEqual((file_format, mode, depth), ("PNG", "RGBA", "8"))
+        self.assertFalse(problems)
+
+    def test_png_32_bit_corrected(self):
+        settings = SimpleNamespace(file_format="PNG", color_mode="RGBA", color_depth="32")
+        _, _, depth, problems = logic.normalize_image_settings(settings)
+        self.assertEqual(depth, "16")
+        self.assertEqual(len(problems), 1)
+
+    def test_jpeg_rgba_corrected(self):
+        settings = SimpleNamespace(file_format="JPEG", color_mode="RGBA", color_depth="16")
+        _, mode, depth, problems = logic.normalize_image_settings(settings)
+        self.assertEqual(mode, "RGB")
+        self.assertEqual(depth, "8")
+        self.assertEqual(len(problems), 2)
+
+
+class FakeSocket:
+    def __init__(self, links=()):
+        self.links = list(links)
+
+
+class FakeNode:
+    _counter = 0
+
+    def __init__(self, bl_idname, name, inputs=()):
+        FakeNode._counter += 1
+        self._pointer = FakeNode._counter
+        self.bl_idname = bl_idname
+        self.name = name
+        self.inputs = list(inputs)
+        self.node_tree = None
+
+    def as_pointer(self):
+        return self._pointer
+
+
+class FakeTree:
+    _counter = 0
+
+    def __init__(self, nodes=()):
+        FakeTree._counter += 1
+        self._pointer = FakeTree._counter
+        self.nodes = list(nodes)
+
+    def as_pointer(self):
+        return self._pointer
+
+
+class NodeReachabilityTest(unittest.TestCase):
+    def test_connected_nodes_only(self):
+        source = FakeNode("CompositorNodeRLayers", "Render Layers")
+        output = FakeNode(
+            "NodeGroupOutput",
+            "Group Output",
+            [FakeSocket([SimpleNamespace(from_node=source)])],
+        )
+        connected = FakeNode("CompositorNodeOutputFile", "Connected", [FakeSocket([object()])])
+        disconnected = FakeNode("CompositorNodeOutputFile", "Disconnected", [FakeSocket()])
+        tree = FakeTree([output, connected, disconnected])
+        scene = SimpleNamespace(compositing_node_group=tree)
+
+        all_nodes = logic.collect_file_outputs(scene)
+        self.assertEqual(set(all_nodes), {("Connected",), ("Disconnected",)})
+
+        active = logic.collect_file_outputs(scene, reachable_only=True)
+        self.assertEqual(set(active), {("Connected",)})
+
+
+class NodePathTest(unittest.TestCase):
+    def test_prefix_updates_directory_file_name_and_items(self):
+        item = SimpleNamespace(name="Sprite")
+        node = SimpleNamespace(
+            name="File Output",
+            directory="//out",
+            file_name="Sprite",
+            file_output_items=[item],
+        )
+        settings = SimpleNamespace(
+            node_naming="PREFIX",
+            node_override_base=False,
+            output_dir="//out/",
+        )
+        snapshot = {
+            "base_path": "//out",
+            "file_name": "Sprite",
+            "slot_key": "name",
+            "slot_paths": ["Sprite"],
+            "library": False,
+        }
+        target_dir, scan_dirs, needs_prefix, problems = logic.apply_node_paths(
+            node, settings, "A/B", snapshot
+        )
+        self.assertFalse(problems)
+        self.assertFalse(needs_prefix)
+        self.assertEqual(target_dir, "//out/")
+        self.assertEqual(node.directory, "//out/")
+        self.assertEqual(node.file_name, "A_B_Sprite")
+        self.assertEqual(item.name, "A_B_Sprite")
+
+        logic.restore_node(node, snapshot)
+        self.assertEqual(node.directory, "//out")
+        self.assertEqual(node.file_name, "Sprite")
+        self.assertEqual(item.name, "Sprite")
+
+
 if __name__ == "__main__":
     unittest.main()
