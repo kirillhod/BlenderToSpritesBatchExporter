@@ -10,6 +10,27 @@ All notable changes to the project. Versions follow semantic versioning.
   4-5 plan for node output layouts, duplicate-token detection and path preview.
 - Smoke test `tests/smoke_blender.py` and launchers for Windows/POSIX.
 
+## [2.0.3] - 2026-11-10
+
+Fix single-layer File Output naming.
+
+### Fixed
+- Single-layer image File Output nodes append the socket name to
+  `node.file_name`. The add-on now sets only the collection prefix, so
+  `Building_Conveyor_Horizontal` + socket `Normal` writes
+  `Building_Conveyor_Horizontal_Normal.png` instead of
+  `..._NormalNormal.png`.
+- An empty socket no longer falls back to the node name or node file name.
+  It writes only the collection name.
+- Multiple sockets on one single-layer node are planned as separate files, one
+  per socket.
+- Multilayer EXR nodes keep the existing one-file-per-node behavior.
+
+### Tests
+- Unit coverage for single-layer prefix, empty socket, multiple sockets and
+  subfolder layouts.
+- Smoke coverage renders single-layer PNG nodes and checks the exact file names.
+
 ## [2.0.2] - 2026-11-10
 
 Clarify the node-format preflight messages.

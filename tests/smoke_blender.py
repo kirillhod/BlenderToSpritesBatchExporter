@@ -296,6 +296,43 @@ def run_compositor_test():
     check(active.directory == original_dir, "Prefix mode did not restore directory")
     check(active.file_name == original_file_name, "Prefix mode did not restore file name")
 
+    # Single-layer image nodes append the socket name to node.file_name.
+    single_dir = os.path.join(out_dir, "single")
+    os.makedirs(single_dir, exist_ok=True)
+    settings.output_dir = single_dir
+    settings.node_naming = "PREFIX"
+    active.format.media_type = "IMAGE"
+    active.format.file_format = "PNG"
+    result = bpy.ops.bts.batch_export()
+    check(result == {"FINISHED"}, "Single-layer export did not finish: %r" % (result,))
+    single_files = [
+        name for name in os.listdir(single_dir) if name.lower().endswith(".png")
+    ]
+    check(
+        single_files == ["Body_Sprite.png"],
+        "Single-layer socket name was appended twice: %r" % (single_files,),
+    )
+
+    # An empty socket must not fall back to the node name or file name.
+    empty_dir = os.path.join(out_dir, "empty")
+    os.makedirs(empty_dir, exist_ok=True)
+    settings.output_dir = empty_dir
+    active.file_output_items[0].name = ""
+    result = bpy.ops.bts.batch_export()
+    check(result == {"FINISHED"}, "Empty-socket export did not finish: %r" % (result,))
+    empty_files = [
+        name for name in os.listdir(empty_dir) if name.lower().endswith(".png")
+    ]
+    check(
+        empty_files == ["Body.png"],
+        "Empty socket must use only the collection name: %r" % (empty_files,),
+    )
+    active.file_output_items[0].name = "Sprite"
+    active.format.media_type = "MULTI_LAYER_IMAGE"
+    active.format.file_format = "OPEN_EXR_MULTILAYER"
+    settings.output_dir = prefix_dir
+    logic.clear_analysis_cache(scene)
+
     # Existing node outputs must obey the overwrite policy in preflight.
     settings.overwrite_policy = "ERROR"
     try:

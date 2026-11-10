@@ -387,19 +387,34 @@ def node_socket_names(node):
     return names
 
 
-def node_socket_stem(node):
-    """Return the sanitized socket identity used in generated file names.
-
-    Blender 5.x stores File Output sockets in ``file_output_items``. A node
-    writes one file, so several sockets are joined to keep all identities in
-    the file name. The node name and label are deliberately ignored.
-    """
+def node_socket_stems(node):
+    """Return sanitized non-empty socket stems."""
     stems = [
         sanitize_path_component(_resolve_node_placeholders(name))
         for name in node_socket_names(node)
     ]
-    stems = [stem for stem in stems if stem and stem != "untitled"]
-    return "_".join(stems)
+    return [stem for stem in stems if stem and stem != "untitled"]
+
+
+def node_socket_stem(node):
+    """Return the sanitized socket identity used in generated file names.
+
+    Blender 5.x stores File Output sockets in ``file_output_items``. The node
+    name and label are deliberately ignored.
+    """
+    return "_".join(node_socket_stems(node))
+
+
+def node_writes_per_socket(node):
+    """True when Blender appends each socket name to ``node.file_name``.
+
+    A single-layer image File Output node writes one file per socket named
+    ``<node.file_name><socket><ext>``. A multilayer EXR node writes one file
+    named ``<node.file_name><ext>`` and keeps sockets as layers.
+    """
+    fmt = getattr(node, "format", None)
+    media_type = getattr(fmt, "media_type", "") if fmt is not None else ""
+    return media_type == "IMAGE" and not node_is_multilayer(node)
 
 
 def compose_collection_socket(collection, socket_name):
@@ -448,9 +463,11 @@ def plan_node_output_paths(collection_names, layout, settings, nodes, safe_names
     """Plan every ``(collection, File Output node)`` output path.
 
     ``nodes`` is the mapping returned by :func:`collect_file_outputs`.
-    In Blender 5.2 ``node.file_name`` is the output file name and
-    ``file_output_items`` are the sockets. Generated names use the socket
-    names; node names and labels are ignored. Layer names are never changed.
+    In Blender 5.2 ``file_output_items`` are the sockets. A single-layer image
+    node writes one file per socket named
+    ``<node.file_name><socket><ext>``; a multilayer EXR node writes one file
+    named ``<node.file_name><ext>``. Generated names use the socket names;
+    node names and labels are ignored. Layer names are never changed.
     """
     active = list(nodes.items())
     resolved = resolve_node_layout(layout, active)
@@ -465,99 +482,155 @@ def plan_node_output_paths(collection_names, layout, settings, nodes, safe_names
         for key, node in active:
             raw_authored = node_raw_file_name(node)
             authored = node_authored_file_name(node)
-            socket_raw = node_socket_stem(node)
-            socket_count = len(node_socket_names(node))
+            socket_names = node_socket_stems(node)
+            socket_stem = "_".join(socket_names)
+            per_socket = node_writes_per_socket(node)
             base_dir = node_base_dir(node, settings)
             target_dir = base_dir
-            raw_name = raw_authored
-            authored_name = authored
+            file_name_to_set = raw_authored
             notes = []
 
-            if resolved == "FILENAME":
-                raw_name = safe_col
-                authored_name = safe_col
-                notes.append("Socket names are ignored by Collection Only.")
-            elif resolved == "SUBFOLDER":
-                target_dir = ensure_slash(safe_join(base_dir, safe_col))
-                if socket_raw:
-                    raw_name = socket_raw
-                    authored_name = socket_raw
-                    notes.append("File name uses the File Output socket name.")
+            if per_socket:
+                all_with_token = bool(socket_names) and all(
+                    _collection_token_in_name(socket, safe_col)
+                    for socket in socket_names
+                )
+                if resolved == "SUBFOLDER":
+                    if socket_names:
+                        target_dir = ensure_slash(safe_join(base_dir, safe_col))
+                        prefix = ""
+                    else:
+                        prefix = safe_col
+                elif resolved == "NONE":
+                    file_name_to_set = raw_authored
+                    prefix = authored
                 else:
+                    # Single-layer nodes append the socket name after
+                    # node.file_name. PREFIX and FILENAME therefore set the
+                    # collection prefix and let Blender add the socket.
+                    if not socket_names:
+                        prefix = safe_col
+                    else:
+                        prefix = "" if all_with_token else safe_col + "_"
+                    file_name_to_set = prefix
+                if resolved != "NONE":
+                    file_name_to_set = prefix
+                final_stems = (
+                    [prefix + socket for socket in socket_names]
+                    if socket_names
+                    else [prefix]
+                )
+                if resolved == "FILENAME":
                     notes.append(
-                        "File Output node has no sockets; using the node file name."
+                        "Single-layer File Output nodes append socket names; "
+                        "Collection Only behaves like Collection + Socket."
                     )
-            elif resolved == "PREFIX":
-                if socket_raw:
-                    composed = compose_collection_socket(safe_col, socket_raw)
-                    if composed == socket_raw:
+                if resolved == "SUBFOLDER":
+                    notes.append("File name uses the File Output socket name.")
+                elif resolved == "PREFIX":
+                    notes.append("File name uses the collection and socket name.")
+                if len(socket_names) > 1:
+                    notes.append(
+                        f"The node has {len(socket_names)} sockets; each one is "
+                        "written as a separate file."
+                    )
+                elif not socket_names:
+                    notes.append(
+                        "The socket name is empty; no node or file-name suffix "
+                        "is added."
+                    )
+                output_items = list(zip(final_stems, socket_names or [""]))
+            else:
+                if resolved == "FILENAME":
+                    file_name_to_set = safe_col
+                    final_stems = [safe_col]
+                    notes.append("Socket names are ignored by Collection Only.")
+                elif resolved == "SUBFOLDER":
+                    target_dir = ensure_slash(safe_join(base_dir, safe_col))
+                    file_name_to_set = socket_stem or safe_col
+                    final_stems = [file_name_to_set]
+                    notes.append("File name uses the File Output socket name.")
+                elif resolved == "PREFIX":
+                    file_name_to_set = (
+                        compose_collection_socket(safe_col, socket_stem)
+                        if socket_stem
+                        else safe_col
+                    )
+                    final_stems = [file_name_to_set]
+                    if socket_stem and file_name_to_set == socket_stem:
                         notes.append(
                             "The socket name already contains the collection "
                             "token; it was not duplicated."
                         )
                     else:
                         notes.append("File name uses the collection and socket name.")
-                    raw_name = composed
-                    authored_name = composed
                 else:
-                    composed = compose_collection_socket(safe_col, authored)
+                    file_name_to_set = raw_authored
+                    final_stems = [authored]
+
+                if not socket_stem:
                     notes.append(
-                        "File Output node has no sockets; using the node file name."
+                        "The File Output node has no socket names; using the "
+                        "collection name."
                     )
-                    raw_name = composed
-                    authored_name = composed
+                elif len(socket_names) > 1:
+                    notes.append(
+                        f"The node has {len(socket_names)} sockets; their names "
+                        "are joined in the file name."
+                    )
+                output_items = [(final_stems[0], socket_stem)]
 
-            if socket_count > 1 and resolved in ("SUBFOLDER", "PREFIX"):
-                notes.append(
-                    f"The node has {socket_count} sockets; their names are joined "
-                    "in the file name."
-                )
-
-            base_path = safe_join(target_dir, authored_name)
             extension = node_output_extension(node)
-            path = base_path + extension
-            try:
-                abs_path = bpy.path.abspath(path)
-            except Exception:
-                abs_path = path
-            try:
-                exists = bool(abs_path) and os.path.exists(abs_path)
-            except Exception:
-                exists = False
+            for file_stem, socket_label in output_items:
+                base_path = safe_join(target_dir, file_stem)
+                path = base_path + extension
+                try:
+                    abs_path = bpy.path.abspath(path)
+                except Exception:
+                    abs_path = path
+                try:
+                    exists = bool(abs_path) and os.path.exists(abs_path)
+                except Exception:
+                    exists = False
 
-            plan = NodeOutputPlan(
-                collection=collection_name,
-                node_key=key,
-                node_name=getattr(node, "name", ""),
-                socket_name=socket_raw,
-                layout=resolved,
-                directory=ensure_slash(target_dir),
-                base_path=base_path,
-                file_name=raw_name,
-                path=path,
-                abs_path=abs_path,
-                extension=extension,
-                slot_paths=list((snapshot_node(node, key)).get("slot_paths", [])),
-                slot_key="name",
-                library=node_is_linked(node),
-                exists=exists,
-                notes=notes,
-            )
-            if plan.library:
-                plan.notes.append(
-                    "The node lives in a linked library and will not be modified."
+                plan = NodeOutputPlan(
+                    collection=collection_name,
+                    node_key=key,
+                    node_name=getattr(node, "name", ""),
+                    socket_name=socket_label,
+                    layout=resolved,
+                    directory=ensure_slash(target_dir),
+                    base_path=base_path,
+                    file_name=file_name_to_set,
+                    path=path,
+                    abs_path=abs_path,
+                    extension=extension,
+                    slot_paths=list(
+                        (snapshot_node(node, key)).get("slot_paths", [])
+                    ),
+                    slot_key="name",
+                    library=node_is_linked(node),
+                    exists=exists,
+                    notes=list(notes),
                 )
+                if plan.library:
+                    plan.notes.append(
+                        "The node lives in a linked library and will not be modified."
+                    )
 
-            owner_key = os.path.normcase(abs_path)
-            owner = f"{collection_name}:{plan.node_name}"
-            if owner_key in owners:
-                plan.collision_with = owners[owner_key]
-                plan.notes.append(
-                    f"Output path collides with '{plan.collision_with}'."
+                owner_key = os.path.normcase(abs_path)
+                owner = (
+                    f"{collection_name}:{plan.node_name}"
+                    f":{socket_label or 'output'}"
                 )
-            else:
-                owners[owner_key] = owner
-            plans.append(plan)
+                if owner_key in owners:
+                    plan.collision_with = owners[owner_key]
+                    plan.notes.append(
+                        f"Output path collides with '{plan.collision_with}'."
+                    )
+                else:
+                    owners[owner_key] = owner
+                plans.append(plan)
     return plans
 
 

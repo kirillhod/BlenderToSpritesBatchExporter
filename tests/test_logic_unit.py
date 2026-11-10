@@ -500,8 +500,9 @@ class ProblemCollectorTest(unittest.TestCase):
 
 
 class FakeOutputFormat:
-    def __init__(self, file_format="OPEN_EXR_MULTILAYER"):
+    def __init__(self, file_format="OPEN_EXR_MULTILAYER", media_type="MULTI_LAYER_IMAGE"):
         self.file_format = file_format
+        self.media_type = media_type
 
 
 class FakeOutputItem:
@@ -613,7 +614,7 @@ class NodeOutputPlanTest(unittest.TestCase):
                 os.path.normpath(os.path.join(tmp, "Body", "Sprite.exr")),
             )
 
-    def test_no_socket_falls_back_to_node_file_name(self):
+    def test_no_socket_does_not_use_node_name(self):
         with tempfile.TemporaryDirectory() as tmp:
             node = FakeOutputNode("File Output", "{blend_name}", "//old", items=())
             settings = self.make_node_settings(tmp, node_naming="SUBFOLDER")
@@ -622,8 +623,70 @@ class NodeOutputPlanTest(unittest.TestCase):
             plans = logic.plan_node_output_paths(
                 ["Body"], "SUBFOLDER", settings, {node._key: node}
             )
-            self.assertTrue(plans[0].path.endswith("Unsaved.exr"))
-            self.assertEqual(plans[0].file_name, "{blend_name}")
+            self.assertTrue(plans[0].path.endswith("Body.exr"))
+            self.assertEqual(plans[0].file_name, "Body")
+
+    def test_single_layer_prefix_appends_socket_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode("Color Node", "Color", "//old", items=("Normal",))
+            node.format = FakeOutputFormat("PNG", media_type="IMAGE")
+            settings = self.make_node_settings(tmp, node_naming="PREFIX")
+            plans = logic.plan_node_output_paths(
+                ["Building_Conveyor_Horizontal"], "PREFIX", settings, {node._key: node}
+            )
+            self.assertEqual(len(plans), 1)
+            self.assertEqual(
+                os.path.basename(plans[0].path),
+                "Building_Conveyor_Horizontal_Normal.png",
+            )
+            self.assertEqual(plans[0].file_name, "Building_Conveyor_Horizontal_")
+            self.assertTrue(logic.apply_node_output_plan(node, plans[0]))
+            self.assertEqual(node.file_name, "Building_Conveyor_Horizontal_")
+
+    def test_single_layer_empty_socket_has_no_node_name_suffix(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode("Color Node", "Color", "//old", items=("",))
+            node.format = FakeOutputFormat("PNG", media_type="IMAGE")
+            settings = self.make_node_settings(tmp, node_naming="PREFIX")
+            plans = logic.plan_node_output_paths(
+                ["Building_Conveyor_Horizontal"], "PREFIX", settings, {node._key: node}
+            )
+            self.assertEqual(
+                os.path.basename(plans[0].path),
+                "Building_Conveyor_Horizontal.png",
+            )
+            self.assertEqual(plans[0].file_name, "Building_Conveyor_Horizontal")
+            self.assertNotIn("Color", plans[0].path)
+
+    def test_single_layer_multiple_sockets_plan_separate_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode(
+                "File Output", "Color", "//old", items=("Beauty", "Mask")
+            )
+            node.format = FakeOutputFormat("PNG", media_type="IMAGE")
+            settings = self.make_node_settings(tmp, node_naming="PREFIX")
+            plans = logic.plan_node_output_paths(
+                ["Body"], "PREFIX", settings, {node._key: node}
+            )
+            self.assertEqual(
+                sorted(os.path.basename(plan.path) for plan in plans),
+                ["Body_Beauty.png", "Body_Mask.png"],
+            )
+            self.assertTrue(all(plan.file_name == "Body_" for plan in plans))
+
+    def test_single_layer_subfolder_uses_socket_file_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode("File Output", "Color", "//old", items=("Normal",))
+            node.format = FakeOutputFormat("PNG", media_type="IMAGE")
+            settings = self.make_node_settings(tmp, node_naming="SUBFOLDER")
+            plans = logic.plan_node_output_paths(
+                ["Body"], "SUBFOLDER", settings, {node._key: node}
+            )
+            self.assertEqual(plans[0].file_name, "")
+            self.assertEqual(
+                os.path.normpath(plans[0].path),
+                os.path.normpath(os.path.join(tmp, "Body", "Normal.png")),
+            )
 
     def test_layout_resolution(self):
         self.assertEqual(logic.resolve_node_layout("AUTO", [object()]), "PREFIX")
