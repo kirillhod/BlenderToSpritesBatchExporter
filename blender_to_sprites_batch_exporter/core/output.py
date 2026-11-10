@@ -1,8 +1,7 @@
-"""Output path planning, File Output nodes and post-render rename helpers."""
+"""Output path planning, File Output nodes and overwrite policies."""
 
 import os
 import re
-import time
 from dataclasses import dataclass, field
 
 import bpy
@@ -40,6 +39,7 @@ class NodeOutputPlan:
     collection: str
     node_key: tuple
     node_name: str
+    socket_name: str
     layout: str
     directory: str
     base_path: str
@@ -360,6 +360,41 @@ def node_authored_file_name(node):
     return sanitize_path_component(resolved)
 
 
+def node_socket_names(node):
+    """Return the File Output socket names, never the node name or label."""
+    items = getattr(node, "file_output_items", None) or ()
+    names = []
+    for item in items:
+        name = str(getattr(item, "name", "") or "").strip()
+        if name:
+            names.append(name)
+    return names
+
+
+def node_socket_stem(node):
+    """Return the sanitized socket identity used in generated file names.
+
+    Blender 5.x stores File Output sockets in ``file_output_items``. A node
+    writes one file, so several sockets are joined to keep all identities in
+    the file name. The node name and label are deliberately ignored.
+    """
+    stems = [
+        sanitize_path_component(_resolve_node_placeholders(name))
+        for name in node_socket_names(node)
+    ]
+    stems = [stem for stem in stems if stem and stem != "untitled"]
+    return "_".join(stems)
+
+
+def compose_collection_socket(collection, socket_name):
+    """Return ``<collection>_<socket>`` without duplicating the collection."""
+    if not socket_name:
+        return collection
+    if _collection_token_in_name(socket_name, collection):
+        return socket_name
+    return f"{collection}_{socket_name}"
+
+
 def node_base_dir(node, settings):
     """Return the directory a node writes to before the collection layout."""
     fallback = settings.output_dir or "//"
@@ -371,12 +406,16 @@ def node_base_dir(node, settings):
 
 
 def resolve_node_layout(layout, active_nodes):
-    """Resolve ``AUTO`` and reject unknown layout names."""
-    layout = str(layout or "SUBFOLDER").upper()
+    """Resolve ``AUTO`` and reject unknown layout names.
+
+    ``AUTO`` always means ``PREFIX``: the file is named after the collection
+    and the File Output socket. Node names and labels never take part.
+    """
+    layout = str(layout or "PREFIX").upper()
     if layout == "AUTO":
-        return "FILENAME" if len(active_nodes) == 1 else "SUBFOLDER"
+        return "PREFIX"
     if layout not in NODE_LAYOUTS:
-        return "SUBFOLDER"
+        return "PREFIX"
     return layout
 
 
@@ -394,7 +433,8 @@ def plan_node_output_paths(collection_names, layout, settings, nodes, safe_names
 
     ``nodes`` is the mapping returned by :func:`collect_file_outputs`.
     In Blender 5.2 ``node.file_name`` is the output file name and
-    ``file_output_items`` are layer names; layer names are never renamed here.
+    ``file_output_items`` are the sockets. Generated names use the socket
+    names; node names and labels are ignored. Layer names are never changed.
     """
     active = list(nodes.items())
     resolved = resolve_node_layout(layout, active)
@@ -409,30 +449,55 @@ def plan_node_output_paths(collection_names, layout, settings, nodes, safe_names
         for key, node in active:
             raw_authored = node_raw_file_name(node)
             authored = node_authored_file_name(node)
+            socket_raw = node_socket_stem(node)
+            socket_count = len(node_socket_names(node))
             base_dir = node_base_dir(node, settings)
             target_dir = base_dir
             raw_name = raw_authored
+            authored_name = authored
             notes = []
 
             if resolved == "FILENAME":
                 raw_name = safe_col
-                authored = safe_col
+                authored_name = safe_col
+                notes.append("Socket names are ignored by Collection Only.")
             elif resolved == "SUBFOLDER":
                 target_dir = ensure_slash(safe_join(base_dir, safe_col))
-            elif resolved == "PREFIX":
-                if (
-                    _collection_token_in_name(raw_authored, safe_col)
-                    or _collection_token_in_name(authored, safe_col)
-                ):
-                    notes.append(
-                        "The node file name already contains the collection "
-                        "token; it was not duplicated."
-                    )
+                if socket_raw:
+                    raw_name = socket_raw
+                    authored_name = socket_raw
+                    notes.append("File name uses the File Output socket name.")
                 else:
-                    raw_name = f"{safe_col}_{raw_authored}"
-                    authored = f"{safe_col}_{authored}"
+                    notes.append(
+                        "File Output node has no sockets; using the node file name."
+                    )
+            elif resolved == "PREFIX":
+                if socket_raw:
+                    composed = compose_collection_socket(safe_col, socket_raw)
+                    if composed == socket_raw:
+                        notes.append(
+                            "The socket name already contains the collection "
+                            "token; it was not duplicated."
+                        )
+                    else:
+                        notes.append("File name uses the collection and socket name.")
+                    raw_name = composed
+                    authored_name = composed
+                else:
+                    composed = compose_collection_socket(safe_col, authored)
+                    notes.append(
+                        "File Output node has no sockets; using the node file name."
+                    )
+                    raw_name = composed
+                    authored_name = composed
 
-            base_path = safe_join(target_dir, authored)
+            if socket_count > 1 and resolved in ("SUBFOLDER", "PREFIX"):
+                notes.append(
+                    f"The node has {socket_count} sockets; their names are joined "
+                    "in the file name."
+                )
+
+            base_path = safe_join(target_dir, authored_name)
             extension = node_output_extension(node)
             path = base_path + extension
             try:
@@ -448,6 +513,7 @@ def plan_node_output_paths(collection_names, layout, settings, nodes, safe_names
                 collection=collection_name,
                 node_key=key,
                 node_name=getattr(node, "name", ""),
+                socket_name=socket_raw,
                 layout=resolved,
                 directory=ensure_slash(target_dir),
                 base_path=base_path,
@@ -597,93 +663,6 @@ def plan_node_outputs_by_collection(collection_names, layout, settings, nodes,
 
 
 # ============================================================
-# POST-RENAME HELPERS (Fallback only)
-# ============================================================
-
-def snapshot_files(dirs, extensions=None):
-    files = set()
-    for d in unique_dirs(dirs):
-        try:
-            abs_d = bpy.path.abspath(d)
-        except Exception:
-            continue
-        if not abs_d or not os.path.isdir(abs_d):
-            continue
-        for root, _, names in os.walk(abs_d):
-            for name in names:
-                if extensions:
-                    ext = os.path.splitext(name)[1].lower()
-                    if ext not in extensions:
-                        continue
-                files.add(os.path.join(root, name))
-    return files
-
-
-def _split_frame_suffix(filename):
-    stem, ext = os.path.splitext(filename)
-    i = len(stem)
-    while i > 0 and stem[i - 1].isdigit():
-        i -= 1
-    digits = stem[i:]
-    base = stem[:i]
-    if digits and len(digits) >= 3:
-        return base, digits, ext
-    return stem, "", ext
-
-
-def prefix_new_files(dirs, prefix, before_files, start_time, extensions=None):
-    if not prefix or before_files is None or start_time is None:
-        return 0
-    current = snapshot_files(dirs, extensions)
-    candidates = set(current) - set(before_files)
-    for path in current:
-        try:
-            if os.path.getmtime(path) >= start_time - 2.0:
-                candidates.add(path)
-        except Exception:
-            pass
-
-    renamed = 0
-    written_targets = set()
-    for path in sorted(candidates):
-        directory, filename = os.path.split(path)
-        base, digits, ext = _split_frame_suffix(filename)
-        base_clean = base.strip()
-
-        if base_clean == prefix or base_clean.startswith(prefix + "_"):
-            continue
-
-        if base_clean == "" or base_clean.lower() == "untitled":
-            new_base = prefix
-        else:
-            new_base = f"{prefix}_{base_clean}"
-
-        new_filename = new_base + digits + ext
-        new_path = os.path.join(directory, new_filename)
-
-        if os.path.normcase(path) == os.path.normcase(new_path):
-            continue
-
-        if os.path.normcase(new_path) in written_targets:
-            stem_only, ext_only = os.path.splitext(new_filename)
-            k = 1
-            while True:
-                alt = os.path.join(directory, f"{stem_only}_{k}{ext_only}")
-                if os.path.normcase(alt) not in written_targets and not os.path.exists(alt):
-                    new_path = alt
-                    break
-                k += 1
-
-        try:
-            os.replace(path, new_path)
-            written_targets.add(os.path.normcase(new_path))
-            renamed += 1
-        except Exception:
-            pass
-    return renamed
-
-
-# ============================================================
 # COMPOSITOR HELPERS (Blender 5.0+ Optimized)
 # ============================================================
 
@@ -829,7 +808,7 @@ def node_is_multilayer(node):
 
 
 def snapshot_node(node, key):
-    # Blender 5.0+ API: file_output_items
+    # Blender 5.0+ API: file_output_items are the node sockets.
     slots = getattr(node, "file_output_items", None)
     slot_paths = []
     if slots is not None:
@@ -854,8 +833,8 @@ def snapshot_node(node, key):
 def apply_node_paths(node, settings, collection_name, snap, safe_name=None):
     """Compatibility wrapper around :func:`plan_node_output_paths`.
 
-    Updates only ``node.directory`` and ``node.file_name``. In Blender 5.2 the
-    entries in ``file_output_items`` are layer names, so they are not touched.
+    Updates only ``node.directory`` and ``node.file_name``. Socket names are
+    read to build the file name and are never renamed.
     """
     mode = str(getattr(settings, "node_naming", "SUBFOLDER") or "SUBFOLDER")
     override = bool(getattr(settings, "node_override_base", False))

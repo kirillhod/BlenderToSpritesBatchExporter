@@ -58,6 +58,11 @@ class BTS_Settings(PropertyGroup):
     )
     last_report: StringProperty(default="", options={'HIDDEN'})
     last_log_path: StringProperty(default="", subtype='FILE_PATH', options={'HIDDEN'})
+    preset_description: StringProperty(
+        name="Preset Description",
+        description="Description stored with a custom JSON preset",
+        default="",
+    )
     debug_log: BoolProperty(name="Debug Log", default=False)
 
     output_dir: StringProperty(name="Output Directory", description="Folder for rendered sprites", default="//sprites/", subtype='DIR_PATH')
@@ -72,13 +77,13 @@ class BTS_Settings(PropertyGroup):
         description="Where the collection identity is placed in File Output paths",
         items=[
             ('AUTO', "Automatic",
-             "Collection Name for one File Output node, Subfolder for several"),
-            ('FILENAME', "Collection Name",
-             "Write <Collection>.exr; requires one File Output node"),
-            ('SUBFOLDER', "Collection Subfolder",
-             "Write <Collection>/<node file name>.exr"),
-            ('PREFIX', "Collection Prefix",
-             "Write <Collection>_<node file name>.exr"),
+             "Write <Collection>_<socket name>.exr for every File Output node"),
+            ('FILENAME', "Collection Only",
+             "Write <Collection>.exr; ignores socket names and requires one node"),
+            ('SUBFOLDER', "Collection Folder",
+             "Write <Collection>/<socket name>.exr"),
+            ('PREFIX', "Collection + Socket",
+             "Write <Collection>_<socket name>.exr"),
             ('NONE', "Don't Modify (manual)",
              "Leave node paths alone; only safe for one collection"),
         ],
@@ -96,19 +101,18 @@ class BTS_Settings(PropertyGroup):
         default=False,
     )
     nodes_connected_only: BoolProperty(name="Only Connected Nodes", description="Use only File Output nodes connected to the compositor output; disconnected nodes never write files", default=True)
-    use_prefix_fallback: BoolProperty(name="Emergency Prefix Rename", description="Rename files after rendering if a File Output node could not be modified. May break external .meta files", default=False)
 
     overwrite_policy: EnumProperty(
         name="Overwrite",
         description="What to do when an output file already exists",
         items=[
+            ('OVERWRITE', "Overwrite", "Replace existing files (recommended)"),
             ('ASK', "Ask", "Ask before overwriting existing files"),
             ('ERROR', "Error", "Stop the export when a file exists"),
             ('SKIP', "Skip", "Skip collections whose files already exist"),
-            ('OVERWRITE', "Overwrite", "Overwrite existing files"),
             ('SUFFIX', "Add Suffix", "Write name_2, name_3, ... instead of overwriting"),
         ],
-        default='ASK',
+        default='OVERWRITE',
     )
 
     camera_axis: EnumProperty(name="View Axis", items=[('TOP', "Top", "Look down -Z"), ('BOTTOM', "Bottom", "Look up +Z"), ('FRONT', "Front", "Look along +Y"), ('BACK', "Back", "Look along -Y"), ('RIGHT', "Right", "Look along -X"), ('LEFT', "Left", "Look along +X")], default='TOP')

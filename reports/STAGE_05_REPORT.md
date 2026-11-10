@@ -4,6 +4,9 @@ Date: 2026-11-10
 Version: 2.0.0
 Status: implemented and verified headless in Blender 5.2.3 LTS.
 
+> Superseded by the 2.0.1 hotfix. The current node naming uses the File Output
+> socket name; see `reports/HOTFIX_2_0_1_REPORT.md`.
+
 ## Result
 
 Stage 5 turns the sidebar into a target-driven UI. Collections are selected in

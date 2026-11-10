@@ -3,6 +3,7 @@
 from bpy.types import Panel, UIList
 
 from .logic import (
+    BUILTIN_PRESET_DESCRIPTIONS,
     BUILTIN_PRESETS,
     DEPTH_CAPABLE,
     get_job_status,
@@ -170,15 +171,22 @@ class BTS_PT_Source(Panel):
 
         layout.separator()
         layout.label(text="Always Include", icon='OUTLINER_COLLECTION')
-        layout.template_list(
-            "BTS_UL_AlwaysInclude",
-            "",
-            settings,
-            "always_include_items",
-            settings,
-            "active_include_index",
-            rows=3,
-        )
+        include_items = settings.always_include_items
+        if len(include_items) == 0:
+            layout.label(
+                text="No collections. Use Add Active to include one.",
+                icon='INFO',
+            )
+        else:
+            layout.template_list(
+                "BTS_UL_AlwaysInclude",
+                "",
+                settings,
+                "always_include_items",
+                settings,
+                "active_include_index",
+                rows=min(3, len(include_items)),
+            )
         row = layout.row(align=True)
         row.operator("bts.add_always_include", text="Add Active", icon='ADD')
         row.operator("bts.remove_always_include", text="Remove", icon='REMOVE')
@@ -295,21 +303,23 @@ class BTS_PT_Output(Panel):
         node_only = bool(settings.use_compositor_nodes and not settings.write_main_output)
         if resolved:
             label = {
-                "FILENAME": "Collection Name",
-                "SUBFOLDER": "Collection Subfolder",
-                "PREFIX": "Collection Prefix",
+                "FILENAME": "Collection Only",
+                "SUBFOLDER": "Collection Folder",
+                "PREFIX": "Collection + Socket",
                 "NONE": "Don't Modify",
             }.get(resolved, resolved)
             layout.label(text=f"Resolved: {label}", icon='INFO')
         if settings.node_naming == 'PREFIX':
             info = layout.box()
-            info.label(text="Prefix is a flat multi-output layout.", icon='INFO')
+            info.label(text="File name = Collection + socket name.", icon='INFO')
+            info.label(text="The node name and label are not used.")
             info.label(text="An existing collection token is not duplicated.")
         if len(nodes) != 1 and settings.node_naming == 'FILENAME':
             warn = layout.box()
             warn.alert = True
-            warn.label(text="Collection Name requires one File Output node.", icon='ERROR')
-            warn.label(text="Use Automatic, Subfolder or Prefix.")
+            warn.label(text="Collection Only ignores socket names.", icon='ERROR')
+            warn.label(text="It requires exactly one File Output node.")
+            warn.label(text="Use Automatic, Collection Folder or Collection + Socket.")
         if len(analysis.targets) > 1 and settings.node_naming == 'NONE':
             warn = layout.box()
             warn.alert = True
@@ -358,9 +368,6 @@ class BTS_PT_Output(Panel):
                     )
                 )
         self._draw_preview(layout, settings, analysis)
-        advanced = layout.box()
-        advanced.label(text="Advanced", icon='PREFERENCES')
-        advanced.prop(settings, "use_prefix_fallback")
         layout.operator("bts.open_output_folder", icon='FILE_FOLDER').path = settings.output_dir
 
     def _draw_preview(self, layout, settings, analysis):
@@ -408,7 +415,7 @@ class BTS_PT_Problems(Panel):
             return
         for severity, icon in (
             ("ERROR", 'ERROR'),
-            ("WARNING", 'WARNING'),
+            ("WARNING", 'STATUS_WARNING'),
             ("INFO", 'INFO'),
         ):
             group = [problem for problem in analysis.problems if problem.severity == severity]
@@ -442,12 +449,22 @@ class BTS_PT_Presets(Panel):
 
     def draw(self, context):
         layout = self.layout
+        settings = context.scene.bts_settings
         for name in BUILTIN_PRESETS:
-            layout.operator("bts.apply_preset", text=name, icon='PRESET').preset = name
+            box = layout.box()
+            box.operator("bts.apply_preset", text=name, icon='PRESET').preset = name
+            description = BUILTIN_PRESET_DESCRIPTIONS.get(name, "")
+            if description:
+                box.label(text=description, icon='INFO')
         layout.separator()
+        layout.prop(settings, "preset_description")
         row = layout.row(align=True)
         row.operator("bts.save_preset", text="Save JSON", icon='FILE_TICK')
         row.operator("bts.load_preset", text="Load JSON", icon='FILEBROWSER')
+        if settings.preset_description:
+            box = layout.box()
+            box.label(text="Current preset description:", icon='INFO')
+            box.label(text=_trim(settings.preset_description))
         layout.label(text="Multi-view presets arrive with 2.1.", icon='INFO')
 
 
