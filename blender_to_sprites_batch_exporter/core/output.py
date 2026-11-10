@@ -137,9 +137,12 @@ def plan_output_paths(collection_names, settings, taken=None):
     taken = set(taken or ())
     extension = format_extension(settings.file_format)
 
+    template = str(getattr(settings, "name_template", "{collection}") or "{collection}")
+    if template.strip() == "{collection}":
+        template = None
     for name in collection_names:
         base_path, path = build_output_path(
-            settings.output_dir, name, settings.file_format
+            settings.output_dir, name, settings.file_format, template=template
         )
         abs_path = bpy.path.abspath(path)
         plan = OutputPlan(

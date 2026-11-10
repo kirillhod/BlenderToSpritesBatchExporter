@@ -363,6 +363,112 @@ def run_analysis_and_cancel_test():
     os.rmdir(out_dir)
 
 
+def run_target_list_test():
+    """Target items drive export; name templates and presets are portable."""
+    from blender_to_sprites_batch_exporter import logic
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon = load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    weapon = make_collection("Weapon")
+    add_cube(body, "BodyCube")
+    add_cube(weapon, "WeaponCube", location=(4.0, 0.0, 0.0), size=0.5)
+
+    out_dir = tempfile.mkdtemp(prefix="bts_targets_")
+    settings = scene.bts_settings
+    settings.output_dir = out_dir
+    settings.file_format = "PNG"
+    settings.color_mode = "RGBA"
+    settings.color_depth = "8"
+    settings.use_compositor_nodes = False
+    settings.export_source = "ALL"
+    settings.isolation_mode = "EXCLUDE"
+    settings.keep_lights = False
+    settings.skip_empty = True
+    settings.overwrite_policy = "OVERWRITE"
+    settings.camera_axis = "TOP"
+    settings.padding_mode = "PIXELS"
+    settings.padding_pixels = 0
+    settings.pixels_per_unit = 16.0
+    settings.resolution_multiple = 1
+    settings.square_output = False
+    settings.min_resolution = 1
+    settings.max_resolution = 0
+
+    logic.rebuild_target_items(bpy.context, settings)
+    names = [item.name for item in settings.target_items]
+    check("Body" in names and "Weapon" in names, "Target list: %r" % (names,))
+
+    body_layer = logic.find_layer_collection(bpy.context.view_layer, "Body")
+    bpy.context.view_layer.active_layer_collection = body_layer
+    bpy.ops.bts.add_always_include()
+    check(
+        any(item.name == "Body" for item in settings.always_include_items),
+        "Always Include was not added",
+    )
+    settings.active_include_index = 0
+    bpy.ops.bts.remove_always_include()
+    check(
+        not any(item.name == "Body" for item in settings.always_include_items),
+        "Always Include was not removed",
+    )
+    bpy.ops.bts.targets_none()
+    check(not any(item.enabled for item in settings.target_items), "Targets None failed")
+    bpy.ops.bts.targets_all()
+    check(all(item.enabled for item in settings.target_items), "Targets All failed")
+    bpy.ops.bts.targets_active()
+    enabled_names = [
+        item.name for item in settings.target_items if item.enabled
+    ]
+    check(enabled_names == ["Body"], "Targets Active: %r" % (enabled_names,))
+    bpy.ops.bts.targets_all()
+
+    body_item = next(item for item in settings.target_items if item.name == "Body")
+    body_item.enabled = False
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(
+        [target.name for target in analysis.targets] == ["Weapon"],
+        "Disabled target was exported: %r"
+        % ([target.name for target in analysis.targets],),
+    )
+    body_item.enabled = True
+
+    settings.name_template = "{collection}_sprite"
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    plan = analysis.main_plan_by_name["Body"]
+    check(
+        plan.path.endswith("Body_sprite.png"),
+        "Name template path: %r" % (plan.path,),
+    )
+
+    settings.pixels_per_unit = 16.0
+    logic.apply_preset(settings, logic.BUILTIN_PRESETS["Pixel Art Top"])
+    check(abs(settings.pixels_per_unit - 32.0) < 1e-6, "Preset was not applied")
+    preset_file = os.path.join(out_dir, "preset.json")
+    logic.export_preset(settings, preset_file)
+    settings.pixels_per_unit = 1.0
+    values, ignored, version = logic.load_preset(preset_file)
+    check(version == logic.PRESET_VERSION and not ignored, "Preset metadata")
+    logic.apply_preset(settings, values)
+    check(abs(settings.pixels_per_unit - 32.0) < 1e-6, "Preset was not loaded")
+
+    result = bpy.ops.bts.apply_preset(preset="Pixel Art Top")
+    check(result == {"FINISHED"}, "Apply preset operator: %r" % (result,))
+    check(abs(settings.pixels_per_unit - 32.0) < 1e-6, "Apply preset did not run")
+    result = bpy.ops.bts.save_preset(filepath=preset_file)
+    check(result == {"FINISHED"}, "Save preset operator: %r" % (result,))
+    settings.pixels_per_unit = 1.0
+    result = bpy.ops.bts.load_preset(filepath=preset_file)
+    check(result == {"FINISHED"}, "Load preset operator: %r" % (result,))
+    check(abs(settings.pixels_per_unit - 32.0) < 1e-6, "Load preset did not apply")
+
+    for name in os.listdir(out_dir):
+        os.remove(os.path.join(out_dir, name))
+    os.rmdir(out_dir)
+
+
 def run_collision_test():
     """Collections that sanitize to the same name must not overwrite each other."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -405,6 +511,56 @@ def run_collision_test():
     for name in files:
         os.remove(os.path.join(out_dir, name))
     os.rmdir(out_dir)
+
+
+class _FakeOperator:
+    pass
+
+
+class _FakeLayout:
+    def __getattr__(self, name):
+        if name in (
+            "use_property_split",
+            "use_property_decorate",
+            "alert",
+            "enabled",
+            "scale_y",
+        ):
+            return False
+
+        def method(*args, **kwargs):
+            if name == "operator":
+                return _FakeOperator()
+            return self
+
+        return method
+
+
+class _DrawHost:
+    def __init__(self):
+        self.layout = _FakeLayout()
+
+
+def run_ui_draw_probe():
+    """Call every panel draw path without a real UI layout."""
+    from blender_to_sprites_batch_exporter import ui
+
+    panels = (
+        ui.BTS_PT_MainPanel,
+        ui.BTS_PT_Source,
+        ui.BTS_PT_Camera,
+        ui.BTS_PT_Resolution,
+        ui.BTS_PT_Output,
+        ui.BTS_PT_Problems,
+        ui.BTS_PT_Presets,
+        ui.BTS_PT_Report,
+    )
+    for panel in panels:
+        host = _DrawHost()
+        for name in dir(panel):
+            if name.startswith("_draw"):
+                setattr(host, name, getattr(panel, name).__get__(host, panel))
+        panel.draw(host, bpy.context)
 
 
 def run_test():
@@ -558,8 +714,10 @@ def run_test():
     settings.auto_cleanup_camera = True
 
     run_collision_test()
+    run_target_list_test()
     run_analysis_and_cancel_test()
     run_compositor_test()
+    run_ui_draw_probe()
 
     files = sorted(os.listdir(out_dir))
     print("SMOKE PASS")

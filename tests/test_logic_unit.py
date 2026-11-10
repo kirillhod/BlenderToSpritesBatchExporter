@@ -196,6 +196,15 @@ class OutputPlanningTest(unittest.TestCase):
         self.assertEqual(base, "//out/_CON")
         self.assertEqual(path, "//out/_CON.jpg")
 
+    def test_name_template(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = self.make_output_settings(
+                tmp, name_template="{collection}_sprite"
+            )
+            plans = logic.plan_output_paths(["Body"], settings)
+            self.assertTrue(plans[0].path.endswith("Body_sprite.png"))
+            self.assertFalse(plans[0].skipped)
+
     def test_plan_detects_collisions(self):
         with tempfile.TemporaryDirectory() as tmp:
             settings = self.make_output_settings(tmp)
@@ -411,6 +420,75 @@ class NodePathTest(unittest.TestCase):
         self.assertEqual(node.directory, "//out")
         self.assertEqual(node.file_name, "Sprite")
         self.assertEqual(item.name, "Sprite")
+
+
+class PresetTest(unittest.TestCase):
+    def make_settings(self):
+        return SimpleNamespace(
+            output_dir="//sprites/",
+            file_format="PNG",
+            color_mode="RGBA",
+            color_depth="8",
+            use_transparent=True,
+            use_compositor_nodes=True,
+            node_naming="AUTO",
+            node_override_base=False,
+            write_main_output=False,
+            nodes_connected_only=True,
+            overwrite_policy="ASK",
+            camera_axis="TOP",
+            camera_margin=10.0,
+            auto_cleanup_camera=True,
+            padding_mode="PIXELS",
+            padding_pixels=16,
+            padding_units=0.1,
+            pixels_per_unit=100.0,
+            resolution_multiple=1,
+            square_output=False,
+            min_resolution=1,
+            max_resolution=0,
+            isolation_mode="EXCLUDE",
+            keep_lights=True,
+            export_source="ALL",
+            skip_empty=True,
+            name_template="{collection}",
+        )
+
+    def test_export_and_load_roundtrip(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "preset.json")
+            settings = self.make_settings()
+            settings.pixels_per_unit = 32.0
+            settings.name_template = "{collection}_sprite"
+            logic.export_preset(settings, path)
+            values, ignored, version = logic.load_preset(path)
+            self.assertEqual(version, logic.PRESET_VERSION)
+            self.assertFalse(ignored)
+            self.assertEqual(values["pixels_per_unit"], 32.0)
+            self.assertEqual(values["name_template"], "{collection}_sprite")
+
+            target = self.make_settings()
+            ignored = logic.apply_preset(target, values)
+            self.assertFalse(ignored)
+            self.assertEqual(target.pixels_per_unit, 32.0)
+
+    def test_unknown_fields_are_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "preset.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write('{"version": 1, "values": {"unknown": 1}}')
+            values, ignored, version = logic.load_preset(path)
+            self.assertEqual(version, 1)
+            self.assertEqual(ignored, ["unknown"])
+            self.assertEqual(values, {"unknown": 1})
+
+    def test_wrong_version_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "preset.json")
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write('{"version": 99, "values": {}}')
+            with self.assertRaises(ValueError):
+                logic.load_preset(path)
 
 
 class ProblemCollectorTest(unittest.TestCase):

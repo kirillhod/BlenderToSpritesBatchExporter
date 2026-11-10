@@ -17,7 +17,7 @@ from blender_to_sprites_batch_exporter import logic, properties  # noqa: E402
 
 class RegistrationContractTest(unittest.TestCase):
     def test_bl_info(self):
-        self.assertEqual(addon.bl_info["version"], (1, 4, 0))
+        self.assertEqual(addon.bl_info["version"], (2, 0, 0))
         self.assertEqual(addon.bl_info["blender"], (5, 2, 0))
 
     def test_operator_ids(self):
@@ -31,6 +31,18 @@ class RegistrationContractTest(unittest.TestCase):
                 "bts.batch_export",
                 "bts.analyze",
                 "bts.cancel_export",
+                "bts.refresh_targets",
+                "bts.targets_all",
+                "bts.targets_none",
+                "bts.targets_active",
+                "bts.activate_target",
+                "bts.add_always_include",
+                "bts.remove_always_include",
+                "bts.copy_report",
+                "bts.open_log",
+                "bts.apply_preset",
+                "bts.save_preset",
+                "bts.load_preset",
                 "bts.preview_camera",
                 "bts.cleanup",
                 "bts.restore_collections",
@@ -50,11 +62,26 @@ class RegistrationContractTest(unittest.TestCase):
                 "BTS_PT_camera",
                 "BTS_PT_resolution",
                 "BTS_PT_output",
+                "BTS_PT_problems",
+                "BTS_PT_presets",
+                "BTS_PT_report",
             },
         )
 
     def test_settings_properties(self):
         expected = {
+            "target_items",
+            "always_include_items",
+            "target_items_migrated",
+            "always_include_migrated",
+            "layout_migrated",
+            "target_search",
+            "active_target_index",
+            "active_include_index",
+            "name_template",
+            "last_report",
+            "last_log_path",
+            "debug_log",
             "output_dir",
             "file_format",
             "color_mode",

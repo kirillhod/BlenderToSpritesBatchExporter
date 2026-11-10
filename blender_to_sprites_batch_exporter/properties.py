@@ -1,11 +1,13 @@
 """Property definitions for the add-on.
 
-Keep property names, defaults and enum identifiers unchanged: scenes store
-these values under ``scene.bts_settings``.
+Keep existing property names and enum identifiers: scenes store these values
+under ``scene.bts_settings``. New 2.0.0 fields have safe defaults and are
+migrated once per scene.
 """
 
 from bpy.props import (
     BoolProperty,
+    CollectionProperty,
     EnumProperty,
     FloatProperty,
     IntProperty,
@@ -14,7 +16,50 @@ from bpy.props import (
 from bpy.types import PropertyGroup
 
 
+def _invalidate_analysis(_self, context):
+    try:
+        from .logic import clear_analysis_cache
+        clear_analysis_cache(context.scene)
+    except Exception:
+        pass
+
+
+class BTS_TargetItem(PropertyGroup):
+    """One collection selected for export."""
+
+    name: StringProperty(name="Collection")
+    enabled: BoolProperty(name="Export", default=True, update=_invalidate_analysis)
+    size_status: StringProperty(name="Status", default="")
+
+
+class BTS_CollectionRef(PropertyGroup):
+    """Reference to a collection that is always included."""
+
+    name: StringProperty(name="Collection")
+
+
 class BTS_Settings(PropertyGroup):
+    target_items: CollectionProperty(type=BTS_TargetItem)
+    always_include_items: CollectionProperty(type=BTS_CollectionRef)
+    target_items_migrated: BoolProperty(default=False, options={'HIDDEN'})
+    always_include_migrated: BoolProperty(default=False, options={'HIDDEN'})
+    layout_migrated: BoolProperty(default=False, options={'HIDDEN'})
+    target_search: StringProperty(name="Filter", default="")
+    active_target_index: IntProperty(default=0, min=0)
+    active_include_index: IntProperty(default=0, min=0)
+    name_template: StringProperty(
+        name="Name Template",
+        description=(
+            "Name for the main render. Use {collection}; for example "
+            "{collection} or {collection}_sprite"
+        ),
+        default="{collection}",
+        update=_invalidate_analysis,
+    )
+    last_report: StringProperty(default="", options={'HIDDEN'})
+    last_log_path: StringProperty(default="", subtype='FILE_PATH', options={'HIDDEN'})
+    debug_log: BoolProperty(name="Debug Log", default=False)
+
     output_dir: StringProperty(name="Output Directory", description="Folder for rendered sprites", default="//sprites/", subtype='DIR_PATH')
     file_format: EnumProperty(name="Format", items=[('PNG', "PNG", ""), ('JPEG', "JPEG", ""), ('OPEN_EXR', "EXR", ""), ('TIFF', "TIFF", ""), ('WEBP', "WebP", ""), ('TARGA', "Targa", ""), ('BMP', "BMP", "")], default='PNG')
     color_mode: EnumProperty(name="Color", items=[('BW', "BW", ""), ('RGB', "RGB", ""), ('RGBA', "RGBA", "")], default='RGBA')
@@ -23,18 +68,33 @@ class BTS_Settings(PropertyGroup):
     use_compositor_nodes: BoolProperty(name="Use File Output Nodes", description="Let File Output nodes write the files", default=True)
 
     node_naming: EnumProperty(
-        name="Collection Goes To",
-        description="How the collection name is applied to File Output nodes",
+        name="Node Output Layout",
+        description="Where the collection identity is placed in File Output paths",
         items=[
-            ('SUBFOLDER', "Subfolder", "base/<Collection>/"),
-            ('PREFIX', "Filename Prefix", "base/<Collection>_<file>"),
-            ('NONE', "Don't Modify", "Leave node paths alone"),
+            ('AUTO', "Automatic",
+             "Collection Name for one File Output node, Subfolder for several"),
+            ('FILENAME', "Collection Name",
+             "Write <Collection>.exr; requires one File Output node"),
+            ('SUBFOLDER', "Collection Subfolder",
+             "Write <Collection>/<node file name>.exr"),
+            ('PREFIX', "Collection Prefix",
+             "Write <Collection>_<node file name>.exr"),
+            ('NONE', "Don't Modify (manual)",
+             "Leave node paths alone; only safe for one collection"),
         ],
-        default='SUBFOLDER',
+        default='AUTO',
     )
 
-    node_override_base: BoolProperty(name="Override Base Paths", description="Replace each node's base path with the Output Directory.", default=False)
-    write_main_output: BoolProperty(name="Also Write Main Render", description="Also save the Render Result to the Output Directory", default=False)
+    node_override_base: BoolProperty(
+        name="Override Node Base Paths",
+        description="Replace every File Output node base path with the Output Directory",
+        default=False,
+    )
+    write_main_output: BoolProperty(
+        name="Also Save Main Render",
+        description="Save the Render Result in addition to File Output files",
+        default=False,
+    )
     nodes_connected_only: BoolProperty(name="Only Connected Nodes", description="Use only File Output nodes connected to the compositor output; disconnected nodes never write files", default=True)
     use_prefix_fallback: BoolProperty(name="Emergency Prefix Rename", description="Rename files after rendering if a File Output node could not be modified. May break external .meta files", default=False)
 
@@ -68,5 +128,5 @@ class BTS_Settings(PropertyGroup):
     isolation_mode: EnumProperty(name="Isolation", items=[('EXCLUDE', "Exclude Collections", ""), ('HIDE', "Disable in Renders", "")], default='EXCLUDE')
     keep_collections: StringProperty(name="Always Include", description="Comma-separated collection names that stay visible", default="")
     keep_lights: BoolProperty(name="Always Keep Lights", default=True)
-    export_source: EnumProperty(name="Export", items=[('ALL', "All Collections", ""), ('INCLUDED', "Only Included", ""), ('ACTIVE', "Active Collection", ""), ('TOPLEVEL', "Top-Level Only", "")], default='ALL')
+    export_source: EnumProperty(name="Export", items=[('ALL', "All Collections", ""), ('INCLUDED', "Only Included", ""), ('ACTIVE', "Active Collection", ""), ('TOPLEVEL', "Top-Level Only", "")], default='ALL', update=_invalidate_analysis)
     skip_empty: BoolProperty(name="Skip Empty Collections", description="Skip collections without renderable geometry", default=True)

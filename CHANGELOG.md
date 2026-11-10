@@ -10,6 +10,40 @@ All notable changes to the project. Versions follow semantic versioning.
   4-5 plan for node output layouts, duplicate-token detection and path preview.
 - Smoke test `tests/smoke_blender.py` and launchers for Windows/POSIX.
 
+## [2.0.0] - 2026-11-10
+
+New interface, collection selection, path preview, presets and reports.
+
+### Added
+- Per-collection target list with checkboxes, search, All/None/Active and
+  Make Active actions, plus size/status text from analysis.
+- Separate Always Include list, migrated once from the legacy
+  `keep_collections` string.
+- `AUTO` and `FILENAME` node layouts. New scenes default to Automatic; saved
+  1.4.x scenes keep their previous layout through a one-time marker.
+- Output path preview for main-render and File Output plans, conflict count and
+  the resolved node layout.
+- Problem panel grouped by ERROR, WARNING and INFO with code, collection and
+  fix hint.
+- Main panel status and progress readout, Analyze, Cancel and export actions.
+- Built-in presets, JSON preset save/load and unknown-field warnings.
+- Report panel with the written file list, Copy Report, Open Log and Open
+  Output Folder.
+- Confirmation dialogs for Remove Camera and Unhide Everything.
+
+### Changed
+- The user-facing node control is renamed to Node Output Layout. Tooltips
+  describe the resulting paths.
+- Format and color controls are hidden for node-only output, which states that
+  File Output writes multilayer EXR.
+- The panel reads the analysis cache instead of scanning nodes and bounds in
+  `draw()`.
+
+### Fixed
+- Empty target or Always Include lists no longer fall back to stale legacy
+  strings after migration.
+- The export report includes every planned main-render and node file.
+
 ## [1.4.0] - 2026-11-10
 
 Preflight, `BatchJob`, cancellation and a complete node output plan.
