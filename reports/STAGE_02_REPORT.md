@@ -12,9 +12,10 @@ behavior changes. All function and class definitions were moved verbatim; the
 AST comparison found no differences. The old single file 1.2.1 is preserved in
 `legacy/`.
 
-The smoke test still cannot run in Blender: `blender` is missing from the
-environment. Instead, static checks were run, the package was imported with
-`bpy` stubs, and pure functions were covered by unit tests.
+The smoke test could not run in Blender at that time: `blender` was missing from
+the environment. Instead, static checks were run, the package was imported with
+`bpy` stubs, and pure functions were covered by unit tests. Blender was
+installed later and the smoke test passed; see `reports/STAGE_03_REPORT.md`.
 
 ## R1.1–R1.6. Package structure
 
@@ -103,7 +104,7 @@ They are not used in Blender.
 | Package import with stubs | OK, 11 classes |
 | Unit tests | 22/22 OK |
 | Zip build | OK, 1.3.0 |
-| Blender 5.2 smoke test | not run (Blender is missing) |
+| Blender 5.2 smoke test | pending at the time (passed in stage 3) |
 
 ## Limitations and risks
 

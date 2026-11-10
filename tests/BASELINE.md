@@ -4,6 +4,10 @@ Date: 2026-11-10
 Add-on version: 1.2.0
 File: `blender_to_sprites_batch_exporter.py`
 
+> Historical reference. This document describes the expected 1.2.0 behavior
+> that later stages were compared against. See `reports/STAGE_03_REPORT.md` and
+> the later reports for the current verification results.
+
 ## Smoke test scene
 
 - Collection `Body` - a 1×1×1 cube at the origin.
@@ -12,7 +16,7 @@ File: `blender_to_sprites_batch_exporter.py`
 - Collection `Lights` - a point light.
 - User camera `MyCamera` (in strict mode, named `_BTS_OrthoCamera`).
 - One object in `Body` has `hide_render = True`.
-- Render engine: Workbench (Blender is not available in the current environment; the test has not been run).
+- Render engine: Workbench.
 
 ## Expected 1.2.0 behavior
 
@@ -39,7 +43,8 @@ BLENDER_EXE=/path/to/blender ./tests/run_tests.sh
 
 ## Execution status
 
-Blender is not installed in the development environment (`blender` is not in
-PATH or in the standard installation directories). The smoke test is written
-and syntax-checked but has not been run. It must be run in Blender 5.2 before
-releasing the hotfix.
+This baseline was written before Blender was installed in the development
+environment, so the first run was pending at that time. The smoke test was
+later executed in Blender 5.2.3 LTS: the base and strict-camera scenarios both
+pass. See `reports/STAGE_03_REPORT.md` for the first verified run and the later
+stage and hotfix reports for the current state.

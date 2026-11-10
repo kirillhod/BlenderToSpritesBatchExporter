@@ -2,7 +2,7 @@
 
 Date: 2026-11-09
 Base: `IMPROVEMENT_PLAN.md` (revision 2)
-Current addon version: 1.2.0, one file `blender_to_sprites_batch_exporter.py` (1137 lines)
+Baseline add-on version: 1.2.0, one file `blender_to_sprites_batch_exporter.py` (1137 lines)
 
 The document describes the specific work order: tasks, dependencies, affected files and functions, checks and readiness criteria. Estimates are indicative, for one developer.
 
