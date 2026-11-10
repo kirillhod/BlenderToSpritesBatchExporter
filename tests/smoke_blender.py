@@ -206,6 +206,27 @@ def run_test():
         }
         check(current_excludes == initial_excludes, "Collection exclude state was not restored")
 
+    # H1.3: with auto cleanup disabled the temporary camera stays, but the
+    # original scene camera must still be restored.
+    settings.auto_cleanup_camera = False
+    result = bpy.ops.bts.batch_export()
+    check(result == {"FINISHED"}, "Batch export with keep-camera did not finish: %r" % (result,))
+
+    owned = [ob for ob in scene.objects if ob.type == "CAMERA" and ob.get("bts_owned_camera")]
+    check(len(owned) == 1, "Temporary camera was not kept: %r" % ([o.name for o in owned],))
+    check(scene.camera == user_cam, "Original scene camera was not restored with keep-camera")
+    check(owned[0] != user_cam, "User camera was reused as temporary camera")
+    if os.environ.get("BTS_STRICT_CAMERA") == "1":
+        check(owned[0].name != user_cam.name, "Temporary camera name collides with user camera")
+
+    result = bpy.ops.bts.cleanup()
+    check(result == {"FINISHED"}, "Cleanup did not finish: %r" % (result,))
+    owned = [ob for ob in scene.objects if ob.type == "CAMERA" and ob.get("bts_owned_camera")]
+    check(not owned, "Cleanup did not remove the temporary camera: %r" % ([o.name for o in owned],))
+    check(scene.camera == user_cam, "Cleanup changed the user scene camera")
+    check(bpy.data.objects.get(user_cam.name) is not None, "Cleanup deleted the user camera")
+    settings.auto_cleanup_camera = True
+
     print("SMOKE PASS")
     print("engine=%s" % engine)
     print("output=%s" % out_dir)
