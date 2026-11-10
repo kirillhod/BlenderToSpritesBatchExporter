@@ -8,6 +8,50 @@ All notable changes to the project. Versions follow semantic versioning.
 - Documentation of the improvement plan and detailed implementation sequence.
 - Smoke test `tests/smoke_blender.py` and launchers for Windows/POSIX.
 
+## [1.3.1] - 2026-11-10
+
+Predictable output paths, safer compositor handling and a complete render state
+restore.
+
+### Added
+- Output path planning with sanitized components, Windows reserved-name
+  handling and a path-length guard. Duplicate paths are detected before
+  rendering.
+- Overwrite policy: `Ask`, `Error`, `Skip`, `Overwrite` and `Add Suffix`.
+  `Ask` shows a confirmation dialog with the affected files; background mode
+  uses `Error` instead.
+- Only File Output nodes connected to the compositor output are used by default
+  (`nodes_connected_only`). Disconnected nodes no longer affect path planning.
+- Render Border, Crop To Border, Stamp and File Extension are captured in the
+  scene snapshot, disabled during export and restored afterwards.
+- Post-export verification of render settings, collection excludes,
+  `hide_render`, node paths and the scene camera; mismatches are reported as
+  aggregated warnings.
+- In Exclude isolation mode, collections containing lights are added to the
+  keep list automatically. Scene-root objects outside the target and keep
+  collections are hidden through the safe `hide_render` path.
+- Format-aware color mode and color depth validation. Invalid combinations are
+  corrected with a warning instead of being silently ignored.
+- New settings: `overwrite_policy`, `nodes_connected_only`,
+  `use_prefix_fallback`.
+
+### Changed
+- `prefix_new_files` is no longer used automatically when a File Output node
+  cannot be updated. It remains available as an explicit emergency option.
+- The Output panel exposes the overwrite policy, connected-node filter and the
+  emergency rename option, and warns about invalid format/color combinations.
+
+### Fixed
+- Node path checks now depend on the actual mode: `Override Base Paths` and
+  `Also Write Main Render` are only validated when File Output nodes are used.
+- Relative `//` paths of every File Output node are validated with the node
+  name in the error message.
+- Linked File Output nodes are never modified and produce a warning.
+- `Don't Modify` node mode stops multi-collection exports that would write all
+  collections to the same paths.
+- Prefix mode now updates and restores `node.file_name` in Blender 5.2, where
+  the output file name is stored separately from `node.directory`.
+
 ## [1.3.0] - 2026-11-10
 
 ### Changed

@@ -2,7 +2,7 @@
 
 from bpy.types import Panel
 
-from .logic import DEPTH_CAPABLE, collect_file_outputs, is_relative_unsaved
+from .logic import DEPTH_CAPABLE, collect_file_outputs, is_relative_unsaved, normalize_image_settings
 
 
 # ============================================================
@@ -51,9 +51,11 @@ class BTS_PT_Source(Panel):
         layout.separator()
         layout.prop(s, "isolation_mode")
         layout.prop(s, "keep_collections", icon='OUTLINER_COLLECTION')
-        sub = layout.row()
-        sub.enabled = (s.isolation_mode == 'HIDE')
-        sub.prop(s, "keep_lights")
+        layout.prop(s, "keep_lights")
+        if s.isolation_mode == 'EXCLUDE' and s.keep_lights:
+            info = layout.box()
+            info.label(text="Light collections are included automatically.", icon='INFO')
+            info.label(text="Other objects in those collections may render too.")
 
 
 class BTS_PT_Camera(Panel):
@@ -113,11 +115,15 @@ class BTS_PT_Output(Panel):
         scene = context.scene
         s = scene.bts_settings
         rd = scene.render
-        node_map = collect_file_outputs(scene)
+        node_map = collect_file_outputs(
+            scene, reachable_only=bool(getattr(s, "nodes_connected_only", True))
+        )
         nodes = list(node_map.values())
 
         if nodes:
             layout.prop(s, "use_compositor_nodes")
+            if s.use_compositor_nodes:
+                layout.prop(s, "nodes_connected_only")
 
         if nodes and s.use_compositor_nodes:
             compositing_off = not getattr(rd, "use_compositing", True)
@@ -140,24 +146,31 @@ class BTS_PT_Output(Panel):
                 info = layout.box()
                 info.label(text="Prefix mode updates node item names natively.", icon='INFO')
                 info.label(text="No post-rename is performed, preserving Unity .meta files.")
+            layout.prop(s, "use_prefix_fallback")
             if s.write_main_output:
-                box = layout.column(align=True)
-                box.prop(s, "file_format")
-                box.prop(s, "color_mode")
-                if s.file_format in DEPTH_CAPABLE:
-                    box.prop(s, "color_depth")
+                self._draw_format(layout, s)
+            layout.prop(s, "overwrite_policy")
             layout.operator("bts.open_output_folder", icon='FILE_FOLDER').path = s.output_dir
             layout.separator()
             layout.label(text=f"{len(nodes)} File Output node(s) active", icon='NODE_COMPOSITING')
         else:
             layout.prop(s, "output_dir")
-            layout.prop(s, "file_format")
-            layout.prop(s, "color_mode")
-            if s.file_format in DEPTH_CAPABLE:
-                layout.prop(s, "color_depth")
+            self._draw_format(layout, s)
+            layout.prop(s, "overwrite_policy")
             layout.prop(s, "use_transparent")
             layout.operator("bts.open_output_folder", icon='FILE_FOLDER').path = s.output_dir
             if nodes:
                 box = layout.box()
                 box.label(text="File Output nodes found but disabled.", icon='INFO')
                 box.label(text="Compositing will be disabled during export.")
+
+    def _draw_format(self, layout, settings):
+        layout.prop(settings, "file_format")
+        layout.prop(settings, "color_mode")
+        if settings.file_format in DEPTH_CAPABLE:
+            layout.prop(settings, "color_depth")
+        _, _, _, problems = normalize_image_settings(settings)
+        for _, message in problems:
+            box = layout.box()
+            box.alert = True
+            box.label(text=message, icon='ERROR')
