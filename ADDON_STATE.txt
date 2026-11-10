@@ -1,0 +1,352 @@
+==================================================================
+BLENDER TO SPRITES BATCH EXPORTER - CURRENT STATUS OF THE PLUGIN
+==================================================================
+Date of analysis: 2026-11-09
+File addon: blender_to_sprites_batch_exporter.py (1137 lines, one file)
+Addon version: 1.2.0
+Author: kirillhod
+Category: Import-Export
+UI location: View3D > Sidebar (N) > "Batch Export" tab
+Stated compatibility: Blender 5.2.0 and later (bl_info["blender"] = (5, 2, 0))
+
+Checking: file syntax compiled successfully (python -m py_compile).
+Running inside Blender and real rendering were not performed - the conclusions below were made by
+from reading the code. README.md is empty (only the repository header).
+
+--------------------------------------------------------------------------------
+1. PURPOSE OF
+--------------------------------------------------------------------------------
+The addon sequentially renders Blender collections into individual
+images (sprites). For each collection:
+- the dimensional box of the entire geometry is calculated;
+- a temporary orthographic camera is created/configured, automatically
+inscribing the contents of the collection into the frame;
+- frame resolution is calculated from the size of the object and the specified scale
+"pixels per unit";
+- the collection is isolated from the rest of the scene;
+- a single render of the current frame to a file is performed.
+
+This is a "one collection = one static frame per run" tool.
+There is no batch generation of animation, set of angles or sprite sheets.
+
+--------------------------------------------------------------------------------
+2. FILE ARCHITECTURE
+--------------------------------------------------------------------------------
+One Python module, no subpackages, no external dependencies (only bpy,
+mathutils, os, time, math). Main blocks:
+
+- bl_info / register() / unregister() - addon registration;
+- PATH HELPERS - working with paths and names;
+- POST-RENAME HELPERS - emergency renaming of
+files after rendering;
+- COMPOSITOR HELPERS - search and edit
+File Output nodes (API Blender 5.0+);
+- BOUNDS - calculation of collection dimensions;
+- LAYER COLLECTION UTILITIES - include/exclude collections;
+- HIDE-RENDER ISOLATION - isolation via hide_render;
+- BTS_Settings (PropertyGroup) - all scene settings;
+- CAMERA MATH - axes, framing, resolution;
+- COLLECTION GATHERING - selection of collections for export;
+- BTS_OT_BatchExport - main operator;
+- Preview / Cleanup / Restore / OpenFolder - auxiliary operators;
+- UI panels: Main, Collections, Camera & Framing,
+    Resolution, Output.
+
+The settings are stored in Scene (scene.bts_settings), that is, they are different for each scene.
+The addon does not have separate Preferences.
+
+--------------------------------------------------------------------------------
+3. OPPORTUNITIES
+--------------------------------------------------------------------------------
+
+3.1. Selecting collections to export (export_source)
+- All Collections — all collections of the View Layer tree;
+- Only Included - only non-excluded (exclude=False) branches;
+- Active Collection - only the active collection in the Outliner;
+- Top-Level Only - only first-level collections.
+
+Additionally:
+- Skip Empty Collections - skip collections without rendered geometry
+(enabled by default);
+- protection against duplicates by as_pointer().
+
+3.2. Isolating a collection when rendering (isolation_mode)
+- "Exclude Collections" (default):
+* before measurement, all collections are included (include_all);
+* for the current collection, all are disabled via layer_collection.exclude
+extraneous branches;
+* parent branches and children of the target collection remain included;
+* you can list "Always Include" - collections that are always visible
+(useful for ambience/light/substrate);
+* after export, the original exclude states are restored.
+  - "Disable in Renders":
+* all collections are included, and foreign objects are set
+        hide_render = True;
+* target collection + Always Include remain visible;
+* cameras and (optional) light sources/Light Probe forced
+remain visible ("Always Keep Lights" option, on by default);
+* original hide_render is restored.
+
+3.3. Automatic orthographic camera
+- View axes: Top (-Z), Bottom (+Z), Front (+Y), Back (-Y),
+    Right (-X), Left (+X);
+- the camera is positioned in the center of the dimensions + offset along the axis of view;
+- ortho_scale is adjusted to the frame size;
+- shift_x/shift_y are reset, clip_start = 0.001, clip_end is calculated
+from the depth of the object;
+- the temporary camera is called "_BTS_OrthoCamera" and is created in the Scene Collection;
+- "Camera Distance Margin" — camera distance from the object boundaries (in scene units);
+- "Remove Camera After Export" - remove a temporary camera after exporting
+(enabled by default);
+- button "Fit Camera to Active" - fit the camera into the active collection without
+rendering (to check framing);
+- "Remove Camera" button - remove the temporary camera manually.
+
+3.4. Calculation of dimensions (bounds)
+- types taken into account: MESH, CURVE, SURFACE, META, FONT, CURVES, POINTCLOUD,
+VOLUME, GREASEPENCIL, GPENCIL;
+- for objects with modifiers, evaluate object from depsgraph is used;
+- collection instances are supported via Empty.instance_collection
+(taking into account matrix_world and instance_offset), nesting depth up to 8;
+- empty/degenerate boxes are ignored;
+- objects with hide_render = True are not taken into account when measuring;
+- traversal of child collections with loop protection.
+
+3.5. Output image resolution
+- Pixels / Unit - base scale (default 100 px/unit);
+- Padding in pixels or scene units (default 16 px);
+- minimum resolution (Min Res);
+- maximum resolution (Max Res, 0 = no limitation);
+- rounding of sides to a specified multiple (Round To Multiple Of);
+- Square Output - forced square frame (larger side is taken);
+- ortho_scale = maximum of frame width/height;
+- scene resolution and resolution_percentage=100 are replaced during rendering
+and restored after.
+
+3.6. Two output modes
+A) Normal render (File Output nodes are missing or node mode is disabled):
+- bpy.ops.render.render(write_still=True) is called for each collection;
+- the file is saved as <Output Dir>/<sanitized collection name>.<ext>;
+- format, color mode and color depth are set in the settings;
+- supported formats: PNG, JPEG, OPEN_EXR, TIFF, WEBP, TARGA, BMP;
+- if there is a File Output node, but the use of nodes is disabled,
+compositing is disabled during export (use_compositing=False),
+so that the nodes do not write unnecessary files.
+
+B) Via File Output of the composer nodes (Blender 5.0+ API):
+- the addon finds all CompositorNodeOutputFile nodes, including nested
+node groups;
+- during the rendering of each collection, the nodes are reconfigured natively:
+node.directory and node.file_output_items[i].name;
+- naming modes:
+* Subfolder - base/<Collection>/<slot>;
+* Filename Prefix - base/<Collection>_<slot>;
+* Don't Modify - node paths do not change;
+- Override Base Paths — replace the base path of each node with the Output Directory;
+- Also Write Main Render - additionally save the usual render result;
+- Blender 5.0+ does not allow "/" in slot names, so slashes and
+backslashes in them are replaced with "_";
+- original paths and node slot names are restored after export;
+- if it is impossible to record paths, fallback renaming is enabled
+already created files (prefix_new_files).
+
+3.7. Security and state recovery
+- before work, pictures are taken: scene camera, resolution, resolution %,
+filepath, format/color/depth, film_transparent, use_compositing,
+exclude states of all layer collections, hide_render of all objects,
+paths and names of File Output node slots;
+- everything is restored in the finally block, including in case of a rendering error;
+- checks are carried out: empty Output Directory, relative path "//" in
+unsaved .blend, inability to create a folder;
+- file names are sanitized: "/" and "\" -> "_", <>:"|?* and
+control characters, spaces and trailing periods are trimmed;
+- empty name is replaced with "untitled";
+- collision protection during emergency renaming (suffixes _1, _2, ...).
+
+3.8. UI and operators
+- BTS_PT_MainPanel - large button Batch Export, Preview, Cleanup,
+Unhide Everything; warning about // in
+unsaved file;
+- BTS_PT_Source - selection of collections and isolation mode;
+- BTS_PT_Camera — axis, camera indent, auto-delete, padding;
+- BTS_PT_Resolution - ppu, multiplicity, square, min/max;
+- BTS_PT_Output — node mode, naming, base paths, format;
+- bts.preview_camera — add the camera to the active collection;
+- bts.cleanup - delete temporary camera;
+- bts.restore_collections — remove all exclude and hide_render from the
+scene (button "Unhide Everything");
+- bts.open_output_folder - open the output folder in Explorer;
+- progress bar via wm.progress_begin/update/end;
+- upon completion, a report is displayed: how much was rendered and how much was skipped.
+
+--------------------------------------------------------------------------------
+4. DEFAULT VALUES
+--------------------------------------------------------------------------------
+output_dir = //sprites/
+file_format = PNG
+color_mode = RGBA
+color_depth = 8
+use_transparent = True
+use_compositor_nodes = True
+node_naming = Subfolder
+node_override_base = False
+write_main_output = False
+camera_axis = Top
+camera_margin = 10.0
+auto_cleanup_camera = True
+padding_mode = Pixels
+padding_pixels = 16
+padding_units = 0.1
+pixels_per_unit = 100.0
+resolution_multiple = 1
+square_output = False
+min_resolution = 1
+max_resolution = 0 (no limit)
+isolation_mode = Exclude Collections
+keep_collections = "" (empty)
+keep_lights = True
+export_source = All Collections
+skip_empty = True
+
+--------------------------------------------------------------------------------
+5. LIMITATIONS AND RISKS
+--------------------------------------------------------------------------------
+
+5.1. Compatibility
+- Blender 5.2.0 is strictly specified in bl_info; on older versions of the addon
+will not load, although the code contains fallback branches for the old compositor API.
+- The code relies on the Blender 5.0+ API: scene.compositing_node_group and
+node.file_output_items. On 4.x and below, operation is not guaranteed and, judging by
+bl_info, is not supported.
+- fallback get_compositor_tree() returns scene.node_tree, but the second
+result element (flag) is not used anywhere.
+
+5.2. Functional limitations
+- In one run, exactly ONE static frame
+(current frame of the scene) is created for each collection. No:
+* render animation/frame sequence;
+* several angles in one pass (for sprites you will have to change the
+axis and run the export several times);
+* sprite sheets/atlases and frame packaging;
+* export metadata (JSON/XML), anchors/pivots, frame boundaries;
+* camera/resolution/anchor settings separately for each collection;
+* frame-by-frame suffixes in the file name (no _0001, _front, etc.);
+* work with other scenes and View Layers (current contextual ones only);
+* background/offline mode (uses UI context, bpy.ops.render).
+- File name = collection name only. Running it again overwrites the
+files without warning.
+- Sanitization can collapse different names into one ("a/b" and "a\b" -> "a_b"),
+there is no separate collision handling for the main output.
+- Windows reserved names (CON, PRN, AUX, NUL,
+COM1...), path length restrictions and case sensitivity.
+
+5.3. Camera and dimensions
+- Dimensions are calculated using the bound_box of evaluated objects. For some
+types (VOLUME, GREASEPENCIL/GPENCIL, POINTCLOUD, particles, hair curves) the
+box may be empty or inaccurate - the collection will be skipped as "empty".
+- Instances are processed only for Empty with instance_collection. Instances
+from Geometry Nodes, Array/Particle systems, collection instance on other
+object types, etc. do not fall into bounds.
+- The depth of nested instances is limited to 8 levels.
+- Objects with hide_render=True are always ignored when measuring, even if they are
+the contents of the target collection (you cannot render an intentionally hidden object).
+- "Camera Distance Margin" is set in scene units and does not depend on the size of the
+object; for very large/small objects the value must be selected.
+- The frame is always centered on the bounding box; Custom camera pivot/offset
+, custom aspect or sensor fit are not supported.
+- Isolation and metering use only scene objects; objects lying
+directly in the Scene Collection (outside collections) are not isolated via exclude
+and can end up in every frame.
+
+5.4. Isolation
+- In "Exclude Collections" mode, the keep_lights option does not apply: a light from a
+individual collection will be excluded unless its collection is added to
+"Always Include". In the UI, the checkbox is correctly disabled in this mode.
+- In "Disable in Renders" mode, hide_render entry is performed without
+try/except on each object. For linked/override objects with
+write prohibition, an execution error may occur.
+- "Unhide Everything" is a deliberately destructive operation: removes exclude
+from all collections and hide_render from all scene objects, without restoring
+to its previous state.
+
+5.5. File Output nodes / composer
+- ALL File Output nodes are collected in the tree, including those not connected to the
+Composite output; extra nodes will also be reconfigured and can write files.
+- In the "Don't Modify" mode without Override Base Paths, the paths do not change: all
+collections are written to the same files and overwrite each other. For
+meaningful use, placeholders are needed in node paths or Subfolder/
+Prefix.
+- Slot names cannot contain "/" (Blender 5.0+ limitation), so
+you cannot create subfolders using slot names - slashes are replaced with "_".
+- Editing nodes inside nested node groups changes the general data of the group; with
+linked library the recording may fail. The library flag in snapshot
+is preserved, but is not used for skipping.
+- If path writing fails, fallback renaming of already created
+files is enabled:
+* scans directories recursively (os.walk) - expensive on large folders;
+* uses heuristics on mtime with a tolerance of 2 seconds and the difference in snapshots,
+can therefore capture extraneous fresh files;
+* silently ignores os.replace errors.
+- "Override Base Paths" and "Also Write Main Render" are checked for an empty
+Output Directory even when nodes are disabled/not in use.
+- Relative path "//" is checked only for Output Directory; the base
+directories of the nodes themselves may turn out to be relative in an unsaved .blend.
+- The compositor is forcibly turned on/off during export, which
+also affects other compositing effects (glare, color grading, etc.).
+
+5.6. Formats and color
+- Not all formats for which there are extensions are available in the UI: no
+JPEG2000, OPEN_EXR_MULTILAYER, TARGA_RAW.
+- For PNG/TIFF/EXR, depth is limited by Blender values; selection 32 for PNG
+can be silently ignored (the TypeError is swallowed, leaving
+the previous value).
+- For JPEG, the RGBA mode is not available: if an error occurs, RGB is forced.
+- The image_settings settings are applied only in normal mode or when
+"Also Write Main Render"; The addon does not change the format of the File Output node itself.
+
+5.7. Performance and UX
+- Rendering is strictly sequential, without parallelism or queues.
+- Composer nodes are scanned every time the Output panel is redrawn.
+- Fallback renaming recursively traverses directories.
+- The progress bar is calculated for the number of measured collections; gaps within the
+cycle are not reflected in percentages.
+- All UI is in English, no localization/translations.
+- There are no own Preferences, keymaps, hotkeys.
+- Batch Export has only {'REGISTER'}, without {'UNDO'}:
+settings/scene changes do not go into the undo stack; recovery is done manually
+in finally. If Blender crashes, the state of the scene and
+nodes will not be restored.
+
+5.8. Object name collisions
+- The temporary camera is searched for by the name "_BTS_OrthoCamera". If the user
+already has a camera with the same name, the addon will reuse it and overwrite the
+transformation/data, and delete it during auto-clearing. There is no check for “camera created by
+addon”.
+
+5.9. Other
+- No tests, CI, linters; README is empty.
+- There is no validation that the active render engine supports the selected
+transparency/format/color.
+- World, fog, shadows and other effects that depend on the
+environment are not taken into account: isolation only changes collections/hide_render.
+
+--------------------------------------------------------------------------------
+6. SUMMARY
+--------------------------------------------------------------------------------
+The plugin is a solid, neatly written single module for
+batch rendering of collections into separate static images with automatic
+orthographic camera. Strengths: thoughtful framing and
+resolutions, two isolation modes, support for File Output nodes Blender 5.x,
+native (without post-renaming) formation of names, correct saving and
+recovery of scene state, clear UI and security checks.
+
+Main limitations: strict binding to Blender 5.2+, lack of animation,
+perspectives, atlases and metadata; limited instance coverage when calculating
+dimensions; risk of conflict with the user camera "_BTS_OrthoCamera"; mode
+"Don't Modify" overwrites files; fallback renaming and editing linked
+nodes have potential side effects; there is no protection against overwriting and tests.
+
+The plugin is suitable for the basic "collection -> one PNG sprite" pipeline, but for
+full generation of sprite sheets/animations will require an extension
+functionality.
+================================================================================
