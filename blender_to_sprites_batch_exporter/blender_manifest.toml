@@ -1,6 +1,6 @@
 schema_version = "1.0.0"
 id = "blender_to_sprites_batch_exporter"
-version = "2.0.3"
+version = "2.0.4"
 name = "Blender To Sprites Batch Exporter"
 tagline = "Batch render collections to sprites with an auto-fitted camera"
 maintainer = "kirillhod"

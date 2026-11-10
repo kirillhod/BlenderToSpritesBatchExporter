@@ -4,9 +4,10 @@ Date: 2026-11-10
 Version: 2.0.0
 Status: implemented and verified headless in Blender 5.2.3 LTS.
 
-> Superseded by the 2.0.1, 2.0.2 and 2.0.3 hotfixes. The current node naming
-> uses the File Output socket name; see `reports/HOTFIX_2_0_1_REPORT.md`,
-> `reports/HOTFIX_2_0_2_REPORT.md` and `reports/HOTFIX_2_0_3_REPORT.md`.
+> Superseded by the 2.0.1-2.0.4 hotfixes. The current node naming uses the
+> File Output socket name; see `reports/HOTFIX_2_0_1_REPORT.md`,
+> `reports/HOTFIX_2_0_2_REPORT.md`, `reports/HOTFIX_2_0_3_REPORT.md` and
+> `reports/HOTFIX_2_0_4_REPORT.md`.
 
 ## Result
 
