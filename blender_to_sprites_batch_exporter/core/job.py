@@ -440,6 +440,11 @@ def _run_preflight(context, settings, allow_existing=False):
                 "or export one collection.",
             )
         if node_only:
+            node_format_ids = {
+                node_output_format_id(node)
+                for node in active_nodes
+                if not node_is_linked(node)
+            }
             formats = sorted(
                 {
                     node_output_format_label(node)
@@ -451,16 +456,25 @@ def _run_preflight(context, settings, allow_existing=False):
             problems.add(
                 "INFO",
                 "node_format",
-                f"File Output nodes write {label}; the add-on image format is not used "
-                "while 'Also Write Main Render' is off.",
-                fix_hint="Enable 'Also Write Main Render' for PNG/JPEG/WebP sprites.",
+                f"File Output nodes write {label}. The add-on Format selector is "
+                "not used while 'Also Save Main Render' is off.",
+                fix_hint="Enable 'Also Save Main Render' to also write "
+                "PNG/JPEG/WebP through the add-on.",
             )
-            if getattr(settings, "file_format", "") not in ("OPEN_EXR", "OPEN_EXR_MULTILAYER"):
+            selected_family = format_family(
+                getattr(settings, "file_format", "")
+            )
+            node_families = {
+                format_family(file_format) for file_format in node_format_ids
+            }
+            if node_families and selected_family not in node_families:
                 problems.add(
                     "WARNING",
                     "node_format_mismatch",
-                    f"Selected format {settings.file_format} will not be used by "
-                    "node-only export.",
+                    f"Selected format {settings.file_format} is ignored; "
+                    f"File Output nodes write {label}.",
+                    fix_hint="Choose a matching node format or enable "
+                    "'Also Save Main Render'.",
                 )
     elif all_file_outputs and getattr(settings, "use_compositor_nodes", False):
         problems.add(

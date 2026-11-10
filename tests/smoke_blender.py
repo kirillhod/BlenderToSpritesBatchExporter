@@ -240,6 +240,28 @@ def run_compositor_test():
         "AUTO multi-node paths: %r" % ([plan.path for plan in auto_two],),
     )
 
+    # A matching node format must not produce a mismatch warning.
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(
+        any(problem.code == "node_format_mismatch" for problem in analysis.problems),
+        "EXR node with PNG selected must warn about the format",
+    )
+    original_media_type = active.format.media_type
+    original_format = active.format.file_format
+    active.format.media_type = "IMAGE"
+    active.format.file_format = "PNG"
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(
+        not any(
+            problem.code == "node_format_mismatch"
+            for problem in analysis.problems
+        ),
+        "Matching PNG node format must not warn",
+    )
+    active.format.media_type = original_media_type
+    active.format.file_format = original_format
+    logic.clear_analysis_cache(scene)
+
     result = bpy.ops.bts.batch_export()
     check(result == {"FINISHED"}, "Compositor export did not finish: %r" % (result,))
     target_dir = os.path.join(out_dir, "Body")

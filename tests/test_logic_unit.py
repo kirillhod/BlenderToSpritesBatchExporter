@@ -631,6 +631,19 @@ class NodeOutputPlanTest(unittest.TestCase):
         self.assertEqual(logic.resolve_node_layout("FILENAME", [object(), object()]), "FILENAME")
         self.assertEqual(logic.resolve_node_layout("UNKNOWN", [object()]), "PREFIX")
 
+    def test_format_family_groups_exr(self):
+        self.assertEqual(logic.format_family("OPEN_EXR"), "EXR")
+        self.assertEqual(logic.format_family("OPEN_EXR_MULTILAYER"), "EXR")
+        self.assertEqual(logic.format_family("PNG"), "PNG")
+        self.assertEqual(logic.format_family(""), "")
+
+    def test_node_output_format_id(self):
+        node = FakeOutputNode("File Output", "Sprite", "//old")
+        self.assertEqual(logic.node_output_format_id(node), "OPEN_EXR_MULTILAYER")
+        node.format = FakeOutputFormat("PNG")
+        self.assertEqual(logic.node_output_format_id(node), "PNG")
+        self.assertEqual(logic.node_output_format_label(node), "PNG")
+
     def test_duplicate_node_paths_are_detected(self):
         with tempfile.TemporaryDirectory() as tmp:
             first = FakeOutputNode("First", "Same", "//old", items=("Sprite",))

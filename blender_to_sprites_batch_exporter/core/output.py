@@ -312,13 +312,29 @@ def node_output_extension(node):
     return EXT_BY_FORMAT.get(file_format, ".exr")
 
 
-def node_output_format_label(node):
-    """Human-readable output format of a File Output node."""
+def node_output_format_id(node):
+    """Return the Blender file-format identifier written by a node."""
     if node_is_multilayer(node):
-        return "EXR multilayer"
+        return "OPEN_EXR_MULTILAYER"
     fmt = getattr(node, "format", None)
     file_format = getattr(fmt, "file_format", "") if fmt is not None else ""
-    return file_format or "EXR multilayer"
+    return file_format or "OPEN_EXR_MULTILAYER"
+
+
+def node_output_format_label(node):
+    """Human-readable output format of a File Output node."""
+    file_format = node_output_format_id(node)
+    if file_format == "OPEN_EXR_MULTILAYER":
+        return "EXR multilayer"
+    return file_format
+
+
+def format_family(file_format):
+    """Group single- and multi-layer EXR for UI comparisons."""
+    value = str(file_format or "").upper()
+    if value in ("OPEN_EXR", "OPEN_EXR_MULTILAYER"):
+        return "EXR"
+    return value
 
 
 def _raw_node_file_stem(node):
@@ -778,7 +794,7 @@ def validate_node_settings(scene, settings, all_file_outputs, using_nodes):
     if using_nodes and settings.write_main_output and not settings.output_dir:
         problems.append((
             'ERROR',
-            "Also Write Main Render is enabled but Output Directory is empty.",
+            "Also Save Main Render is enabled but Output Directory is empty.",
         ))
     if not using_nodes:
         return problems

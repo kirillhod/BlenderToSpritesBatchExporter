@@ -55,8 +55,8 @@ The archive appears in `dist/`. Install it through
 file. The archive can also be checked and installed from the command line:
 
 ```powershell
-blender --command extension validate dist/blender_to_sprites_batch_exporter-2.0.1.zip
-blender --command extension install-file dist/blender_to_sprites_batch_exporter-2.0.1.zip -r user_default --enable
+blender --command extension validate dist/blender_to_sprites_batch_exporter-2.0.2.zip
+blender --command extension install-file dist/blender_to_sprites_batch_exporter-2.0.2.zip -r user_default --enable
 ```
 
 Do not install the legacy folder and the Extension at the same time: both
