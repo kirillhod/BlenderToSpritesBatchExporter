@@ -11,9 +11,11 @@ Stage 1 complete: temporary camera ownership and safe `hide_render` writes
 have been implemented, the version has been raised to 1.2.1, and the smoke
 test has been extended with camera regression cases.
 
-Running the smoke test in Blender is still not possible in the current environment:
-`blender` is not found in `PATH` or the standard installation directories.
-Only the syntax check `python -m py_compile` was completed.
+Running the smoke test in Blender was still not possible at that time:
+`blender` was not found in `PATH` or the standard installation directories.
+Only the syntax check `python -m py_compile` was completed. Blender was
+installed later and the smoke test passed in Blender 5.2.3 LTS; see
+`reports/STAGE_03_REPORT.md`.
 
 ## H1.1. Temporary camera ownership
 
@@ -71,11 +73,15 @@ errors, but the smoke check will appear in stage 3 along with the test scenes.
 
 ## Verification
 
+> Historical note: this section records the state at the end of stage 1.
+> Blender was installed later and the smoke test passed in Blender 5.2.3 LTS;
+> see `reports/STAGE_03_REPORT.md`.
+
 - `python -m py_compile blender_to_sprites_batch_exporter.py tests/smoke_blender.py` - passed.
 - `git diff` reviewed: changes affect only the camera, `hide_render`, version
   and smoke test.
-- Blender smoke test - **not run**: Blender is not installed.
-- `pytest` - not installed; unit tests are planned for stage 2.
+- Blender smoke test - pending at the time: Blender was not installed.
+- `pytest` - not installed at the time; unit tests were added in stage 2.
 
 ## Manual checks before the tag
 

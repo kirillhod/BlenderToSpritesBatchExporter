@@ -121,3 +121,12 @@ The add-on code is in `blender_to_sprites_batch_exporter/`.
 - Unit tests: `./tests/run_unit_tests.ps1`
 - Blender smoke test: `./tests/run_tests.ps1`
 - Release zip: `./tools/build_zip.ps1`
+
+## License
+
+This add-on is licensed under the
+[GNU General Public License v3.0 or later](https://www.gnu.org/licenses/gpl-3.0.html).
+See [LICENSE](LICENSE) for the full text.
+
+You can use it for free, including in commercial projects. If you share a
+modified version, it must stay under the same license.

@@ -5,6 +5,7 @@ All notable changes to the project. Versions follow semantic versioning.
 ## [Unreleased]
 
 ### Added
+- `LICENSE` file with the GNU General Public License v3.0 or later.
 - Documentation of the improvement plan and detailed implementation sequence.
 - UX review of the File Output "Collection Goes To" modes and a revised stage
   4-5 plan for node output layouts, duplicate-token detection and path preview.

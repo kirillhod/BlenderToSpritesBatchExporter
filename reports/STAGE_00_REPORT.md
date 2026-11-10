@@ -7,13 +7,15 @@ Baseline tag: `v1.2.0-baseline`
 ## Status
 
 Stage 0 is partially complete: the branch, baseline tag, smoke harness and
-documentation are prepared. Running the smoke test in Blender is not possible in the current environment:
-`blender` was not found in PATH or the standard installation directories.
+documentation are prepared. Running the smoke test in Blender was not possible
+at that time: `blender` was not found in PATH or the standard installation
+directories. Blender was installed later and the smoke test passed; see
+`reports/STAGE_03_REPORT.md`.
 
 ## What was done
 
 1. Created branch `feature/improvements-v2`.
-2. Tagged commit `9124aed` (`Export overhaul`) as `v1.2.0-baseline`.
+2. Tagged the baseline commit (`Export overhaul`) as `v1.2.0-baseline`.
 3. Added smoke test `tests/smoke_blender.py`:
    - creates two collections with geometry, an empty collection, a light and a camera;
    - runs `bts.batch_export`;
@@ -30,9 +32,13 @@ documentation are prepared. Running the smoke test in Blender is not possible in
 
 ## Verification
 
+> Historical note: this section records the state at the end of stage 0.
+> Blender was installed later and the smoke test passed in Blender 5.2.3 LTS;
+> see `reports/STAGE_03_REPORT.md`.
+
 - `python -m py_compile blender_to_sprites_batch_exporter.py tests/smoke_blender.py` - passed.
-- Blender smoke test - **not run**: Blender is not installed.
-- `pytest` - not installed; unit tests are planned for stage 2.
+- Blender smoke test - pending at the time: Blender was not installed.
+- `pytest` - not installed at the time; unit tests were added in stage 2.
 
 ## Repository notes
 

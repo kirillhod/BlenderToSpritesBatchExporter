@@ -1,7 +1,7 @@
 # Improvement plan for Blender To Sprites Batch Exporter
 
 Date: 2026-11-09
-Current version: 1.2.0 (one file, 1137 lines)
+Baseline version: 1.2.0 (one file, 1137 lines)
 Goal: to increase reliability, expand the capabilities of the sprite pipeline, speed up work and bring the interface to the level of a full-fledged tool, gradually dividing the monolithic module into layers.
 
 > The plan is based on the baseline code analysis in `reports/STAGE_00_REPORT.md`. Time estimates are indicative and are given for one developer; priorities can be changed.
