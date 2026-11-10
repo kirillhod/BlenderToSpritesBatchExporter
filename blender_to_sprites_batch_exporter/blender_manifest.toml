@@ -1,0 +1,10 @@
+schema_version = "1.0.0"
+id = "blender_to_sprites_batch_exporter"
+version = "2.0.4"
+name = "Blender To Sprites Batch Exporter"
+tagline = "Batch render collections to sprites with an auto-fitted camera"
+maintainer = "kirillhod"
+type = "add-on"
+tags = ["Import-Export", "Render"]
+blender_version_min = "5.2.0"
+license = ["SPDX:GPL-3.0-or-later"]
