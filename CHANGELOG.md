@@ -10,6 +10,23 @@ All notable changes to the project. Versions follow semantic versioning.
   4-5 plan for node output layouts, duplicate-token detection and path preview.
 - Smoke test `tests/smoke_blender.py` and launchers for Windows/POSIX.
 
+## [2.0.2] - 2026-11-10
+
+Clarify the node-format preflight messages.
+
+### Changed
+- The node-format warning is only shown when the add-on Format selector really
+  differs from the node output format. A PNG node with PNG selected now shows
+  only the informational note.
+- Messages use the visible `Also Save Main Render` label instead of the old
+  `Also Write Main Render` wording.
+- The mismatch message now states which format the File Output nodes write.
+
+### Tests
+- Added unit coverage for `format_family` and `node_output_format_id`.
+- Smoke coverage checks that matching and mismatching node formats produce the
+  expected preflight results.
+
 ## [2.0.1] - 2026-11-10
 
 Fix pass for the 2.0.0 interface and File Output naming.
