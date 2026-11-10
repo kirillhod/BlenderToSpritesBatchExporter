@@ -14,14 +14,18 @@ with an automatically adjusted orthographic camera.
   scene-root objects outside the target.
 - Support for compositor File Output nodes, including connected-node filtering
   and linked-library protection.
+- File Output files are named after the collection and the node socket
+  (`<Collection>_<socket>.exr` by default); node names and labels are ignored.
 - Predictable output names with collision detection and the overwrite policies
-  Ask, Error, Skip, Overwrite and Add Suffix, including File Output node paths.
+  Overwrite (default), Ask, Error, Skip and Add Suffix, including File Output
+  node paths. Overwrite simply replaces existing files.
 - Settings for resolution, padding, format and transparency, with format-aware
   color validation.
 - Preflight analysis with a grouped problem panel, path preview and a dedicated
   Analyze button.
 - Cancellable batch export between collections, with reliable scene restoration.
-- Built-in presets and JSON preset save/load.
+- Built-in presets with descriptions, plus JSON preset save/load with a custom
+  description stored in the file.
 - A report panel with the written files, copy, log and output-folder actions.
 - Saving and restoring the scene state after export, including border, stamp
   and compositor settings, followed by a verification pass.
@@ -51,8 +55,8 @@ The archive appears in `dist/`. Install it through
 file. The archive can also be checked and installed from the command line:
 
 ```powershell
-blender --command extension validate dist/blender_to_sprites_batch_exporter-2.0.0.zip
-blender --command extension install-file dist/blender_to_sprites_batch_exporter-2.0.0.zip -r user_default --enable
+blender --command extension validate dist/blender_to_sprites_batch_exporter-2.0.1.zip
+blender --command extension install-file dist/blender_to_sprites_batch_exporter-2.0.1.zip -r user_default --enable
 ```
 
 Do not install the legacy folder and the Extension at the same time: both
@@ -101,7 +105,8 @@ Smoke test requires Blender 5.2:
 ## Compatibility
 
 - Blender: 5.2.
-- Operator `bl_idname` values and `scene.bts_settings` properties are preserved.
+- Operator `bl_idname` values and the existing `scene.bts_settings` fields are
+  preserved. The obsolete Emergency Prefix Rename flag was removed.
 - Old `keep_collections`, `export_source` and `node_naming` values are migrated
   once into the new lists and layout marker.
 - Scenes created in 1.2.x open without losing their settings.
@@ -110,6 +115,8 @@ Smoke test requires Blender 5.2:
 
 - File Output node mode writes multilayer EXR files in Blender 5.2. Use the main
   render path for PNG, JPEG or WebP sprites.
+- In node mode, Automatic writes `<Collection>_<socket>.exr`. Collection Folder
+  writes `<Collection>/<socket>.exr`. The node name and label are not used.
 - `Don't Modify` is a manual single-collection mode. Multi-collection exports
   are rejected because one compositor tree cannot route every collection to a
   different file.

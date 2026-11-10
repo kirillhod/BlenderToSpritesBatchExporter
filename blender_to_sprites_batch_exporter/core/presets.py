@@ -75,6 +75,25 @@ BUILTIN_PRESETS = {
     },
 }
 
+BUILTIN_PRESET_DESCRIPTIONS = {
+    "Pixel Art Top": (
+        "Top view, 32 px per unit, 1 px padding and square sprites. "
+        "Best for crisp top-down pixel-art tiles."
+    ),
+    "Platformer Front": (
+        "Front view, 64 px per unit and 2 px padding. "
+        "Best for side-view characters and platformer props."
+    ),
+    "High Resolution Top": (
+        "Top view, 128 px per unit and 8 px padding. "
+        "Best for detailed, high-resolution top-down art."
+    ),
+}
+
+
+def builtin_preset_description(name):
+    return BUILTIN_PRESET_DESCRIPTIONS.get(name, "")
+
 
 def default_preset_dir():
     try:
@@ -105,9 +124,13 @@ def apply_preset(settings, values):
     return ignored
 
 
-def export_preset(settings, filepath):
+def export_preset(settings, filepath, description=""):
+    description = str(
+        description or getattr(settings, "preset_description", "") or ""
+    ).strip()
     data = {
         "version": PRESET_VERSION,
+        "description": description,
         "values": {
             key: getattr(settings, key)
             for key in PRESET_FIELDS
@@ -123,7 +146,7 @@ def export_preset(settings, filepath):
 
 
 def load_preset(filepath):
-    """Return ``(values, ignored, version)`` or raise ValueError."""
+    """Return ``(values, ignored, version, description)`` or raise ValueError."""
     try:
         with open(filepath, "r", encoding="utf-8") as handle:
             data = json.load(handle)
@@ -139,5 +162,6 @@ def load_preset(filepath):
     values = data.get("values")
     if not isinstance(values, dict):
         raise ValueError("Preset has no 'values' object.")
+    description = str(data.get("description", "") or "").strip()
     ignored = [key for key in values if key not in PRESET_FIELDS]
-    return values, ignored, version
+    return values, ignored, version, description

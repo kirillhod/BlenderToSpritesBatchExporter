@@ -10,6 +10,7 @@ Optional environment variables:
 """
 
 import os
+import re
 import sys
 import tempfile
 import traceback
@@ -216,19 +217,28 @@ def run_compositor_test():
     check(
         os.path.normpath(plans[0].path)
         == os.path.normpath(os.path.join(out_dir, "Body.exr")),
-        "Collection Name plan path: %r" % (plans[0].path,),
+        "Collection Only plan path: %r" % (plans[0].path,),
     )
     auto_one = logic.plan_node_output_paths(
         ["Body"], "AUTO", settings, {("Active Output",): active}
     )
-    check(auto_one[0].layout == "FILENAME", "AUTO did not choose Collection Name")
+    check(auto_one[0].layout == "PREFIX", "AUTO did not choose Collection + Socket")
+    check(
+        os.path.normpath(auto_one[0].path)
+        == os.path.normpath(os.path.join(out_dir, "Body_Sprite.exr")),
+        "AUTO socket plan path: %r" % (auto_one[0].path,),
+    )
     auto_two = logic.plan_node_output_paths(
         ["Body"],
         "AUTO",
         settings,
         {("Active Output",): active, ("Unused Output",): unused},
     )
-    check(auto_two[0].layout == "SUBFOLDER", "AUTO did not choose Subfolder")
+    check(
+        sorted(os.path.basename(plan.path) for plan in auto_two)
+        == ["Body_Sprite.exr", "Body_Unused.exr"],
+        "AUTO multi-node paths: %r" % ([plan.path for plan in auto_two],),
+    )
 
     result = bpy.ops.bts.batch_export()
     check(result == {"FINISHED"}, "Compositor export did not finish: %r" % (result,))
@@ -238,6 +248,10 @@ def run_compositor_test():
         name for name in os.listdir(target_dir) if name.lower().endswith(".exr")
     ]
     check(rendered, "File Output node did not write a file: %r" % (target_dir,))
+    check(
+        rendered == ["Sprite.exr"],
+        "Subfolder file must use the socket name: %r" % (rendered,),
+    )
     check(active.directory == original_dir, "Node directory was not restored")
     check(
         [item.name for item in active.file_output_items] == ["Sprite"],
@@ -256,11 +270,7 @@ def run_compositor_test():
     prefix_files = [
         name for name in os.listdir(prefix_dir) if name.lower().endswith(".exr")
     ]
-    check(prefix_files, "Prefix mode did not write a file")
-    check(
-        all(name.startswith("Body_") for name in prefix_files),
-        "Prefix mode file names: %r" % (prefix_files,),
-    )
+    check(prefix_files == ["Body_Sprite.exr"], "Prefix file names: %r" % (prefix_files,))
     check(active.directory == original_dir, "Prefix mode did not restore directory")
     check(active.file_name == original_file_name, "Prefix mode did not restore file name")
 
@@ -444,25 +454,33 @@ def run_target_list_test():
     )
 
     settings.pixels_per_unit = 16.0
+    settings.preset_description = "Custom pixel preset"
     logic.apply_preset(settings, logic.BUILTIN_PRESETS["Pixel Art Top"])
     check(abs(settings.pixels_per_unit - 32.0) < 1e-6, "Preset was not applied")
     preset_file = os.path.join(out_dir, "preset.json")
     logic.export_preset(settings, preset_file)
     settings.pixels_per_unit = 1.0
-    values, ignored, version = logic.load_preset(preset_file)
+    values, ignored, version, description = logic.load_preset(preset_file)
     check(version == logic.PRESET_VERSION and not ignored, "Preset metadata")
+    check(description == "Custom pixel preset", "Preset description: %r" % (description,))
     logic.apply_preset(settings, values)
     check(abs(settings.pixels_per_unit - 32.0) < 1e-6, "Preset was not loaded")
 
     result = bpy.ops.bts.apply_preset(preset="Pixel Art Top")
     check(result == {"FINISHED"}, "Apply preset operator: %r" % (result,))
     check(abs(settings.pixels_per_unit - 32.0) < 1e-6, "Apply preset did not run")
+    check(
+        settings.preset_description == logic.builtin_preset_description("Pixel Art Top"),
+        "Built-in preset description was not applied",
+    )
     result = bpy.ops.bts.save_preset(filepath=preset_file)
     check(result == {"FINISHED"}, "Save preset operator: %r" % (result,))
     settings.pixels_per_unit = 1.0
+    settings.preset_description = ""
     result = bpy.ops.bts.load_preset(filepath=preset_file)
     check(result == {"FINISHED"}, "Load preset operator: %r" % (result,))
     check(abs(settings.pixels_per_unit - 32.0) < 1e-6, "Load preset did not apply")
+    check(settings.preset_description, "Load preset did not restore description")
 
     for name in os.listdir(out_dir):
         os.remove(os.path.join(out_dir, name))
@@ -561,6 +579,19 @@ def run_ui_draw_probe():
             if name.startswith("_draw"):
                 setattr(host, name, getattr(panel, name).__get__(host, panel))
         panel.draw(host, bpy.context)
+
+
+def run_ui_icon_probe():
+    """Every icon used by the panels must exist in this Blender version."""
+    from blender_to_sprites_batch_exporter import ui
+
+    with open(ui.__file__, encoding="utf-8") as handle:
+        source = handle.read()
+    icons = set(re.findall(r"icon=['\"]([A-Z0-9_]+)['\"]", source))
+    parameter = bpy.types.UILayout.bl_rna.functions["label"].parameters["icon"]
+    valid = {item.identifier for item in parameter.enum_items}
+    missing = sorted(icon for icon in icons if icon not in valid)
+    check(not missing, "Unknown UI icons: %r" % (missing,))
 
 
 def run_test():
@@ -718,6 +749,7 @@ def run_test():
     run_analysis_and_cancel_test()
     run_compositor_test()
     run_ui_draw_probe()
+    run_ui_icon_probe()
 
     files = sorted(os.listdir(out_dir))
     print("SMOKE PASS")

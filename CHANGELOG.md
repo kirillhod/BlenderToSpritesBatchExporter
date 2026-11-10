@@ -10,6 +10,33 @@ All notable changes to the project. Versions follow semantic versioning.
   4-5 plan for node output layouts, duplicate-token detection and path preview.
 - Smoke test `tests/smoke_blender.py` and launchers for Windows/POSIX.
 
+## [2.0.1] - 2026-11-10
+
+Fix pass for the 2.0.0 interface and File Output naming.
+
+### Added
+- Descriptions for the built-in presets.
+- A Preset Description field; the description is saved in custom JSON presets
+  and restored when a preset is loaded.
+
+### Changed
+- Automatic node layout now writes `<Collection>_<socket name>.exr`; Collection
+  Folder writes `<Collection>/<socket name>.exr`. Node names and labels are
+  ignored. Collection Only remains available as a legacy mode.
+- Overwrite is the default policy and simply replaces existing files.
+- The Always Include section is compact when its list is empty.
+
+### Fixed
+- The Problems panel no longer passes the invalid `WARNING` icon to Blender
+  5.2; it uses `STATUS_WARNING`.
+- File Output names no longer depend on `node.file_name`, `node.name` or
+  `node.label` when sockets are available.
+
+### Removed
+- The Emergency Prefix Rename option and the post-render prefix fallback. Node
+  path failures now stop the collection cleanly instead of renaming files after
+  the render.
+
 ## [2.0.0] - 2026-11-10
 
 New interface, collection selection, path preview, presets and reports.

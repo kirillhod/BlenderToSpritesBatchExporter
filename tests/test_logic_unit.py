@@ -1,7 +1,6 @@
 import os
 import sys
 import tempfile
-import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -90,22 +89,6 @@ class PathHelpersTest(unittest.TestCase):
             target = os.path.join(tmp, "nested", "dir")
             self.assertTrue(logic.ensure_dir(target))
             self.assertTrue(os.path.isdir(target))
-
-    def test_prefix_new_files(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            path = os.path.join(tmp, "render.png")
-            with open(path, "wb") as handle:
-                handle.write(b"x")
-            renamed = logic.prefix_new_files(
-                [tmp],
-                "Body",
-                before_files=set(),
-                start_time=time.time() - 5.0,
-                extensions={".png"},
-            )
-            self.assertEqual(renamed, 1)
-            self.assertTrue(os.path.exists(os.path.join(tmp, "Body_render.png")))
-            self.assertFalse(os.path.exists(path))
 
 
 class FrameTest(unittest.TestCase):
@@ -460,27 +443,38 @@ class PresetTest(unittest.TestCase):
             settings = self.make_settings()
             settings.pixels_per_unit = 32.0
             settings.name_template = "{collection}_sprite"
+            settings.preset_description = "My pixel preset"
             logic.export_preset(settings, path)
-            values, ignored, version = logic.load_preset(path)
+            values, ignored, version, description = logic.load_preset(path)
             self.assertEqual(version, logic.PRESET_VERSION)
             self.assertFalse(ignored)
             self.assertEqual(values["pixels_per_unit"], 32.0)
             self.assertEqual(values["name_template"], "{collection}_sprite")
+            self.assertEqual(description, "My pixel preset")
 
             target = self.make_settings()
             ignored = logic.apply_preset(target, values)
             self.assertFalse(ignored)
             self.assertEqual(target.pixels_per_unit, 32.0)
 
+    def test_export_accepts_explicit_description(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "preset.json")
+            settings = self.make_settings()
+            logic.export_preset(settings, path, description="Custom description")
+            _values, _ignored, _version, description = logic.load_preset(path)
+            self.assertEqual(description, "Custom description")
+
     def test_unknown_fields_are_reported(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, "preset.json")
             with open(path, "w", encoding="utf-8") as handle:
                 handle.write('{"version": 1, "values": {"unknown": 1}}')
-            values, ignored, version = logic.load_preset(path)
+            values, ignored, version, description = logic.load_preset(path)
             self.assertEqual(version, 1)
             self.assertEqual(ignored, ["unknown"])
             self.assertEqual(values, {"unknown": 1})
+            self.assertEqual(description, "")
 
     def test_wrong_version_is_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -542,7 +536,7 @@ class NodeOutputPlanTest(unittest.TestCase):
         values.update(overrides)
         return SimpleNamespace(**values)
 
-    def test_auto_collection_name_with_one_node(self):
+    def test_auto_uses_collection_and_socket(self):
         with tempfile.TemporaryDirectory() as tmp:
             node = FakeOutputNode("File Output", "Sprite", "//old")
             nodes = {node._key: node}
@@ -550,31 +544,42 @@ class NodeOutputPlanTest(unittest.TestCase):
             plans = logic.plan_node_output_paths(["Body"], "AUTO", settings, nodes)
             self.assertEqual(len(plans), 1)
             plan = plans[0]
-            self.assertEqual(plan.layout, "FILENAME")
-            self.assertEqual(plan.file_name, "Body")
+            self.assertEqual(plan.layout, "PREFIX")
+            self.assertEqual(plan.socket_name, "Sprite")
+            self.assertEqual(plan.file_name, "Body_Sprite")
             self.assertEqual(
                 os.path.normpath(plan.path),
-                os.path.normpath(os.path.join(tmp, "Body.exr")),
+                os.path.normpath(os.path.join(tmp, "Body_Sprite.exr")),
             )
             self.assertTrue(plan.directory.endswith(os.sep) or plan.directory.endswith("/"))
 
-    def test_auto_subfolder_with_two_nodes(self):
+    def test_auto_prefixes_every_node_with_socket(self):
         with tempfile.TemporaryDirectory() as tmp:
-            first = FakeOutputNode("Beauty", "Beauty", "//old", items=("Layer",))
-            second = FakeOutputNode("Mask", "Mask", "//old", items=("Layer",))
+            first = FakeOutputNode("Beauty", "Beauty", "//old", items=("Beauty",))
+            second = FakeOutputNode("Mask", "Mask", "//old", items=("Mask",))
             nodes = {first._key: first, second._key: second}
             settings = self.make_node_settings(tmp)
             plans = logic.plan_node_output_paths(["Body"], "AUTO", settings, nodes)
-            self.assertTrue(all(plan.layout == "SUBFOLDER" for plan in plans))
+            self.assertTrue(all(plan.layout == "PREFIX" for plan in plans))
             self.assertEqual(
                 sorted(os.path.basename(plan.path) for plan in plans),
-                ["Beauty.exr", "Mask.exr"],
+                ["Body_Beauty.exr", "Body_Mask.exr"],
             )
-            self.assertTrue(all("Body" in plan.path for plan in plans))
+
+    def test_socket_name_is_used_not_node_name_or_label(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode("Node Name", "Node File", "//old", items=("Socket",))
+            settings = self.make_node_settings(tmp)
+            plans = logic.plan_node_output_paths(
+                ["Body"], "PREFIX", settings, {node._key: node}
+            )
+            self.assertEqual(plans[0].file_name, "Body_Socket")
+            self.assertNotIn("Node Name", plans[0].file_name)
+            self.assertNotIn("Node File", plans[0].file_name)
 
     def test_prefix_does_not_duplicate_collection_token(self):
         with tempfile.TemporaryDirectory() as tmp:
-            node = FakeOutputNode("File Output", "Body", "//old")
+            node = FakeOutputNode("File Output", "Body", "//old", items=("Body",))
             settings = self.make_node_settings(tmp, node_naming="PREFIX")
             plans = logic.plan_node_output_paths(
                 ["Body"], "PREFIX", settings, {node._key: node}
@@ -582,7 +587,7 @@ class NodeOutputPlanTest(unittest.TestCase):
             self.assertEqual(plans[0].file_name, "Body")
             self.assertTrue(any("already contains" in note for note in plans[0].notes))
 
-    def test_apply_plan_does_not_rename_layers(self):
+    def test_apply_plan_does_not_rename_sockets(self):
         with tempfile.TemporaryDirectory() as tmp:
             node = FakeOutputNode(
                 "File Output", "Sprite", "//old", items=("Beauty", "Mask")
@@ -592,12 +597,25 @@ class NodeOutputPlanTest(unittest.TestCase):
                 ["Body"], "PREFIX", settings, {node._key: node}
             )
             self.assertTrue(logic.apply_node_output_plan(node, plans[0]))
-            self.assertEqual(node.file_name, "Body_Sprite")
+            self.assertEqual(node.file_name, "Body_Beauty_Mask")
             self.assertEqual([item.name for item in node.file_output_items], ["Beauty", "Mask"])
 
-    def test_blend_name_placeholder_is_resolved_for_paths(self):
+    def test_subfolder_uses_socket_name(self):
         with tempfile.TemporaryDirectory() as tmp:
-            node = FakeOutputNode("File Output", "{blend_name}", "//old")
+            node = FakeOutputNode("File Output", "Sprite", "//old", items=("Sprite",))
+            settings = self.make_node_settings(tmp, node_naming="SUBFOLDER")
+            plans = logic.plan_node_output_paths(
+                ["Body"], "SUBFOLDER", settings, {node._key: node}
+            )
+            self.assertEqual(plans[0].file_name, "Sprite")
+            self.assertEqual(
+                os.path.normpath(plans[0].path),
+                os.path.normpath(os.path.join(tmp, "Body", "Sprite.exr")),
+            )
+
+    def test_no_socket_falls_back_to_node_file_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode("File Output", "{blend_name}", "//old", items=())
             settings = self.make_node_settings(tmp, node_naming="SUBFOLDER")
             self.assertEqual(logic.node_raw_file_name(node), "{blend_name}")
             self.assertEqual(logic.node_authored_file_name(node), "Unsaved")
@@ -608,15 +626,15 @@ class NodeOutputPlanTest(unittest.TestCase):
             self.assertEqual(plans[0].file_name, "{blend_name}")
 
     def test_layout_resolution(self):
-        self.assertEqual(logic.resolve_node_layout("AUTO", [object()]), "FILENAME")
-        self.assertEqual(logic.resolve_node_layout("AUTO", [object(), object()]), "SUBFOLDER")
+        self.assertEqual(logic.resolve_node_layout("AUTO", [object()]), "PREFIX")
+        self.assertEqual(logic.resolve_node_layout("AUTO", [object(), object()]), "PREFIX")
         self.assertEqual(logic.resolve_node_layout("FILENAME", [object(), object()]), "FILENAME")
-        self.assertEqual(logic.resolve_node_layout("UNKNOWN", [object()]), "SUBFOLDER")
+        self.assertEqual(logic.resolve_node_layout("UNKNOWN", [object()]), "PREFIX")
 
     def test_duplicate_node_paths_are_detected(self):
         with tempfile.TemporaryDirectory() as tmp:
-            first = FakeOutputNode("First", "Same", "//old")
-            second = FakeOutputNode("Second", "Same", "//old")
+            first = FakeOutputNode("First", "Same", "//old", items=("Sprite",))
+            second = FakeOutputNode("Second", "Same", "//old", items=("Sprite",))
             settings = self.make_node_settings(tmp)
             plans = logic.plan_node_output_paths(
                 ["Body"],

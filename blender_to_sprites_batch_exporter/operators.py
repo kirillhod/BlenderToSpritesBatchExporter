@@ -12,6 +12,7 @@ from .logic import (
     add_always_include,
     analyze_scene,
     apply_preset,
+    builtin_preset_description,
     clear_analysis_cache,
     configure_camera,
     default_preset_dir,
@@ -383,7 +384,9 @@ class BTS_OT_ApplyPreset(Operator):
         if values is None:
             self.report({'WARNING'}, f"Unknown preset: {self.preset}")
             return {'CANCELLED'}
-        apply_preset(context.scene.bts_settings, values)
+        settings = context.scene.bts_settings
+        apply_preset(settings, values)
+        settings.preset_description = builtin_preset_description(self.preset)
         clear_analysis_cache(context.scene)
         self.report({'INFO'}, f"Applied preset: {self.preset}")
         return {'FINISHED'}
@@ -397,8 +400,17 @@ class BTS_OT_SavePreset(Operator):
 
     filepath: StringProperty(subtype='FILE_PATH', default="")
     preset_name: StringProperty(default="custom")
+    description: StringProperty(
+        name="Description",
+        description="Description stored inside the preset file",
+        default="",
+    )
 
     def invoke(self, context, event):
+        if not self.description:
+            self.description = getattr(
+                context.scene.bts_settings, "preset_description", ""
+            )
         if not self.filepath:
             self.filepath = preset_path(self.preset_name) or "preset.json"
         context.window_manager.fileselect_add(self)
@@ -406,11 +418,16 @@ class BTS_OT_SavePreset(Operator):
 
     def execute(self, context):
         filepath = bpy.path.ensure_ext(self.filepath, ".json")
+        settings = context.scene.bts_settings
+        description = self.description or getattr(
+            settings, "preset_description", ""
+        )
         try:
-            export_preset(context.scene.bts_settings, filepath)
+            export_preset(settings, filepath, description=description)
         except Exception as exc:  # noqa: BLE001
             self.report({'ERROR'}, f"Could not save preset: {exc}")
             return {'CANCELLED'}
+        settings.preset_description = description
         self.report({'INFO'}, f"Preset saved: {filepath}")
         return {'FINISHED'}
 
@@ -432,11 +449,13 @@ class BTS_OT_LoadPreset(Operator):
     def execute(self, context):
         filepath = bpy.path.ensure_ext(self.filepath, ".json")
         try:
-            values, ignored, _version = load_preset(filepath)
+            values, ignored, _version, description = load_preset(filepath)
         except ValueError as exc:
             self.report({'ERROR'}, str(exc))
             return {'CANCELLED'}
-        apply_preset(context.scene.bts_settings, values)
+        settings = context.scene.bts_settings
+        apply_preset(settings, values)
+        settings.preset_description = description
         clear_analysis_cache(context.scene)
         if ignored:
             self.report(

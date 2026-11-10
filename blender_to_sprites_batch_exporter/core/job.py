@@ -30,7 +30,6 @@ ANALYSIS_SETTING_ATTRS = (
     "node_override_base",
     "write_main_output",
     "nodes_connected_only",
-    "use_prefix_fallback",
     "overwrite_policy",
     "camera_axis",
     "camera_margin",
@@ -428,8 +427,8 @@ def _run_preflight(context, settings, allow_existing=False):
             problems.add(
                 "ERROR",
                 "node_layout_conflict",
-                "Collection Name layout requires exactly one active File Output node.",
-                fix_hint="Use Automatic, Subfolder or Filename Prefix instead.",
+                "Collection Only layout requires exactly one active File Output node.",
+                fix_hint="Use Automatic, Collection Folder or Collection + Socket instead.",
             )
         if resolved_layout == "NONE" and len(targets) > 1:
             problems.add(
@@ -437,7 +436,8 @@ def _run_preflight(context, settings, allow_existing=False):
                 "node_manual_multi_target",
                 "Don't Modify is a manual single-collection mode and cannot be used "
                 "for several collections.",
-                fix_hint="Use Subfolder or Filename Prefix, or export one collection.",
+                fix_hint="Use Automatic, Collection Folder or Collection + Socket, "
+                "or export one collection.",
             )
         if node_only:
             formats = sorted(
@@ -968,8 +968,6 @@ class BatchJob:
             )
         view_layer.update()
 
-        rename_scan_dirs = []
-        do_prefix_rename = False
         node_failed = False
 
         if self.analysis.using_nodes:
@@ -1000,13 +998,9 @@ class BatchJob:
                         "WARNING",
                         f"{plan.node_name}: could not update the File Output node paths.",
                     )
-                    if getattr(settings, "use_prefix_fallback", False):
-                        do_prefix_rename = True
-                        rename_scan_dirs.append(plan.directory)
-                    else:
-                        break
+                    break
 
-        if node_failed and not do_prefix_rename:
+        if node_failed:
             self.result.skipped += 1
             return
 
@@ -1024,15 +1018,6 @@ class BatchJob:
                     settings.output_dir, sanitize_path_component(collection.name)
                 )
 
-        rename_before = None
-        render_start = time.time()
-        if do_prefix_rename:
-            rename_scan_dirs = unique_dirs(rename_scan_dirs)
-            for directory in rename_scan_dirs:
-                ensure_dir(directory)
-            extensions = self._render_extensions()
-            rename_before = snapshot_files(rename_scan_dirs, extensions or None)
-
         try:
             bpy.ops.render.render(write_still=write_still)
             self.result.rendered += 1
@@ -1040,20 +1025,6 @@ class BatchJob:
             self.result.failed += 1
             self._report("WARNING", f"Render failed for '{collection.name}': {exc}")
             return
-
-        if do_prefix_rename:
-            safe_name = (
-                plan.safe_name
-                if plan is not None
-                else sanitize_path_component(collection.name)
-            )
-            prefix_new_files(
-                rename_scan_dirs,
-                safe_name,
-                rename_before,
-                render_start,
-                self._render_extensions() or None,
-            )
 
         if plan is not None and not plan.skipped:
             self.result.files.append(plan.path)
