@@ -427,6 +427,10 @@ You can conduct in parallel:
 **Result:** all checks before rendering, thin operator, cancel and guaranteed recovery.
 **Estimate:** 2-4 days.
 
+> Plan revision 2026-11-10: stage 4 also introduces the resolved node output
+> plan from `reports/UX_REVIEW_COLLECTION_GOES_TO.md`. The UI redesign and the
+> new layout choices remain in stage 5.
+
 ### J1. Problem Model
 - **Depends on:** Stage 3.
 - **Files:** `logic.py` (later `core/job.py`).
@@ -444,6 +448,8 @@ You can conduct in parallel:
 2. `Target` stores the collection, bounds, frame, output paths, skip reason.
 3. `JobConfig` - axes, frames, policy, format, isolation mode.
 4. `JobResult` — rendered/skipped/failed, time, problems, list of files.
+5. `NodeOutputPlan` — collection, node name, resolved layout, effective base
+   directory, file name, full path, layer names, existing-file state and notes.
 - **Check:** types are used in preflight and render; mypy is optional, but the imports are clean.
 - **Done:** data is not transmitted in long tuples.
 
@@ -452,11 +458,41 @@ You can conduct in parallel:
 - **Actions:**
 1. Collect targets without changing the scene.
 2. Check: empty collections, bounds, camera, paths, collisions, existing files, nodes, linked data, format/color, border/stamp, isolation.
-3. Do not render or change user settings (except for safe reading/evaluation).
-4. If for measurement you need to temporarily change the visibility/exclude, use `SceneState` and restore until the result is returned.
-5. Return `AnalysisResult` with problems and plan.
+3. For node mode, check every `NodeOutputPlan`: layout compatibility, duplicate
+   collection tokens, duplicate final paths, existing files and linked nodes.
+4. Do not render or change user settings (except for safe reading/evaluation).
+5. If for measurement you need to temporarily change the visibility/exclude, use `SceneState` and restore until the result is returned.
+6. Return `AnalysisResult` with problems and plan.
 - **Check:** smoke scenes with each error give the expected code and message; there are no false positives.
 - **Done:** user sees problems before launch.
+
+### J3.1. Node output plan (no UI change)
+- **Depends:** J2, J3, F1.4.
+- **Files:** `logic.py`, later `core/output.py`.
+- **Actions:**
+1. Add `resolve_node_layout(layout, active_nodes)` returning the effective
+   layout. `AUTO` resolves to `FILENAME` with one active File Output node and to
+   `SUBFOLDER` with several. The resolver is the only place for this decision.
+   The layout values are internal constants in 1.4.0; U1 exposes `FILENAME` and
+   `AUTO` in the enum.
+2. Add `plan_node_output_paths(collection_names, settings, nodes)` returning
+   `NodeOutputPlan` entries. In Blender 5.2 `node.file_name` is the output file
+   name and `file_output_items` are layer names; they must not be renamed.
+3. Implement `FILENAME`: `node.file_name = <sanitized collection>`; valid only
+   when exactly one active node. Return an ERROR otherwise.
+4. Implement the duplicate-token guard for `PREFIX`: if the authored file name
+   already equals the collection or starts with `<Collection>_`
+   (case-insensitive), do not prepend the token again and add an INFO note.
+5. Detect duplicate final paths across collections and nodes before rendering;
+   report them with node names and the suggested layout.
+6. Keep `NONE` as a manual single-target mode. For several target collections
+   return an actionable ERROR instead of silently overwriting.
+7. Expose the actual node format to preflight: Blender 5.2 File Output nodes
+   write multilayer EXR, so node-only mode cannot use the add-on PNG/JPEG
+   format.
+- **Check:** unit tests for every layout, AUTO selection, duplicate-token
+  guard, duplicate paths, layer names unchanged and the single-target rule.
+- **Done:** every node output path is known and validated before rendering.
 
 ### J4. Analysis cache and "Analysis" operator
 - **Depends:** J3.
@@ -491,7 +527,7 @@ You can conduct in parallel:
 ### J7. `Ask` via preflight
 - **Depends:** J3, J4.
 - **Actions:**
-1. If the policy `Ask` and there are existing files, show a dialog with the quantity and list.
+1. If the policy `Ask` and there are existing files, show a dialog with the quantity and list. The list includes both main-render paths and `NodeOutputPlan` paths.
 2. Confirmation starts job; failure - `CANCELLED`.
 3. For headless - `Error`.
 - **Check:** restart asks for confirmation; refusing doesn't change anything.
@@ -507,8 +543,10 @@ You can conduct in parallel:
 - **Ready:** fault tolerance confirmed.
 
 ### J9. Tests and tag 1.4.0
-- **Actions:** smoke on preflight, cancel, ask, restore; unit on `ProblemCollector`; version 1.4.0.
-- **Done:** preflight/job are stable.
+- **Actions:** smoke on preflight, cancel, ask, restore; unit on
+  `ProblemCollector` and `NodeOutputPlan`; source-level checks that layer names
+  are unchanged in every layout; version 1.4.0.
+- **Done:** preflight/job are stable and node output paths are covered.
 
 ### J10. Dividing `logic.py` into `core/*` (by criterion)
 - **When:** `logic.py` > ~700–800 rows or independent reasons for the change appeared.
@@ -533,6 +571,11 @@ You can conduct in parallel:
 4. Properties for axes (later), policy, name template, canvas size.
 5. Do not mix the list of goals and the “Always Include” list: these are different sets.
 6. `export_source` to be used only as a starting filter for filling `target_items`; after filling, the source of truth is `target_items`.
+7. Extend `node_naming` with `FILENAME` (Collection Name) and `AUTO`
+   (Automatic). Keep the existing identifiers `SUBFOLDER`, `PREFIX` and `NONE`.
+8. Add a layout migration marker. New scenes default to `AUTO`; old scenes are
+   mapped to their previous layout (`SUBFOLDER`, `PREFIX` or `NONE`) once. Do
+   not change the property name or the `scene.bts_settings` contract.
 - **Check:** old scenes are opened, the list is filled, the migration is one-time.
 - **Done:** data for UIList is available.
 
@@ -569,15 +612,34 @@ You can conduct in parallel:
 - **Done:** user understands what to fix.
 
 ### U5. Output and name panel
-- **Depends:** F1, U1.
+- **Depends:** F1, U1, J3.1.
 - **Actions:**
-1. Name template field + 2–3 examples.
-2. List of conflicts before launch.
-3. Rewrite policy (`Ask` by default).
-4. Format/color/depth with dependent fields.
-5. “Open folder” button.
-- **Check:** preview matches actual names; invalid values are not available.
-- **Done:** output is configured predictably.
+1. Rename the user-facing control from “Collection Goes To” to “Node Output
+   Layout”. Provide tooltips with the exact resulting path for every choice.
+2. Show `Automatic` as the recommended layout and display the resolved layout
+   next to it (“Automatic: Collection Name” or “Automatic: Subfolder”).
+3. Add a path preview for the active collection or the first target. Show
+   relative paths from `NodeOutputPlan`, including duplicates and existing
+   files. Use the same resolver as preflight and the job.
+4. Expose Collection Name only when there is one active File Output node. For
+   several nodes show why it is unavailable and suggest Automatic, Subfolder or
+   Prefix.
+5. Disable `Don't Modify` for multi-target exports and explain that one
+   compositor tree cannot route different collections to different files.
+6. Show the node output format read-only as EXR multilayer when the main render
+   is off. Show the add-on format/color/depth controls only when `Also Write
+   Main Render` is enabled.
+7. Update the Prefix help text: it is a flat multi-output layout and never
+   duplicates a collection token that is already present in the file name.
+8. Name template field + 2–3 examples.
+9. List of conflicts before launch, covering main-render and node paths.
+10. Rewrite policy (`Ask` by default).
+11. “Open folder” button.
+- **Check:** preview matches actual names for every layout; invalid layouts are
+  not available; a scene with one node and Automatic writes
+  `<Collection>.exr`; Prefix does not produce `Body_Body.exr`.
+- **Done:** output is configured predictably and node mode is understandable
+  before rendering.
 
 ### U6. Presets
 - **Depends on:** U3–U5.
@@ -591,9 +653,10 @@ You can conduct in parallel:
 ### U7. Report and log
 - **Depends:** J5, U3.
 - **Actions:**
-1. Summary: files, time, skipped/failed, paths.
+1. Summary: files, time, skipped/failed, paths. Include every written
+   `NodeOutputPlan` path, not only the main render.
 2. Buttons “Open folder”, “Open log”, “Copy report”.
-3. Log with timings and debug mode.
+3. Log with timings, debug mode and the resolved node layout.
 - **Check:** after export, the report matches the files.
 - **Done:** we check the result without the console.
 
@@ -609,8 +672,9 @@ You can conduct in parallel:
 ### U9. Signatures, warnings, localization
 - **Depends:** U3–U5.
 - **Actions:**
-1. Rename ambiguous parameters.
-2. Add tooltips and examples.
+1. Rename ambiguous parameters, including “Collection Goes To” to “Node Output
+   Layout”, “Base Dir”/“Fallback Dir” and “Also Write Main Render”.
+2. Add tooltips and examples with the resulting paths.
 3. Confirmations for “Unhide Everything”, deleting camera, overwriting.
 4. Optional RU/EN via `bpy.app.translations`.
 - **Check:** the user understands the parameters without reading the code.
@@ -670,10 +734,12 @@ You can conduct in parallel:
 ### A5. Name templates
 - **Depends:** F1, A4.
 - **Actions:**
-1. Tokens `{collection}`, `{axis}`, `{frame}`, `{index}`, `{scene}`, `{date}`.
+1. Tokens `{collection}`, `{node}`, `{axis}`, `{frame}`, `{index}`, `{scene}`, `{date}`.
 2. Validation of unknown tokens.
-3. Preview and check collisions before rendering.
-4. Sanitization after substitution.
+3. Preview and check collisions before rendering, using `NodeOutputPlan` when
+   File Output nodes are active.
+4. Sanitization after substitution, with the same duplicate-token guard as the
+   node layouts.
 - **Verification:** unit tests for all tokens and errors.
 - **Done:** names are customizable without risk.
 
@@ -810,6 +876,7 @@ You can conduct in parallel:
 | Unit | paths, names, templates, `compute_frame`, axes, `ProblemCollector` | after R1.8, F1, A1–A5 |
 | Smoke basic | export, names, sizes, restoration | S0, after each stage |
 | Smoke compositor | File Output nodes, SUBFOLDER/PREFIX/NONE, linked nodes | stages 3–4 |
+| Smoke node naming | AUTO, FILENAME, SUBFOLDER, PREFIX, NONE, duplicate token, several nodes, path preview | stages 4–5 |
 | Smoke safety | camera, linked hide_render, border/stamp, cancel | stages 1, 3, 4 |
 | Smoke collision | collisions, policies, Ask/Error/Skip/Overwrite/Suffix | Stage 3-4 |
 | Smoke sprites | single canvas, pixel snap, multi-view, templates | stage 6 |
@@ -838,8 +905,8 @@ For Windows, the path to Blender is set by the `BLENDER_EXE` variable so that th
 | M1 | Hotfix cameras/hide_render | 1.2.1 |
 | M2 | 5 files without behavior change | 1.3.0 |
 | M3 | Paths, nodes, state, isolation | 1.3.1 |
-| M4 | Preflight, `BatchJob`, cancel | 1.4.0 |
-| M5 | New UI, presets, report | 2.0.0 |
+| M4 | Preflight, `BatchJob`, cancel, node output plan | 1.4.0 |
+| M5 | New UI, node layouts and preview, presets, report | 2.0.0 |
 | M6 | Single canvas, multi-view, templates | 2.1.0 |
 | M7 | Bounds, animation, metadata | 2.2.0 |
 | M8 | Atlas, CLI, parallelism | 2.3.0+ |
@@ -878,5 +945,10 @@ After this, you can move on to R1.1–R1.7 - division into 5 files without addin
 - **UI overload.** Introduce elements in stages U1–U5, do not try to create the entire layout at once.
 - **Too many files.** Do not create `core/*` until step J10; the criterion is real growth and the second reason for the change.
 - **Cancel inside render.** Do not promise instant stop; cancel - between tasks.
+- **Node mode is EXR-only in Blender 5.2.** Do not present File Output nodes as
+  a way to write PNG/JPEG. Offer the main render path for those formats.
+- **Layer names are not file names.** In Blender 5.2 `file_output_items` are
+  layers inside one EXR. Never rename them for path planning; keep the old API
+  behavior behind a capability check.
 - **Linked data compatibility.** Always check `id_data.library` and do not write to other people's data.
 - **Migration of settings.** New fields and lists should have safe default values; old scenes should not change behavior without explicit user action.
