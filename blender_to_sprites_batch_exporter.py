@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Blender To Sprites Batch Exporter",
     "author": "kirillhod",
-    "version": (1, 2, 0),
+    "version": (1, 2, 1),
     "blender": (5, 2, 0),
     "location": "View3D > Sidebar (N) > Batch Export",
     "description": "Batch render collections to sprites with an auto-fitted orthographic camera.",
@@ -29,6 +29,7 @@ from bpy.types import Operator, Panel, PropertyGroup
 # ============================================================
 
 ADDON_CAM_NAME = "_BTS_OrthoCamera"
+ADDON_CAM_OWNED = "bts_owned_camera"
 
 GEOMETRY_TYPES = {
     'MESH', 'CURVE', 'SURFACE', 'META', 'FONT',
@@ -595,33 +596,44 @@ def objects_in_collection(collection, out=None, visited=None):
     return out
 
 
+def set_hide_render_safe(ob, value, failures=None):
+    try:
+        if ob.hide_render != value:
+            ob.hide_render = value
+        return True
+    except Exception:
+        if failures is not None and ob.name not in failures:
+            failures.append(ob.name)
+        return False
+
+
 def snapshot_hide_render(scene):
     return {ob.name: ob.hide_render for ob in scene.objects}
 
 
-def restore_hide_render(scene, snapshot):
+def restore_hide_render(scene, snapshot, failures=None):
     for name, state in snapshot.items():
         ob = bpy.data.objects.get(name)
         if ob is not None:
-            try:
-                ob.hide_render = state
-            except Exception:
-                pass
+            set_hide_render_safe(ob, state, failures)
 
 
-def isolate_collection_by_hide(scene, target_collection, keep_collections=(), keep_lights=True):
+def isolate_collection_by_hide(scene, target_collection, keep_collections=(), keep_lights=True, failures=None):
+    if failures is None:
+        failures = []
     keep_objs = objects_in_collection(target_collection)
     for col in keep_collections:
         if col is not None:
             keep_objs |= objects_in_collection(col)
     for ob in scene.objects:
         if ob.type == 'CAMERA':
-            ob.hide_render = False
+            set_hide_render_safe(ob, False, failures)
             continue
         if keep_lights and ob.type in {'LIGHT', 'LIGHT_PROBE'}:
-            ob.hide_render = False
+            set_hide_render_safe(ob, False, failures)
             continue
-        ob.hide_render = ob.name not in keep_objs
+        set_hide_render_safe(ob, ob.name not in keep_objs, failures)
+    return failures
 
 
 # ============================================================
@@ -754,14 +766,21 @@ def configure_camera(cam_obj, bounds_min, bounds_max, settings):
     return frame
 
 
+def is_owned_camera(ob):
+    return ob is not None and ob.type == 'CAMERA' and bool(ob.get(ADDON_CAM_OWNED))
+
+
 def ensure_camera(scene):
-    cam_obj = bpy.data.objects.get(ADDON_CAM_NAME)
-    if cam_obj is not None and cam_obj.type != 'CAMERA':
-        cam_obj = None
+    cam_obj = None
+    for ob in scene.objects:
+        if is_owned_camera(ob):
+            cam_obj = ob
+            break
     if cam_obj is None:
-        cam_data = bpy.data.cameras.get(ADDON_CAM_NAME) or bpy.data.cameras.new(ADDON_CAM_NAME)
+        cam_data = bpy.data.cameras.new(ADDON_CAM_NAME)
         cam_obj = bpy.data.objects.new(ADDON_CAM_NAME, cam_data)
-    if cam_obj.name not in scene.collection.objects:
+        cam_obj[ADDON_CAM_OWNED] = True
+    if scene.objects.get(cam_obj.name) is None:
         try:
             scene.collection.objects.link(cam_obj)
         except RuntimeError:
@@ -771,16 +790,26 @@ def ensure_camera(scene):
     return cam_obj
 
 
-def remove_camera():
+def remove_camera(scene=None):
     removed = False
-    ob = bpy.data.objects.get(ADDON_CAM_NAME)
-    if ob is not None:
+    if scene is not None:
+        candidates = [ob for ob in scene.objects if is_owned_camera(ob)]
+    else:
+        candidates = [ob for ob in bpy.data.objects if is_owned_camera(ob)]
+    camera_data = []
+    for ob in candidates:
+        data = ob.data
         bpy.data.objects.remove(ob, do_unlink=True)
         removed = True
-    cam = bpy.data.cameras.get(ADDON_CAM_NAME)
-    if cam is not None and cam.users == 0:
-        bpy.data.cameras.remove(cam)
-        removed = True
+        if data is not None:
+            camera_data.append(data)
+    for cam in camera_data:
+        if cam.users == 0:
+            try:
+                bpy.data.cameras.remove(cam)
+                removed = True
+            except Exception:
+                pass
     return removed
 
 
@@ -912,6 +941,7 @@ class BTS_OT_BatchExport(Operator):
 
         orig = {
             "camera": scene.camera,
+            "camera_owned": is_owned_camera(scene.camera),
             "res_x": rd.resolution_x,
             "res_y": rd.resolution_y,
             "res_pct": rd.resolution_percentage,
@@ -966,6 +996,8 @@ class BTS_OT_BatchExport(Operator):
 
         rendered = 0
         reported_problems = set()
+        hide_failures = []
+        restore_failures = []
         wm.progress_begin(0, len(measured))
 
         try:
@@ -982,7 +1014,7 @@ class BTS_OT_BatchExport(Operator):
                         continue
                 else:
                     include_all(vl)
-                    isolate_collection_by_hide(scene, col, keep_collections, settings.keep_lights)
+                    isolate_collection_by_hide(scene, col, keep_collections, settings.keep_lights, hide_failures)
                 vl.update()
 
                 rename_scan_dirs = []
@@ -1042,7 +1074,7 @@ class BTS_OT_BatchExport(Operator):
                     if node is not None:
                         restore_node(node, snap)
 
-            restore_hide_render(scene, hide_snapshot)
+            restore_hide_render(scene, hide_snapshot, restore_failures)
             restore_excludes(vl, exclude_snapshot)
             vl.update()
 
@@ -1062,11 +1094,28 @@ class BTS_OT_BatchExport(Operator):
             except Exception:
                 pass
 
+            restore_cam = None if orig["camera_owned"] else orig["camera"]
             if settings.auto_cleanup_camera:
-                remove_camera()
-                scene.camera = orig["camera"]
+                remove_camera(scene)
+                try:
+                    scene.camera = restore_cam
+                except (ReferenceError, TypeError):
+                    scene.camera = None
             else:
-                scene.camera = orig["camera"] if orig["camera"] else cam_obj
+                try:
+                    scene.camera = restore_cam if restore_cam is not None else cam_obj
+                except (ReferenceError, TypeError):
+                    scene.camera = cam_obj
+
+            all_hide_failures = sorted(set(hide_failures) | set(restore_failures))
+            if all_hide_failures:
+                preview = ", ".join(all_hide_failures[:5])
+                if len(all_hide_failures) > 5:
+                    preview += ", ..."
+                self.report(
+                    {'WARNING'},
+                    f"Could not change hide_render for {len(all_hide_failures)} object(s): {preview}",
+                )
 
         self.report({'INFO'}, f"Batch export done - {rendered} rendered, {skipped} skipped.")
         return {'FINISHED'}
@@ -1112,9 +1161,9 @@ class BTS_OT_Cleanup(Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        if context.scene.camera and context.scene.camera.name == ADDON_CAM_NAME:
+        if is_owned_camera(context.scene.camera):
             context.scene.camera = None
-        removed = remove_camera()
+        removed = remove_camera(context.scene)
         self.report({'INFO'}, "Camera removed." if removed else "No temporary camera.")
         return {'FINISHED'}
 
