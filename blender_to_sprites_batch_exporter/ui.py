@@ -2,7 +2,13 @@
 
 from bpy.types import Panel
 
-from .logic import DEPTH_CAPABLE, collect_file_outputs, is_relative_unsaved, normalize_image_settings
+from .logic import (
+    DEPTH_CAPABLE,
+    collect_file_outputs,
+    get_cached_analysis,
+    is_relative_unsaved,
+    normalize_image_settings,
+)
 
 
 # ============================================================
@@ -24,6 +30,9 @@ class BTS_PT_MainPanel(Panel):
         col.scale_y = 1.6
         col.operator("bts.batch_export", icon='RENDER_ANIMATION')
         row = layout.row(align=True)
+        row.operator("bts.analyze", icon='VIEWZOOM')
+        row.operator("bts.cancel_export", icon='CANCEL')
+        row = layout.row(align=True)
         row.operator("bts.preview_camera", icon='CON_CAMERASOLVER')
         row.operator("bts.cleanup", icon='TRASH')
         layout.operator("bts.restore_collections", icon='LOOP_BACK')
@@ -31,6 +40,17 @@ class BTS_PT_MainPanel(Panel):
             box = layout.box()
             box.alert = True
             box.label(text="Unsaved file + relative '//' path", icon='ERROR')
+        analysis = get_cached_analysis(context, context.scene.bts_settings)
+        if analysis is not None:
+            counts = analysis.counts
+            box = layout.box()
+            box.label(
+                text="Analysis: "
+                f"{len(analysis.targets)} target(s), "
+                f"{counts['ERROR']} error(s), "
+                f"{counts['WARNING']} warning(s)",
+                icon='ERROR' if counts['ERROR'] else 'INFO',
+            )
 
 
 class BTS_PT_Source(Panel):

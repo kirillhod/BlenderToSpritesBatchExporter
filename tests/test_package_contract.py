@@ -17,7 +17,7 @@ from blender_to_sprites_batch_exporter import logic, properties  # noqa: E402
 
 class RegistrationContractTest(unittest.TestCase):
     def test_bl_info(self):
-        self.assertEqual(addon.bl_info["version"], (1, 3, 1))
+        self.assertEqual(addon.bl_info["version"], (1, 4, 0))
         self.assertEqual(addon.bl_info["blender"], (5, 2, 0))
 
     def test_operator_ids(self):
@@ -29,6 +29,8 @@ class RegistrationContractTest(unittest.TestCase):
             operators,
             {
                 "bts.batch_export",
+                "bts.analyze",
+                "bts.cancel_export",
                 "bts.preview_camera",
                 "bts.cleanup",
                 "bts.restore_collections",
@@ -85,11 +87,16 @@ class RegistrationContractTest(unittest.TestCase):
         self.assertEqual(set(properties.BTS_Settings.__annotations__), expected)
 
     def test_logic_is_ui_free(self):
-        source = Path(logic.__file__).read_text(encoding="utf-8")
-        self.assertNotIn("from .ui", source)
-        self.assertNotIn("from .operators", source)
-        self.assertNotIn("import .ui", source)
-        self.assertNotIn("import .operators", source)
+        sources = [Path(logic.__file__)]
+        sources.extend(
+            sorted((Path(logic.__file__).parent / "core").glob("*.py"))
+        )
+        for path in sources:
+            source = path.read_text(encoding="utf-8")
+            self.assertNotIn("from .ui", source)
+            self.assertNotIn("from .operators", source)
+            self.assertNotIn("import .ui", source)
+            self.assertNotIn("import .operators", source)
 
 
 if __name__ == "__main__":

@@ -2,8 +2,9 @@
 
 Date: 2026-11-10
 Scope: `scene.bts_settings.node_naming` and File Output nodes in Blender 5.2.3.
-Status: input for the stage 4 and stage 5 plan revision. This review does not
-change runtime behavior.
+Status: stage 4 backend implemented in 1.4.0 (`NodeOutputPlan`, duplicate-token
+guard, preflight node paths). The UI choices, default and path preview remain
+in stage 5.
 
 ## 1. What the add-on does today
 

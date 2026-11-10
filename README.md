@@ -13,9 +13,11 @@ with an automatically adjusted orthographic camera.
 - Support for compositor File Output nodes, including connected-node filtering
   and linked-library protection.
 - Predictable output names with collision detection and the overwrite policies
-  Ask, Error, Skip, Overwrite and Add Suffix.
+  Ask, Error, Skip, Overwrite and Add Suffix, including File Output node paths.
 - Settings for resolution, padding, format and transparency, with format-aware
   color validation.
+- Preflight analysis with a cached problem report and a dedicated Analyze button.
+- Cancellable batch export between collections, with reliable scene restoration.
 - Saving and restoring the scene state after export, including border, stamp
   and compositor settings, followed by a verification pass.
 
@@ -44,8 +46,8 @@ The archive appears in `dist/`. Install it through
 file. The archive can also be checked and installed from the command line:
 
 ```powershell
-blender --command extension validate dist/blender_to_sprites_batch_exporter-1.3.1.zip
-blender --command extension install-file dist/blender_to_sprites_batch_exporter-1.3.1.zip -r user_default --enable
+blender --command extension validate dist/blender_to_sprites_batch_exporter-1.4.0.zip
+blender --command extension install-file dist/blender_to_sprites_batch_exporter-1.4.0.zip -r user_default --enable
 ```
 
 Do not install the legacy folder and the Extension at the same time: both
@@ -57,7 +59,13 @@ provide the same `bl_idname` values and `scene.bts_settings`.
 blender_to_sprites_batch_exporter/
   __init__.py        registration and bl_info
   properties.py      scene.bts_settings
-  logic.py           paths, camera, bounds, isolation, nodes, state
+  logic.py           compatibility facade for core/*
+  core/
+    common.py        constants, paths, image format rules
+    output.py        path planning, File Output nodes, overwrite policies
+    scene.py         collections, bounds, isolation, state restoration
+    framing.py       camera framing and temporary camera ownership
+    job.py           preflight, analysis cache, BatchJob, cancellation
   operators.py       bts.* operators
   ui.py              sidebar panels
 ```
@@ -91,14 +99,12 @@ Smoke test requires Blender 5.2:
 
 ## Limitations of the current version
 
-- Long exports cannot be cancelled.
 - File Output node mode writes multilayer EXR files in Blender 5.2. Use the main
   render path for PNG, JPEG or WebP sprites.
 - `Don't Modify` is a manual single-collection mode. Multi-collection exports
   are rejected because one compositor tree cannot route every collection to a
   different file.
-- Existing-file checks cover paths written by the main render. Files produced
-  only by File Output nodes are protected by name collision checks but are not
-  inspected on disk before rendering.
+- Cancellation is checked between collections; the collection that is already
+  rendering finishes first.
 - Preview and export share a temporary camera object marked with
   `bts_owned_camera`.

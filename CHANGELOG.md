@@ -10,6 +10,48 @@ All notable changes to the project. Versions follow semantic versioning.
   4-5 plan for node output layouts, duplicate-token detection and path preview.
 - Smoke test `tests/smoke_blender.py` and launchers for Windows/POSIX.
 
+## [1.4.0] - 2026-11-10
+
+Preflight, `BatchJob`, cancellation and a complete node output plan.
+
+### Added
+- `Problem` and `ProblemCollector` with deduplication and ERROR/WARNING/INFO
+  ordering.
+- Preflight analysis: targets, bounds, output paths, node layouts, collisions,
+  existing files, linked data, format and render-state checks, all without
+  rendering.
+- Cached analysis and a new `bts.analyze` operator with an Analyze button in the
+  panel.
+- `BatchJob` with a synchronous `run()` path, a step-based modal path and scene
+  restoration through a single `finish()`.
+- `bts.cancel_export` and cancellation between collections; the current render
+  is allowed to finish.
+- `NodeOutputPlan` for every collection and active File Output node, including
+  `AUTO` and `FILENAME` internal layouts, duplicate-token detection and
+  existing-file checks for node outputs.
+- Preflight overwrite confirmation includes both main-render and node paths.
+
+### Changed
+- `logic.py` is now a compatibility facade over `core/common.py`,
+  `core/output.py`, `core/scene.py`, `core/framing.py` and `core/job.py`.
+- `BatchExport` uses preflight and `BatchJob`; the operator body only handles
+  context, confirmation and reporting.
+- In Blender 5.2, `file_output_items` are treated as layer names. Prefix and
+  Subfolder layouts no longer rename layers.
+- Prefix mode skips a collection token that is already present in the File
+  Output file name.
+- Node-only mode reports that File Output writes multilayer EXR and does not
+  imply the add-on PNG/JPEG format.
+
+### Fixed
+- Existing files produced only by File Output nodes are now checked during
+  preflight and follow the overwrite policy, including the default
+  `{blend_name}` file name.
+- Analysis cache is cleared on file load and invalidated by setting, collection
+  and node changes.
+- Scene state verification warnings are collected in `JobResult` instead of
+  being scattered through the render loop.
+
 ## [1.3.1] - 2026-11-10
 
 Predictable output paths, safer compositor handling and a complete render state
