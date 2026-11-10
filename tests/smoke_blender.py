@@ -114,6 +114,13 @@ def run_policy_checks(scene, settings, out_dir):
     for path in expected:
         check(os.path.getmtime(path) == before[path], "Error policy changed a file")
 
+    settings.overwrite_policy = "ASK"
+    try:
+        result = bpy.ops.bts.batch_export()
+    except RuntimeError:
+        result = {"CANCELLED"}
+    check(result == {"CANCELLED"}, "Ask policy did not stop in background: %r" % (result,))
+
     settings.overwrite_policy = "SKIP"
     result = bpy.ops.bts.batch_export()
     check(result == {"FINISHED"}, "Skip policy did not finish: %r" % (result,))
@@ -201,6 +208,28 @@ def run_compositor_test():
     settings.max_resolution = 0
     settings.overwrite_policy = "OVERWRITE"
 
+    from blender_to_sprites_batch_exporter import logic
+
+    plans = logic.plan_node_output_paths(
+        ["Body"], "FILENAME", settings, {("Active Output",): active}
+    )
+    check(
+        os.path.normpath(plans[0].path)
+        == os.path.normpath(os.path.join(out_dir, "Body.exr")),
+        "Collection Name plan path: %r" % (plans[0].path,),
+    )
+    auto_one = logic.plan_node_output_paths(
+        ["Body"], "AUTO", settings, {("Active Output",): active}
+    )
+    check(auto_one[0].layout == "FILENAME", "AUTO did not choose Collection Name")
+    auto_two = logic.plan_node_output_paths(
+        ["Body"],
+        "AUTO",
+        settings,
+        {("Active Output",): active, ("Unused Output",): unused},
+    )
+    check(auto_two[0].layout == "SUBFOLDER", "AUTO did not choose Subfolder")
+
     result = bpy.ops.bts.batch_export()
     check(result == {"FINISHED"}, "Compositor export did not finish: %r" % (result,))
     target_dir = os.path.join(out_dir, "Body")
@@ -235,12 +264,102 @@ def run_compositor_test():
     check(active.directory == original_dir, "Prefix mode did not restore directory")
     check(active.file_name == original_file_name, "Prefix mode did not restore file name")
 
+    # Existing node outputs must obey the overwrite policy in preflight.
+    settings.overwrite_policy = "ERROR"
+    try:
+        result = bpy.ops.bts.batch_export()
+    except RuntimeError:
+        result = {"CANCELLED"}
+    check(
+        result == {"CANCELLED"},
+        "Node Error policy did not stop: %r" % (result,),
+    )
+    settings.overwrite_policy = "OVERWRITE"
+
+    # Don't Modify is safe only for one collection; preflight must reject a
+    # multi-target run before rendering.
+    weapon = make_collection("Weapon")
+    add_cube(weapon, "WeaponCube", location=(4.0, 0.0, 0.0), size=0.5)
+    settings.node_naming = "NONE"
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(
+        any(problem.code == "node_manual_multi_target" for problem in analysis.errors),
+        "Don't Modify multi-target preflight error is missing: %r"
+        % ([problem.code for problem in analysis.errors],),
+    )
+
     for root, _, names in os.walk(out_dir):
         for name in names:
             os.remove(os.path.join(root, name))
     for root, dirs, _ in os.walk(out_dir, topdown=False):
         for name in dirs:
             os.rmdir(os.path.join(root, name))
+    os.rmdir(out_dir)
+
+
+def run_analysis_and_cancel_test():
+    """Preflight must not render, the cache must invalidate, and cancel must restore."""
+    from blender_to_sprites_batch_exporter import logic
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon = load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    add_cube(body, "BodyCube")
+
+    out_dir = tempfile.mkdtemp(prefix="bts_analysis_")
+    settings = scene.bts_settings
+    settings.output_dir = out_dir
+    settings.file_format = "PNG"
+    settings.color_mode = "RGBA"
+    settings.color_depth = "8"
+    settings.use_compositor_nodes = False
+    settings.export_source = "ALL"
+    settings.isolation_mode = "EXCLUDE"
+    settings.keep_lights = False
+    settings.skip_empty = True
+    settings.overwrite_policy = "OVERWRITE"
+    settings.camera_axis = "TOP"
+    settings.padding_mode = "PIXELS"
+    settings.padding_pixels = 0
+    settings.pixels_per_unit = 16.0
+    settings.resolution_multiple = 1
+    settings.square_output = False
+    settings.min_resolution = 1
+    settings.max_resolution = 0
+
+    analysis, cached = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(not analysis.errors, "Preflight reported errors: %r" % (analysis.problems,))
+    check(cached is False, "First analysis unexpectedly came from cache")
+    check(os.listdir(out_dir) == [], "Preflight rendered files")
+
+    result = bpy.ops.bts.analyze()
+    check(result == {"FINISHED"}, "Analyze operator failed: %r" % (result,))
+    check(
+        logic.get_cached_analysis(bpy.context, settings) is not None,
+        "Analyze operator did not fill the cache",
+    )
+
+    analysis, cached = logic.analyze_scene(bpy.context, settings, use_cache=True)
+    check(cached is True, "Second analysis did not use the cache")
+    settings.output_dir = out_dir + "_changed"
+    analysis, cached = logic.analyze_scene(bpy.context, settings, use_cache=True)
+    check(cached is False, "Setting change did not invalidate the cache")
+    settings.output_dir = out_dir
+
+    original_camera = scene.camera
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    job = logic.BatchJob(bpy.context, settings, analysis)
+    check(job.start(), "BatchJob did not start")
+    job.request_cancel()
+    job.step()
+    result = job.finish()
+    check(result.cancelled, "Cancelled job did not report cancellation")
+    check(result.rendered == 0, "Cancelled job rendered a collection")
+    check(scene.camera == original_camera, "Cancelled job did not restore the camera")
+    check(os.listdir(out_dir) == [], "Cancelled job wrote files")
+
     os.rmdir(out_dir)
 
 
@@ -439,6 +558,7 @@ def run_test():
     settings.auto_cleanup_camera = True
 
     run_collision_test()
+    run_analysis_and_cancel_test()
     run_compositor_test()
 
     files = sorted(os.listdir(out_dir))

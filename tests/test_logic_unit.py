@@ -405,12 +405,168 @@ class NodePathTest(unittest.TestCase):
         self.assertEqual(target_dir, "//out/")
         self.assertEqual(node.directory, "//out/")
         self.assertEqual(node.file_name, "A_B_Sprite")
-        self.assertEqual(item.name, "A_B_Sprite")
+        self.assertEqual(item.name, "Sprite")
 
         logic.restore_node(node, snapshot)
         self.assertEqual(node.directory, "//out")
         self.assertEqual(node.file_name, "Sprite")
         self.assertEqual(item.name, "Sprite")
+
+
+class ProblemCollectorTest(unittest.TestCase):
+    def test_deduplicates_and_sorts(self):
+        collector = logic.ProblemCollector()
+        collector.add("WARNING", "b", "second")
+        collector.add("ERROR", "a", "first")
+        collector.add("WARNING", "b", "second")
+        collector.add("INFO", "c", "third", collection="Body")
+        items = collector.items()
+        self.assertEqual([item.severity for item in items], ["ERROR", "WARNING", "INFO"])
+        self.assertEqual(len(items), 3)
+        self.assertEqual(collector.counts(), {"ERROR": 1, "WARNING": 1, "INFO": 1})
+        self.assertTrue(items[2].as_text().startswith("[INFO] c (Body)"))
+
+
+class FakeOutputFormat:
+    def __init__(self, file_format="OPEN_EXR_MULTILAYER"):
+        self.file_format = file_format
+
+
+class FakeOutputItem:
+    def __init__(self, name):
+        self.name = name
+
+
+class FakeOutputNode:
+    _counter = 0
+
+    def __init__(self, name, file_name, directory, items=("Sprite",)):
+        FakeOutputNode._counter += 1
+        self.name = name
+        self.file_name = file_name
+        self.directory = directory
+        self.format = FakeOutputFormat()
+        self.file_output_items = [FakeOutputItem(item) for item in items]
+        self.id_data = SimpleNamespace(library=None)
+        self._key = ("node", name, FakeOutputNode._counter)
+
+    def as_pointer(self):
+        return FakeOutputNode._counter
+
+
+class NodeOutputPlanTest(unittest.TestCase):
+    def make_node_settings(self, output_dir, **overrides):
+        values = {
+            "output_dir": output_dir,
+            "node_override_base": True,
+            "node_naming": "AUTO",
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def test_auto_collection_name_with_one_node(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode("File Output", "Sprite", "//old")
+            nodes = {node._key: node}
+            settings = self.make_node_settings(tmp)
+            plans = logic.plan_node_output_paths(["Body"], "AUTO", settings, nodes)
+            self.assertEqual(len(plans), 1)
+            plan = plans[0]
+            self.assertEqual(plan.layout, "FILENAME")
+            self.assertEqual(plan.file_name, "Body")
+            self.assertEqual(
+                os.path.normpath(plan.path),
+                os.path.normpath(os.path.join(tmp, "Body.exr")),
+            )
+            self.assertTrue(plan.directory.endswith(os.sep) or plan.directory.endswith("/"))
+
+    def test_auto_subfolder_with_two_nodes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = FakeOutputNode("Beauty", "Beauty", "//old", items=("Layer",))
+            second = FakeOutputNode("Mask", "Mask", "//old", items=("Layer",))
+            nodes = {first._key: first, second._key: second}
+            settings = self.make_node_settings(tmp)
+            plans = logic.plan_node_output_paths(["Body"], "AUTO", settings, nodes)
+            self.assertTrue(all(plan.layout == "SUBFOLDER" for plan in plans))
+            self.assertEqual(
+                sorted(os.path.basename(plan.path) for plan in plans),
+                ["Beauty.exr", "Mask.exr"],
+            )
+            self.assertTrue(all("Body" in plan.path for plan in plans))
+
+    def test_prefix_does_not_duplicate_collection_token(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode("File Output", "Body", "//old")
+            settings = self.make_node_settings(tmp, node_naming="PREFIX")
+            plans = logic.plan_node_output_paths(
+                ["Body"], "PREFIX", settings, {node._key: node}
+            )
+            self.assertEqual(plans[0].file_name, "Body")
+            self.assertTrue(any("already contains" in note for note in plans[0].notes))
+
+    def test_apply_plan_does_not_rename_layers(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode(
+                "File Output", "Sprite", "//old", items=("Beauty", "Mask")
+            )
+            settings = self.make_node_settings(tmp, node_naming="PREFIX")
+            plans = logic.plan_node_output_paths(
+                ["Body"], "PREFIX", settings, {node._key: node}
+            )
+            self.assertTrue(logic.apply_node_output_plan(node, plans[0]))
+            self.assertEqual(node.file_name, "Body_Sprite")
+            self.assertEqual([item.name for item in node.file_output_items], ["Beauty", "Mask"])
+
+    def test_blend_name_placeholder_is_resolved_for_paths(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            node = FakeOutputNode("File Output", "{blend_name}", "//old")
+            settings = self.make_node_settings(tmp, node_naming="SUBFOLDER")
+            self.assertEqual(logic.node_raw_file_name(node), "{blend_name}")
+            self.assertEqual(logic.node_authored_file_name(node), "Unsaved")
+            plans = logic.plan_node_output_paths(
+                ["Body"], "SUBFOLDER", settings, {node._key: node}
+            )
+            self.assertTrue(plans[0].path.endswith("Unsaved.exr"))
+            self.assertEqual(plans[0].file_name, "{blend_name}")
+
+    def test_layout_resolution(self):
+        self.assertEqual(logic.resolve_node_layout("AUTO", [object()]), "FILENAME")
+        self.assertEqual(logic.resolve_node_layout("AUTO", [object(), object()]), "SUBFOLDER")
+        self.assertEqual(logic.resolve_node_layout("FILENAME", [object(), object()]), "FILENAME")
+        self.assertEqual(logic.resolve_node_layout("UNKNOWN", [object()]), "SUBFOLDER")
+
+    def test_duplicate_node_paths_are_detected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            first = FakeOutputNode("First", "Same", "//old")
+            second = FakeOutputNode("Second", "Same", "//old")
+            settings = self.make_node_settings(tmp)
+            plans = logic.plan_node_output_paths(
+                ["Body"],
+                "SUBFOLDER",
+                settings,
+                {first._key: first, second._key: second},
+            )
+            self.assertTrue(plans[1].collision_with)
+            self.assertTrue(plans[1].notes)
+
+    def test_ask_allow_existing_skips_conflicts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "Body.png")
+            with open(path, "wb") as handle:
+                handle.write(b"x")
+            settings = SimpleNamespace(
+                output_dir=tmp,
+                file_format="PNG",
+                color_mode="RGBA",
+                color_depth="8",
+            )
+            plans = logic.plan_output_paths(["Body"], settings)
+            plans, errors, conflicts, _ = logic.apply_overwrite_policy(
+                plans, "ASK", headless=False, allow_existing=True
+            )
+            self.assertFalse(errors)
+            self.assertFalse(conflicts)
+            self.assertFalse(plans[0].skipped)
 
 
 if __name__ == "__main__":
