@@ -15,6 +15,16 @@ from .logic import (
 )
 
 
+def _left_checkbox(layout, owner, prop, text=None):
+    """Draw a checkbox with its label on the left side."""
+    row = layout.row()
+    row.use_property_split = False
+    if text is None:
+        row.prop(owner, prop)
+    else:
+        row.prop(owner, prop, text=text)
+
+
 def _trim(text, limit=150):
     text = " ".join(str(text).split())
     return text if len(text) <= limit else text[: limit - 3] + "..."
@@ -167,7 +177,7 @@ class BTS_PT_Source(Panel):
         row.operator("bts.targets_none", text="None")
         row.operator("bts.targets_active", text="Active")
         row.operator("bts.activate_target", text="Make Active", icon='RESTRICT_SELECT_OFF')
-        layout.prop(settings, "skip_empty")
+        _left_checkbox(layout, settings, "skip_empty")
 
         layout.separator()
         layout.label(text="Always Include", icon='OUTLINER_COLLECTION')
@@ -265,20 +275,20 @@ class BTS_PT_Output(Panel):
             box.operator("bts.analyze", icon='VIEWZOOM')
 
         if nodes:
-            layout.prop(settings, "use_compositor_nodes")
+            _left_checkbox(layout, settings, "use_compositor_nodes")
             if settings.use_compositor_nodes:
-                layout.prop(settings, "nodes_connected_only")
+                _left_checkbox(layout, settings, "nodes_connected_only")
 
         if analysis is not None and nodes and settings.use_compositor_nodes:
             self._draw_node_output(layout, settings, analysis, nodes, context.scene.render)
         else:
-            self._draw_main_output(layout, settings)
+            self._draw_main_output(layout, settings, context.scene.render)
             if nodes:
                 box = layout.box()
                 box.label(text="File Output nodes found but disabled.", icon='INFO')
                 box.label(text="Compositing will be disabled during export.")
 
-    def _draw_main_output(self, layout, settings):
+    def _draw_main_output(self, layout, settings, render):
         layout.prop(settings, "output_dir")
         layout.prop(settings, "name_template")
         layout.label(text="Examples: {collection} -> Body.png", icon='FILE_IMAGE')
@@ -286,6 +296,8 @@ class BTS_PT_Output(Panel):
         self._draw_format(layout, settings)
         layout.prop(settings, "overwrite_policy")
         layout.prop(settings, "use_transparent")
+        layout.prop(render, "filter_size")
+        layout.label(text="Use 0.01-0.1 for crisp pixel art.", icon='INFO')
         layout.operator("bts.open_output_folder", icon='FILE_FOLDER').path = settings.output_dir
         self._draw_preview(layout, settings, None)
 
@@ -324,7 +336,7 @@ class BTS_PT_Output(Panel):
             warn = layout.box()
             warn.alert = True
             warn.label(text="Don't Modify is a single-collection mode.", icon='ERROR')
-            warn.label(text="Use Automatic, Subfolder or Prefix.")
+            warn.label(text="Use Automatic, Collection Folder or Collection + Socket.")
 
         layout.prop(settings, "node_override_base")
         layout.prop(
@@ -347,12 +359,12 @@ class BTS_PT_Output(Panel):
         else:
             self._draw_format(layout, settings)
         layout.prop(settings, "use_transparent")
+        layout.prop(render, "filter_size")
+        layout.label(text="Use 0.01-0.1 for crisp pixel art.", icon='INFO')
         layout.prop(settings, "overwrite_policy")
         if settings.write_main_output:
             layout.prop(settings, "name_template")
             layout.label(text="Example: {collection} -> Body.png", icon='FILE_IMAGE')
-        else:
-            layout.label(text="Node layout writes EXR files.", icon='INFO')
         if analysis.conflicts:
             box = layout.box()
             box.alert = True

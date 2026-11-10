@@ -10,6 +10,26 @@ All notable changes to the project. Versions follow semantic versioning.
   4-5 plan for node output layouts, duplicate-token detection and path preview.
 - Smoke test `tests/smoke_blender.py` and launchers for Windows/POSIX.
 
+## [2.0.4] - 2026-11-10
+
+Small interface cleanup.
+
+### Added
+- Render `Filter Size` next to Transparent Film in both main-render and node
+  output panels, with a hint for crisp pixel art.
+- The filter size applies to the scene render settings, so it affects normal
+  F12 renders as well as batch export.
+
+### Changed
+- `Skip Empty Collections`, `Use File Output Nodes` and `Only Connected Nodes`
+  are drawn as left-aligned checkboxes.
+- Removed the stale `Node layout writes EXR files` note. File Output nodes can
+  write Image formats (PNG/JPEG/...) or Multilayer EXR, and the panel already
+  shows the actual node format.
+
+### Tests
+- Smoke UI draw probe passes with the new property rows.
+
 ## [2.0.3] - 2026-11-10
 
 Fix single-layer File Output naming.
