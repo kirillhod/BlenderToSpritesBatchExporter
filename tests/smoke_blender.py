@@ -165,7 +165,7 @@ def run_test():
     initial_format = scene.render.image_settings.file_format
     initial_excludes = {
         path: lc.exclude
-        for path, lc in addon.iter_layer_collections(view_layer.layer_collection)
+        for path, lc in addon.logic.iter_layer_collections(view_layer.layer_collection)
         if path
     }
 
@@ -201,7 +201,7 @@ def run_test():
     if initial_excludes:
         current_excludes = {
             path: lc.exclude
-            for path, lc in addon.iter_layer_collections(view_layer.layer_collection)
+            for path, lc in addon.logic.iter_layer_collections(view_layer.layer_collection)
             if path
         }
         check(current_excludes == initial_excludes, "Collection exclude state was not restored")
