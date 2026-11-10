@@ -474,7 +474,8 @@ def verify_scene_state(scene, view_layer, snapshot, exclude_snapshot, hide_snaps
 # COLLECTION GATHERING
 # ============================================================
 
-def gather_target_collections(context, settings):
+def gather_source_collections(context, settings):
+    """Collections selected by the legacy ``export_source`` filter."""
     vl = context.view_layer
     root = vl.layer_collection
     result = []
@@ -508,10 +509,38 @@ def gather_target_collections(context, settings):
     return result
 
 
+def gather_target_collections(context, settings):
+    """Return enabled target items, or fall back to the source filter.
+
+    Once ``target_items`` has been populated it is the source of truth. An
+    empty list still means "not initialized yet" so old scenes keep working.
+    """
+    items = getattr(settings, "target_items", None)
+    migrated = bool(getattr(settings, "target_items_migrated", False))
+    if items is not None and (len(items) > 0 or migrated):
+        result = []
+        for item in items:
+            if not getattr(item, "enabled", True):
+                continue
+            collection = bpy.data.collections.get(item.name)
+            if collection is not None:
+                result.append(collection)
+        return result
+    return gather_source_collections(context, settings)
+
+
 def parse_keep_collections(settings):
+    """Collections that must stay visible during isolation."""
     cols = []
-    for name in settings.keep_collections.split(","):
-        name = name.strip()
+    items = getattr(settings, "always_include_items", None)
+    names = []
+    migrated = bool(getattr(settings, "always_include_migrated", False))
+    if items is not None and (len(items) > 0 or migrated):
+        names = [item.name for item in items]
+    else:
+        names = [name.strip() for name in settings.keep_collections.split(",")]
+    for name in names:
+        name = str(name).strip()
         if not name:
             continue
         col = bpy.data.collections.get(name)

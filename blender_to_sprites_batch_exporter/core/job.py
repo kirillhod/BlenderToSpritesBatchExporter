@@ -1,6 +1,7 @@
 """Preflight analysis, the batch job and cancellation support."""
 
 import os
+import tempfile
 import time
 from dataclasses import dataclass, field
 
@@ -11,6 +12,7 @@ from .common import *  # noqa: F401,F403
 from .output import *  # noqa: F401,F403
 from .scene import *  # noqa: F401,F403
 from .framing import *  # noqa: F401,F403
+from .targets import *  # noqa: F401,F403
 
 
 SEVERITY_ORDER = {"ERROR": 0, "WARNING": 1, "INFO": 2}
@@ -46,6 +48,7 @@ ANALYSIS_SETTING_ATTRS = (
     "keep_lights",
     "export_source",
     "skip_empty",
+    "name_template",
 )
 
 
@@ -276,6 +279,10 @@ def analysis_token(context, settings, targets=None, nodes=None):
     settings_state = tuple(
         (attr, getattr(settings, attr, None)) for attr in ANALYSIS_SETTING_ATTRS
     )
+    settings_state += (
+        ("always_include_items",
+         tuple(item.name for item in getattr(settings, "always_include_items", ()))),
+    )
     node_state = tuple(
         (key, _node_token(node)) for key, node in sorted(nodes.items(), key=lambda item: item[0])
     )
@@ -300,6 +307,12 @@ def clear_analysis_cache(scene=None):
     _ANALYSIS_CACHE.pop(scene.as_pointer(), None)
 
 
+def peek_cached_analysis(scene):
+    """Return the cached result without scanning the scene (UI use)."""
+    cached = _ANALYSIS_CACHE.get(scene.as_pointer())
+    return cached[1] if cached else None
+
+
 def get_cached_analysis(context, settings):
     key = context.scene.as_pointer()
     cached = _ANALYSIS_CACHE.get(key)
@@ -315,6 +328,8 @@ def get_cached_analysis(context, settings):
 
 def analyze_scene(context, settings, use_cache=False, allow_existing=False):
     """Run preflight and optionally reuse or refresh the analysis cache."""
+    migrate_settings(context, settings)
+    sync_target_items(context, settings)
     if use_cache:
         cached = get_cached_analysis(context, settings)
         if cached is not None:
@@ -352,6 +367,8 @@ def _run_preflight(context, settings, allow_existing=False):
 
     scene = context.scene
     view_layer = context.view_layer
+    migrate_settings(context, settings)
+    sync_target_items(context, settings)
     problems = ProblemCollector()
     targets = gather_target_collections(context, settings)
     all_file_outputs = collect_file_outputs(
@@ -637,7 +654,7 @@ def _run_preflight(context, settings, allow_existing=False):
     # so rebuild the count from the final targets to avoid double counting.
     skipped = sum(1 for target in built_targets if target.skipped)
 
-    result = AnalysisResult(
+    analysis = AnalysisResult(
         targets=built_targets,
         problems=problems.items(),
         main_plans=main_plans,
@@ -653,7 +670,8 @@ def _run_preflight(context, settings, allow_existing=False):
         skipped=skipped,
         token=token,
     )
-    return result
+    update_target_status(settings, analysis)
+    return analysis
 
 
 def snapshot_node_is_linked(node):
@@ -666,6 +684,24 @@ def snapshot_node_is_linked(node):
 # ============================================================
 
 _ACTIVE_JOB = None
+_JOB_STATUS = {
+    "running": False,
+    "text": "",
+    "current": 0,
+    "total": 0,
+    "rendered": 0,
+    "skipped": 0,
+    "failed": 0,
+}
+
+
+def get_job_status():
+    """Return a copy of the current job status for the UI."""
+    return dict(_JOB_STATUS)
+
+
+def _set_job_status(**values):
+    _JOB_STATUS.update(values)
 
 
 def request_cancel():
@@ -752,6 +788,15 @@ class BatchJob:
         _ACTIVE_JOB = self
         self._start_time = time.time()
         self._started = True
+        _set_job_status(
+            running=True,
+            text="Preparing export...",
+            current=0,
+            total=self._total,
+            rendered=0,
+            skipped=0,
+            failed=0,
+        )
         self._problems.extend(self.analysis.problems)
         # Targets without bounds are never put into _measured. Targets skipped
         # by an overwrite policy still pass through step() and are counted there.
@@ -843,6 +888,14 @@ class BatchJob:
         target = self._measured[self._index]
         index = self._index
         self._index += 1
+        _set_job_status(
+            text=f"Rendering {target.name}...",
+            current=index,
+            total=self._total,
+            rendered=self.result.rendered,
+            skipped=self.result.skipped,
+            failed=self.result.failed,
+        )
         try:
             self.context.window_manager.progress_update(index)
             if target.skip_reason:
@@ -877,6 +930,9 @@ class BatchJob:
             height=frame["height"],
             center=frame["center"],
         )
+        item = get_target_item(settings, collection.name)
+        if item is not None:
+            item.size_status = f"{target.frame.res_x}x{target.frame.res_y}"
         rd.resolution_x = target.frame.res_x
         rd.resolution_y = target.frame.res_y
 
@@ -1129,6 +1185,22 @@ class BatchJob:
 
         self.result.problems = self._problems.items()
         self.result.duration = time.time() - self._start_time
+        report_text = format_job_report(self.result, self.analysis)
+        if hasattr(self.settings, "last_report"):
+            self.settings.last_report = report_text
+        status_label = "Cancelled" if self.result.cancelled else "Done"
+        _set_job_status(
+            running=False,
+            text=(
+                f"{status_label}: {self.result.rendered} rendered, "
+                f"{self.result.skipped} skipped, {self.result.failed} failed"
+            ),
+            current=self._total,
+            total=self._total,
+            rendered=self.result.rendered,
+            skipped=self.result.skipped,
+            failed=self.result.failed,
+        )
         return self.result
 
     def run(self):
@@ -1142,3 +1214,45 @@ class BatchJob:
         else:
             self.finish()
         return self.result
+
+
+def format_job_report(result, analysis=None):
+    """Build the plain-text export report shown in the UI and log."""
+    status = "CANCELLED" if result.cancelled else "FINISHED"
+    lines = [
+        "Blender To Sprites Batch Exporter",
+        f"Status: {status}",
+        f"Rendered: {result.rendered}",
+        f"Skipped: {result.skipped}",
+        f"Failed: {result.failed}",
+        f"Duration: {result.duration:.2f} s",
+    ]
+    if analysis is not None:
+        lines.append(f"Node layout: {analysis.resolved_layout or 'main render'}")
+    lines.append("")
+    lines.append("Files:")
+    if result.files:
+        lines.extend(f"  {path}" for path in result.files)
+    else:
+        lines.append("  (none)")
+    if result.problems:
+        lines.append("")
+        lines.append("Problems:")
+        lines.extend(
+            f"  {problem.as_text()}" for problem in result.problems
+        )
+    return "\n".join(lines)
+
+
+def write_job_log(settings, report_text):
+    """Write the report to the temporary folder, not the sprite output."""
+    directory = tempfile.gettempdir()
+    try:
+        os.makedirs(directory, exist_ok=True)
+        path = os.path.join(directory, "bts_export.log")
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write(report_text)
+            handle.write("\n")
+        return path
+    except Exception:
+        return ""

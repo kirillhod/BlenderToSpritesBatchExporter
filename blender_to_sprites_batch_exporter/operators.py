@@ -8,17 +8,33 @@ from bpy.types import Operator
 
 from .logic import (
     BatchJob,
+    BUILTIN_PRESETS,
+    add_always_include,
     analyze_scene,
+    apply_preset,
     clear_analysis_cache,
     configure_camera,
+    default_preset_dir,
     ensure_camera,
+    export_preset,
+    find_layer_collection,
+    format_job_report,
     get_collection_bounds,
     include_all,
     is_background,
     is_owned_camera,
     is_relative_unsaved,
+    load_preset,
+    migrate_settings,
+    preset_path,
+    rebuild_target_items,
+    remove_always_include,
     remove_camera,
     request_cancel,
+    set_active_target,
+    set_all_targets,
+    sync_target_items,
+    write_job_log,
 )
 
 
@@ -70,7 +86,7 @@ class BTS_OT_BatchExport(Operator):
         )
         if not self._job.start():
             result = self._job.finish()
-            self._report_result(result)
+            self._report_result(result, context)
             return {'FINISHED'} if not result.cancelled else {'CANCELLED'}
         self._timer = context.window_manager.event_timer_add(
             0.01, window=context.window
@@ -108,7 +124,7 @@ class BTS_OT_BatchExport(Operator):
         result = self._job.finish() if self._job is not None else None
         self._job = None
         if result is not None:
-            self._report_result(result)
+            self._report_result(result, context)
         return {'FINISHED'} if (result is None or not result.cancelled) else {'CANCELLED'}
 
     def execute(self, context):
@@ -135,7 +151,7 @@ class BTS_OT_BatchExport(Operator):
 
         job = BatchJob(context, settings, analysis, operator=self)
         result = job.run()
-        self._report_result(result)
+        self._report_result(result, context)
         return {'FINISHED'} if not result.cancelled else {'CANCELLED'}
 
     def draw(self, context):
@@ -149,11 +165,15 @@ class BTS_OT_BatchExport(Operator):
                 continue
             self.report({problem.severity}, problem.as_text())
 
-    def _report_result(self, result):
+    def _report_result(self, result, context):
         for problem in result.problems:
             if problem.severity == 'INFO':
                 continue
             self.report({problem.severity}, problem.as_text())
+        settings = context.scene.bts_settings
+        report_text = settings.last_report or format_job_report(result)
+        settings.last_report = report_text
+        settings.last_log_path = write_job_log(settings, report_text)
         if result.cancelled:
             self.report(
                 {'WARNING'},
@@ -206,6 +226,227 @@ class BTS_OT_CancelExport(Operator):
         return {'FINISHED'}
 
 
+class BTS_OT_RefreshTargets(Operator):
+    bl_idname = "bts.refresh_targets"
+    bl_label = "Refresh Targets"
+    bl_description = "Rebuild the target list from the current collection filter"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    replace: BoolProperty(default=True, options={'HIDDEN'})
+
+    def execute(self, context):
+        settings = context.scene.bts_settings
+        if self.replace:
+            rebuild_target_items(context, settings)
+        else:
+            sync_target_items(context, settings)
+        clear_analysis_cache(context.scene)
+        self.report({'INFO'}, f"{len(settings.target_items)} target(s).")
+        return {'FINISHED'}
+
+
+class BTS_OT_TargetsAll(Operator):
+    bl_idname = "bts.targets_all"
+    bl_label = "Enable All"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.bts_settings
+        sync_target_items(context, settings)
+        set_all_targets(settings, True)
+        clear_analysis_cache(context.scene)
+        return {'FINISHED'}
+
+
+class BTS_OT_TargetsNone(Operator):
+    bl_idname = "bts.targets_none"
+    bl_label = "Disable All"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.bts_settings
+        sync_target_items(context, settings)
+        set_all_targets(settings, False)
+        clear_analysis_cache(context.scene)
+        return {'FINISHED'}
+
+
+class BTS_OT_TargetsActive(Operator):
+    bl_idname = "bts.targets_active"
+    bl_label = "Only Active"
+    bl_description = "Enable only the active collection"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.bts_settings
+        sync_target_items(context, settings)
+        if not set_active_target(context, settings):
+            self.report({'WARNING'}, "No active collection in the Outliner.")
+            return {'CANCELLED'}
+        clear_analysis_cache(context.scene)
+        return {'FINISHED'}
+
+
+class BTS_OT_ActivateTarget(Operator):
+    bl_idname = "bts.activate_target"
+    bl_label = "Make Active"
+    bl_options = {'REGISTER'}
+
+    collection: StringProperty(default="")
+
+    def execute(self, context):
+        name = self.collection
+        if not name:
+            settings = context.scene.bts_settings
+            index = int(getattr(settings, "active_target_index", 0))
+            if 0 <= index < len(settings.target_items):
+                name = settings.target_items[index].name
+        layer = find_layer_collection(context.view_layer, name)
+        if layer is None:
+            self.report({'WARNING'}, f"Collection not found: {name}")
+            return {'CANCELLED'}
+        context.view_layer.active_layer_collection = layer
+        return {'FINISHED'}
+
+
+class BTS_OT_AddAlwaysInclude(Operator):
+    bl_idname = "bts.add_always_include"
+    bl_label = "Add Active"
+    bl_description = "Add the active collection to Always Include"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        active = context.view_layer.active_layer_collection
+        if active is None or active.collection is None:
+            self.report({'WARNING'}, "No active collection.")
+            return {'CANCELLED'}
+        migrate_settings(context, context.scene.bts_settings)
+        add_always_include(context.scene.bts_settings, active.collection.name)
+        clear_analysis_cache(context.scene)
+        return {'FINISHED'}
+
+
+class BTS_OT_RemoveAlwaysInclude(Operator):
+    bl_idname = "bts.remove_always_include"
+    bl_label = "Remove"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        settings = context.scene.bts_settings
+        migrate_settings(context, settings)
+        index = int(getattr(settings, "active_include_index", 0))
+        remove_always_include(settings, index)
+        clear_analysis_cache(context.scene)
+        return {'FINISHED'}
+
+
+class BTS_OT_CopyReport(Operator):
+    bl_idname = "bts.copy_report"
+    bl_label = "Copy Report"
+    bl_description = "Copy the last export report to the clipboard"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        report_text = context.scene.bts_settings.last_report
+        if not report_text:
+            self.report({'WARNING'}, "No report yet. Run Analyze or Batch Export.")
+            return {'CANCELLED'}
+        context.window_manager.clipboard = report_text
+        self.report({'INFO'}, "Report copied to the clipboard.")
+        return {'FINISHED'}
+
+
+class BTS_OT_OpenLog(Operator):
+    bl_idname = "bts.open_log"
+    bl_label = "Open Log"
+    bl_description = "Open the last export log"
+    bl_options = {'REGISTER'}
+
+    def execute(self, context):
+        path = context.scene.bts_settings.last_log_path
+        if not path or not os.path.isfile(path):
+            self.report({'WARNING'}, "No export log found.")
+            return {'CANCELLED'}
+        bpy.ops.wm.path_open(filepath=path)
+        return {'FINISHED'}
+
+
+class BTS_OT_ApplyPreset(Operator):
+    bl_idname = "bts.apply_preset"
+    bl_label = "Apply Preset"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    preset: StringProperty(default="")
+
+    def execute(self, context):
+        values = BUILTIN_PRESETS.get(self.preset)
+        if values is None:
+            self.report({'WARNING'}, f"Unknown preset: {self.preset}")
+            return {'CANCELLED'}
+        apply_preset(context.scene.bts_settings, values)
+        clear_analysis_cache(context.scene)
+        self.report({'INFO'}, f"Applied preset: {self.preset}")
+        return {'FINISHED'}
+
+
+class BTS_OT_SavePreset(Operator):
+    bl_idname = "bts.save_preset"
+    bl_label = "Save Preset"
+    bl_description = "Save the current export settings as JSON"
+    bl_options = {'REGISTER'}
+
+    filepath: StringProperty(subtype='FILE_PATH', default="")
+    preset_name: StringProperty(default="custom")
+
+    def invoke(self, context, event):
+        if not self.filepath:
+            self.filepath = preset_path(self.preset_name) or "preset.json"
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        filepath = bpy.path.ensure_ext(self.filepath, ".json")
+        try:
+            export_preset(context.scene.bts_settings, filepath)
+        except Exception as exc:  # noqa: BLE001
+            self.report({'ERROR'}, f"Could not save preset: {exc}")
+            return {'CANCELLED'}
+        self.report({'INFO'}, f"Preset saved: {filepath}")
+        return {'FINISHED'}
+
+
+class BTS_OT_LoadPreset(Operator):
+    bl_idname = "bts.load_preset"
+    bl_label = "Load Preset"
+    bl_description = "Load export settings from a JSON preset"
+    bl_options = {'REGISTER'}
+
+    filepath: StringProperty(subtype='FILE_PATH', default="")
+
+    def invoke(self, context, event):
+        if not self.filepath:
+            self.filepath = default_preset_dir() or ""
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
+    def execute(self, context):
+        filepath = bpy.path.ensure_ext(self.filepath, ".json")
+        try:
+            values, ignored, _version = load_preset(filepath)
+        except ValueError as exc:
+            self.report({'ERROR'}, str(exc))
+            return {'CANCELLED'}
+        apply_preset(context.scene.bts_settings, values)
+        clear_analysis_cache(context.scene)
+        if ignored:
+            self.report(
+                {'WARNING'},
+                "Ignored unknown preset fields: " + ", ".join(sorted(ignored)),
+            )
+        self.report({'INFO'}, f"Preset loaded: {filepath}")
+        return {'FINISHED'}
+
+
 # ============================================================
 # OPERATORS: PREVIEW / CLEANUP / RESTORE
 # ============================================================
@@ -246,6 +487,9 @@ class BTS_OT_Cleanup(Operator):
     bl_description = "Delete the temporary orthographic camera"
     bl_options = {'REGISTER', 'UNDO'}
 
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
+
     def execute(self, context):
         if is_owned_camera(context.scene.camera):
             context.scene.camera = None
@@ -260,6 +504,9 @@ class BTS_OT_RestoreCollections(Operator):
     bl_label = "Unhide Everything"
     bl_description = "Re-enable all collections and clear hide_render on all objects"
     bl_options = {'REGISTER', 'UNDO'}
+
+    def invoke(self, context, event):
+        return context.window_manager.invoke_confirm(self, event)
 
     def execute(self, context):
         vl = context.view_layer

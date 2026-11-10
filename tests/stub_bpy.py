@@ -72,6 +72,7 @@ def install():
         "FloatProperty",
         "IntProperty",
         "BoolProperty",
+        "CollectionProperty",
         "EnumProperty",
         "PointerProperty",
     ):
@@ -80,7 +81,7 @@ def install():
     class DummyBase:
         pass
 
-    for name in ("Operator", "Panel", "PropertyGroup"):
+    for name in ("Operator", "Panel", "PropertyGroup", "UIList"):
         setattr(bpy_types, name, type(name, (DummyBase,), {}))
 
     bpy_types.Scene = type("Scene", (DummyBase,), {})

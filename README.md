@@ -5,6 +5,8 @@ with an automatically adjusted orthographic camera.
 
 ## Features
 
+- Per-collection selection list with checkboxes, search, All/None/Active,
+  status, and a separate Always Include list.
 - Batch rendering of selected collections.
 - Automatic fitting of the orthographic camera to the collection bounds.
 - Isolation through `Exclude` collections or `hide_render` objects.
@@ -16,8 +18,11 @@ with an automatically adjusted orthographic camera.
   Ask, Error, Skip, Overwrite and Add Suffix, including File Output node paths.
 - Settings for resolution, padding, format and transparency, with format-aware
   color validation.
-- Preflight analysis with a cached problem report and a dedicated Analyze button.
+- Preflight analysis with a grouped problem panel, path preview and a dedicated
+  Analyze button.
 - Cancellable batch export between collections, with reliable scene restoration.
+- Built-in presets and JSON preset save/load.
+- A report panel with the written files, copy, log and output-folder actions.
 - Saving and restoring the scene state after export, including border, stamp
   and compositor settings, followed by a verification pass.
 
@@ -46,8 +51,8 @@ The archive appears in `dist/`. Install it through
 file. The archive can also be checked and installed from the command line:
 
 ```powershell
-blender --command extension validate dist/blender_to_sprites_batch_exporter-1.4.0.zip
-blender --command extension install-file dist/blender_to_sprites_batch_exporter-1.4.0.zip -r user_default --enable
+blender --command extension validate dist/blender_to_sprites_batch_exporter-2.0.0.zip
+blender --command extension install-file dist/blender_to_sprites_batch_exporter-2.0.0.zip -r user_default --enable
 ```
 
 Do not install the legacy folder and the Extension at the same time: both
@@ -65,9 +70,11 @@ blender_to_sprites_batch_exporter/
     output.py        path planning, File Output nodes, overwrite policies
     scene.py         collections, bounds, isolation, state restoration
     framing.py       camera framing and temporary camera ownership
+    targets.py       target lists, migration, Always Include
+    presets.py       built-in and JSON presets
     job.py           preflight, analysis cache, BatchJob, cancellation
   operators.py       bts.* operators
-  ui.py              sidebar panels
+  ui.py              sidebar panels and collection lists
 ```
 
 The old single file version 1.2.1 is saved in `legacy/` only as a reference.
@@ -95,7 +102,9 @@ Smoke test requires Blender 5.2:
 
 - Blender: 5.2.
 - Operator `bl_idname` values and `scene.bts_settings` properties are preserved.
-- Scenes created in 1.2.x open without settings migration.
+- Old `keep_collections`, `export_source` and `node_naming` values are migrated
+  once into the new lists and layout marker.
+- Scenes created in 1.2.x open without losing their settings.
 
 ## Limitations of the current version
 
@@ -106,5 +115,9 @@ Smoke test requires Blender 5.2:
   different file.
 - Cancellation is checked between collections; the collection that is already
   rendering finishes first.
+- Multi-view selection and its 4/6 presets arrive in 2.1. The current presets
+  cover single-view top/front setups.
+- The analysis cache may show a previous path preview until Analyze is run
+  again after changing export settings.
 - Preview and export share a temporary camera object marked with
   `bts_owned_camera`.

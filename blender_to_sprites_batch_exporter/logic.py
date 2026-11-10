@@ -9,4 +9,6 @@ from .core.common import *  # noqa: F401,F403
 from .core.output import *  # noqa: F401,F403
 from .core.scene import *  # noqa: F401,F403
 from .core.framing import *  # noqa: F401,F403
+from .core.targets import *  # noqa: F401,F403
+from .core.presets import *  # noqa: F401,F403
 from .core.job import *  # noqa: F401,F403
