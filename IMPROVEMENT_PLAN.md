@@ -133,6 +133,18 @@ class Target:
     skip_reason: str | None
 
 @dataclass
+class NodeOutputPlan:
+    collection: str
+    node_name: str
+    layout: str
+    base_path: str
+    file_name: str
+    path: str
+    layer_names: list[str]
+    exists: bool
+    notes: list[str]
+
+@dataclass
 class Problem:
     severity: Literal["ERROR", "WARNING", "INFO"]
     code: str
@@ -203,6 +215,7 @@ Priorities: **P0** - data loss/impossibility of operation, **P1** - noticeable p
 | 21 | P3 | Strange check `cam_obj.name not in scene.collection.objects` | `ensure_camera` | Fragility | Explicitly check `scene.collection.objects.get(name)` |
 | 22 | P3 | Wide `except Exception: pass` | Everywhere in modules | Hidden errors | Log with context, collect Problem |
 | 23 | P3 | No `{'UNDO'}` from Batch Export | `bl_options` | Settings changes cannot be rolled back | Either add UNDO or explicitly warn and always restore the state |
+| 24 | P1 | "Collection Goes To" has no layout that reproduces normal naming; Prefix duplicates a collection token already present in the node file name; Subfolder is a grouping mode; Don't Modify is manual-only | `properties.py`, `logic.py`, `ui.py` | The user cannot predict node output paths; simple compositor exports do not produce `<Collection>.exr` | Add `NodeOutputPlan`, Collection Name and Automatic layouts, duplicate-token detection and a path preview; preserve the old enum identifiers |
 
 **Separately:** add to preflight checks that are currently missing:
 
@@ -215,9 +228,74 @@ Priorities: **P0** - data loss/impossibility of operation, **P1** - noticeable p
 - the scene has a Render Border/Stamp;
 - the selected format does not support the selected Color/Depth;
 - File Output nodes are located in the linked library;
+- the node layout is incompatible with the setup: `Collection Name` with
+  several File Output nodes, or `Don't Modify` with several target collections;
+- two active File Output nodes resolve to the same final path;
+- node-only mode will write EXR multilayer while the selected add-on format is
+  PNG/JPEG/WebP;
 - for the selected isolation mode there are objects that cannot be hidden.
 
 Problem output format: one aggregated report in the panel and in `self.report` at the end, without duplicate messages for each collection.
+
+### 3.1. UX review: "Collection Goes To" and File Output nodes
+
+Date: 2026-11-10. Full scenario matrix and acceptance criteria:
+`reports/UX_REVIEW_COLLECTION_GOES_TO.md`.
+
+Observed in Blender 5.2.3: a File Output node writes **one multilayer EXR per
+node**. `node.file_name` is the file name; `node.file_output_items` are layer
+names inside that EXR, not separate output files.
+
+Consequences for the current modes:
+
+- `Subfolder` only changes `node.directory`. The result is
+  `<base>/<Collection>/<node file name>.exr`, not `<Collection>.exr`. It is a
+  grouping layout for several files per collection, not a sprite naming mode.
+- `Filename Prefix` writes `<base>/<Collection>_<node file name>.exr`. If the
+  node is already named after the collection, the result is `Body_Body.exr`.
+  The current code also prefixes the layer names, which is unnecessary.
+- `Don't Modify` leaves the authored paths untouched. One compositor tree
+  cannot route different collections to different files, so it is safe only
+  for a single target; multi-target use is already rejected in stage 3.
+- No mode produces `<base>/<Collection>.exr`, the node-mode equivalent of the
+  familiar main render path. That missing layout is the source of the
+  confusion.
+- Node-only mode is EXR multilayer only. The UI hides the format selector but
+  does not say that the result is EXR, so PNG expectations are not met.
+- There is no path preview, so the user cannot see the effect of a layout
+  before rendering.
+
+Decisions:
+
+1. Introduce `NodeOutputPlan` for every `(collection, active File Output node)`
+   pair: effective base directory, file name, layout, full path, existing-file
+   state and duplicate-token notes.
+2. Add `Collection Name` (`FILENAME`): `node.file_name = <Collection>`, layer
+   names unchanged. Valid only with exactly one active File Output node.
+3. Add `Automatic` (`AUTO`): `Collection Name` for one node, `Subfolder` for
+   several. New scenes use Automatic; the resolved layout is displayed.
+4. Keep `Subfolder` and `Prefix` and document them as grouping and flat
+   multi-output layouts. Neither changes layer names in 5.2.
+5. Make `Prefix` duplicate-safe: if the authored name already equals the
+   collection or starts with `<Collection>_`, do not add the token again.
+6. Keep `Don't Modify` as a manual single-target mode with an actionable error
+   for multi-target runs.
+7. Treat node mode as an advanced EXR path: show the actual node format, and
+   show the add-on format controls only when the main render is also written.
+8. Add a path preview in the Output panel and full path/collision output in
+   preflight. The preview and the job use the same resolver.
+9. Rename the user-facing control to "Node Output Layout". Preserve the
+   property `node_naming` and the identifiers `SUBFOLDER`, `PREFIX`, `NONE`;
+   add `FILENAME` and `AUTO`; migrate old scenes to their previous layout.
+
+Scheduling:
+
+- Stage 4 (1.4.0): `NodeOutputPlan`, effective path resolution, duplicate-token
+  guard, preflight checks for node paths and existing files. No UI redesign.
+- Stage 5 (2.0.0): new enum values and default, migration marker, layout UI,
+  path preview, node-format notice, renamed control and tooltips.
+- Stage 6 (2.1.0): name templates reuse the node plan and add `{node}` next to
+  `{collection}`.
 
 ---
 

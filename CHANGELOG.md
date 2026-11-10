@@ -6,6 +6,8 @@ All notable changes to the project. Versions follow semantic versioning.
 
 ### Added
 - Documentation of the improvement plan and detailed implementation sequence.
+- UX review of the File Output "Collection Goes To" modes and a revised stage
+  4-5 plan for node output layouts, duplicate-token detection and path preview.
 - Smoke test `tests/smoke_blender.py` and launchers for Windows/POSIX.
 
 ## [1.3.1] - 2026-11-10

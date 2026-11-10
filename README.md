@@ -92,6 +92,11 @@ Smoke test requires Blender 5.2:
 ## Limitations of the current version
 
 - Long exports cannot be cancelled.
+- File Output node mode writes multilayer EXR files in Blender 5.2. Use the main
+  render path for PNG, JPEG or WebP sprites.
+- `Don't Modify` is a manual single-collection mode. Multi-collection exports
+  are rejected because one compositor tree cannot route every collection to a
+  different file.
 - Existing-file checks cover paths written by the main render. Files produced
   only by File Output nodes are protected by name collision checks but are not
   inspected on disk before rendering.
