@@ -2,21 +2,35 @@
 
 Turn Blender collections into individual sprite images.
 
-The add-on frames each collection with an orthographic camera, renders it
-alone, and saves it as a separate file. It is made for 2D games, pixel art,
-isometric assets and any workflow that needs many clean renders.
+The add-on frames each
+[collection](https://docs.blender.org/manual/en/5.2/scene_layout/collections/index.html)
+with an
+[orthographic camera](https://docs.blender.org/manual/en/5.2/render/cameras.html),
+renders it alone, and saves it as a separate file. It is made for 2D games,
+pixel art, isometric assets and any workflow that needs many clean renders.
+
+Blender terms in this guide link to the
+[official Blender 5.2 Manual](https://docs.blender.org/manual/en/5.2/).
 
 ## Features
 
-- One sprite per collection, framed automatically.
+- One sprite per
+  [collection](https://docs.blender.org/manual/en/5.2/scene_layout/collections/index.html),
+  framed automatically.
 - Checkbox list of collections with All, None and Active buttons.
 - Separate **Always Include** list for lights, props or shared parts.
 - Transparent background, padding, pixel scale and square output.
-- PNG, JPEG, WebP, EXR and other main-render formats.
-- Optional File Output node support:
-  - Image nodes (PNG, JPEG, ...)
-  - Multilayer EXR nodes
-- Names built from the collection and the File Output socket: `Body_Normal.png`.
+- PNG, JPEG, WebP, EXR and other
+  [main-render formats](https://docs.blender.org/manual/en/5.2/render/output/properties/format.html).
+- Optional
+  [File Output node](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
+  support:
+  - [Image](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
+    nodes (PNG, JPEG, ...)
+  - [Multi-Layer EXR](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
+    nodes
+- Names built from the collection and the File Output socket:
+  `Body_Normal.png`.
 - Path preview and a Problems panel before rendering.
 - Overwrite existing files by default. Ask, Error, Skip and Add Suffix are
   also available.
@@ -30,12 +44,14 @@ isometric assets and any workflow that needs many clean renders.
 ## Installation
 
 1. Open the
-   [latest release](https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases/latest).
-2. Download the `.zip` file. Do not unpack it.
-3. In Blender open **Edit > Preferences > Get Extensions**.
-4. Click **Install from Disk** and choose the downloaded zip.
-5. Enable **Blender To Sprites Batch Exporter**.
-6. In the 3D View press **N** and open the **Batch Export** tab.
+   [Releases page](https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases)
+   and download the latest `.zip` file. Do not unpack it.
+2. In Blender open **Edit > Preferences** and click
+   [**Get Extensions**](https://docs.blender.org/manual/en/5.2/editors/preferences/extensions.html).
+3. Click **Install from Disk** and choose the downloaded zip.
+4. Enable **Blender To Sprites Batch Exporter**.
+5. In the 3D View press **N** and open the **Batch Export** tab in the
+   [Sidebar](https://docs.blender.org/manual/en/5.2/editors/3dview/sidebar.html).
 
 If an older version is already installed, remove it before installing the new
 one.
@@ -43,7 +59,9 @@ one.
 ## Quick start
 
 1. Put each sprite in its own collection.
-2. In **Batch Export > Collections**, tick the collections you want.
+2. In the **Batch Export** tab, open
+   [**Collections**](https://docs.blender.org/manual/en/5.2/scene_layout/collections/index.html)
+   and tick the collections you want.
 3. Choose an **Output Directory**.
 4. Set **Pixels / Unit**, **Padding** and **Filter Size**.
 5. Press **Analyze** to check paths and problems.
@@ -51,9 +69,11 @@ one.
 
 ## Pixel art
 
-- **Filter Size**: use `0.01-0.1` for crisp pixels. Blender's default `1.5`
-  softens small details.
-- **Transparent Film**: keep it on when sprites need alpha.
+- [Filter Size](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html):
+  use `0.01-0.1` for crisp pixels. Blender's default `1.5` softens small
+  details.
+- [Transparent Film](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html):
+  keep it on when sprites need alpha.
 - **Pixels / Unit**: controls the final sprite size.
 - **Padding**: keeps sprites away from the image edge.
 - **Round To Multiple Of**: helps keep sprite sizes consistent.
@@ -66,7 +86,8 @@ Normal renders use the collection name:
 Body.png
 ```
 
-File Output nodes use the collection and the node's socket name:
+[File Output nodes](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
+use the collection and the node's socket name:
 
 ```text
 Body + socket Normal -> Body_Normal.png
@@ -79,9 +100,12 @@ gets its own file.
 ## Output modes
 
 - **Main render** - one file per collection in the selected format.
-- **File Output nodes** - the compositor writes the files. Set the node's
-  **Media Type** to **Image** for PNG or JPEG, or to **Multi-Layer EXR** for
-  layered files. Enable **Also Save Main Render** if you want both.
+- [**File Output nodes**](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) -
+  the compositor writes the files. Set the node's
+  [Media Type](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
+  to **Image** for PNG or JPEG, or to
+  [**Multi-Layer EXR**](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
+  for layered files. Enable **Also Save Main Render** if you want both.
 
 ## Notes
 
