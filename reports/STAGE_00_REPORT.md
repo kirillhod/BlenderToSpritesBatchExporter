@@ -15,7 +15,7 @@ directories. Blender was installed later and the smoke test passed; see
 ## What was done
 
 1. Created branch `feature/improvements-v2`.
-2. Tagged commit `9124aed` (`Export overhaul`) as `v1.2.0-baseline`.
+2. Tagged the baseline commit (`Export overhaul`) as `v1.2.0-baseline`.
 3. Added smoke test `tests/smoke_blender.py`:
    - creates two collections with geometry, an empty collection, a light and a camera;
    - runs `bts.batch_export`;
