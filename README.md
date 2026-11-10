@@ -1,130 +1,99 @@
 # Blender To Sprites Batch Exporter
 
-Addon for Blender 5.2, which renders scene collections into separate sprites
-with an automatically adjusted orthographic camera.
+Turn Blender collections into individual sprite images.
+
+The add-on frames each collection with an orthographic camera, renders it
+alone, and saves it as a separate file. It is made for 2D games, pixel art,
+isometric assets and any workflow that needs many clean renders.
 
 ## Features
 
-- Per-collection selection list with checkboxes, search, All/None/Active,
-  status, and a separate Always Include list.
-- Batch rendering of selected collections.
-- Automatic fitting of the orthographic camera to the collection bounds.
-- Isolation through `Exclude` collections or `hide_render` objects.
-- Automatic inclusion of light collections in Exclude mode and hiding of
-  scene-root objects outside the target.
-- Support for compositor File Output nodes, including connected-node filtering
-  and linked-library protection.
-- File Output files are named after the collection and the node socket
-  (`<Collection>_<socket>.exr` by default); node names and labels are ignored.
-- Predictable output names with collision detection and the overwrite policies
-  Overwrite (default), Ask, Error, Skip and Add Suffix, including File Output
-  node paths. Overwrite simply replaces existing files.
-- Settings for resolution, padding, format and transparency, with format-aware
-  color validation.
-- Preflight analysis with a grouped problem panel, path preview and a dedicated
-  Analyze button.
-- Cancellable batch export between collections, with reliable scene restoration.
-- Built-in presets with descriptions, plus JSON preset save/load with a custom
-  description stored in the file.
-- A report panel with the written files, copy, log and output-folder actions.
-- Saving and restoring the scene state after export, including border, stamp
-  and compositor settings, followed by a verification pass.
+- One sprite per collection, framed automatically.
+- Checkbox list of collections with All, None and Active buttons.
+- Separate **Always Include** list for lights, props or shared parts.
+- Transparent background, padding, pixel scale and square output.
+- PNG, JPEG, WebP, EXR and other main-render formats.
+- Optional File Output node support:
+  - Image nodes (PNG, JPEG, ...)
+  - Multilayer EXR nodes
+- Names built from the collection and the File Output socket: `Body_Normal.png`.
+- Path preview and a Problems panel before rendering.
+- Overwrite existing files by default. Ask, Error, Skip and Add Suffix are
+  also available.
+- Built-in presets and your own JSON presets with descriptions.
+- Export report and log.
+
+## Requirements
+
+- Blender 5.2.
 
 ## Installation
 
-### As a legacy add-on
+1. Open the
+   [latest release](https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases/latest).
+2. Download the `.zip` file. Do not unpack it.
+3. In Blender open **Edit > Preferences > Get Extensions**.
+4. Click **Install from Disk** and choose the downloaded zip.
+5. Enable **Blender To Sprites Batch Exporter**.
+6. In the 3D View press **N** and open the **Batch Export** tab.
 
-1. Copy the entire `blender_to_sprites_batch_exporter` folder into the Blender
-   user add-ons directory, for example:
-   - Windows: `%APPDATA%\Blender Foundation\Blender\5.2\scripts\addons\`
-   - Linux: `~/.config/blender/5.2/scripts/addons/`
-   - macOS: `~/Library/Application Support/Blender/5.2/scripts/addons/`
-2. Enable the add-on in `Edit > Preferences > Add-ons`.
-3. The panel appears in `View3D > Sidebar (N) > Batch Export`.
+If an older version is already installed, remove it before installing the new
+one.
 
-### As a Blender Extension
+## Quick start
 
-Build the zip:
+1. Put each sprite in its own collection.
+2. In **Batch Export > Collections**, tick the collections you want.
+3. Choose an **Output Directory**.
+4. Set **Pixels / Unit**, **Padding** and **Filter Size**.
+5. Press **Analyze** to check paths and problems.
+6. Press **Batch Export**.
 
-```powershell
-./tools/build_zip.ps1
+## Pixel art
+
+- **Filter Size**: use `0.01-0.1` for crisp pixels. Blender's default `1.5`
+  softens small details.
+- **Transparent Film**: keep it on when sprites need alpha.
+- **Pixels / Unit**: controls the final sprite size.
+- **Padding**: keeps sprites away from the image edge.
+- **Round To Multiple Of**: helps keep sprite sizes consistent.
+
+## Output names
+
+Normal renders use the collection name:
+
+```text
+Body.png
 ```
 
-The archive appears in `dist/`. Install it through
-`Edit > Preferences > Get Extensions > Install from Disk` and select the zip
-file. The archive can also be checked and installed from the command line:
+File Output nodes use the collection and the node's socket name:
 
-```powershell
-blender --command extension validate dist/blender_to_sprites_batch_exporter-2.0.4.zip
-blender --command extension install-file dist/blender_to_sprites_batch_exporter-2.0.4.zip -r user_default --enable
+```text
+Body + socket Normal -> Body_Normal.png
+Body + empty socket  -> Body.png
 ```
 
-Do not install the legacy folder and the Extension at the same time: both
-provide the same `bl_idname` values and `scene.bts_settings`.
+Node names and labels are not used. If a node has several sockets, each socket
+gets its own file.
 
-## Structure
+## Output modes
 
-```
-blender_to_sprites_batch_exporter/
-  __init__.py        registration and bl_info
-  properties.py      scene.bts_settings
-  logic.py           compatibility facade for core/*
-  core/
-    common.py        constants, paths, image format rules
-    output.py        path planning, File Output nodes, overwrite policies
-    scene.py         collections, bounds, isolation, state restoration
-    framing.py       camera framing and temporary camera ownership
-    targets.py       target lists, migration, Always Include
-    presets.py       built-in and JSON presets
-    job.py           preflight, analysis cache, BatchJob, cancellation
-  operators.py       bts.* operators
-  ui.py              sidebar panels and collection lists
-```
+- **Main render** - one file per collection in the selected format.
+- **File Output nodes** - the compositor writes the files. Set the node's
+  **Media Type** to **Image** for PNG or JPEG, or to **Multi-Layer EXR** for
+  layered files. Enable **Also Save Main Render** if you want both.
 
-The old single file version 1.2.1 is saved in `legacy/` only as a reference.
-Do not install it at the same time as the package.
+## Notes
 
-## Tests
+- **Don't Modify** is a manual single-collection mode.
+- Cancel stops between collections; the render that is already running
+  finishes first.
+- Multi-view and 4/6-direction presets are planned for the next version.
 
-Pure function unit tests do not require Blender:
+## For developers
 
-```powershell
-./tests/run_unit_tests.ps1
-```
+The add-on code is in `blender_to_sprites_batch_exporter/`.
 
-Smoke test requires Blender 5.2:
-
-```powershell
-./tests/run_tests.ps1
-./tests/run_tests.ps1 -StrictCamera
-```
-
-`-StrictCamera` checks that the user camera named
-`_BTS_OrthoCamera` is not reused or deleted.
-
-## Compatibility
-
-- Blender: 5.2.
-- Operator `bl_idname` values and the existing `scene.bts_settings` fields are
-  preserved. The obsolete Emergency Prefix Rename flag was removed.
-- Old `keep_collections`, `export_source` and `node_naming` values are migrated
-  once into the new lists and layout marker.
-- Scenes created in 1.2.x open without losing their settings.
-
-## Limitations of the current version
-
-- File Output node mode writes multilayer EXR files in Blender 5.2. Use the main
-  render path for PNG, JPEG or WebP sprites.
-- In node mode, Automatic writes `<Collection>_<socket>.exr`. Collection Folder
-  writes `<Collection>/<socket>.exr`. The node name and label are not used.
-- `Don't Modify` is a manual single-collection mode. Multi-collection exports
-  are rejected because one compositor tree cannot route every collection to a
-  different file.
-- Cancellation is checked between collections; the collection that is already
-  rendering finishes first.
-- Multi-view selection and its 4/6 presets arrive in 2.1. The current presets
-  cover single-view top/front setups.
-- The analysis cache may show a previous path preview until Analyze is run
-  again after changing export settings.
-- Preview and export share a temporary camera object marked with
-  `bts_owned_camera`.
+- Unit tests: `./tests/run_unit_tests.ps1`
+- Blender smoke test: `./tests/run_tests.ps1`
+- Release zip: `./tools/build_zip.ps1`
