@@ -4,7 +4,7 @@ Date: 2026-11-09
 Current version: 1.2.0 (one file, 1137 lines)
 Goal: to increase reliability, expand the capabilities of the sprite pipeline, speed up work and bring the interface to the level of a full-fledged tool, gradually dividing the monolithic module into layers.
 
-> The plan is based on code analysis from `ADDON_STATE.txt`. Time estimates are indicative and are given for one developer; priorities can be changed.
+> The plan is based on the baseline code analysis in `reports/STAGE_00_REPORT.md`. Time estimates are indicative and are given for one developer; priorities can be changed.
 >
 > Revision: the architectural section has been revised - starting with 5 files, growing to 9–10 as needed; splitting into 16+ modules has been postponed until the real growth of the code base.
 

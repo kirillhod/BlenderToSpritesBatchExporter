@@ -182,4 +182,3 @@ The smoke test now also covers:
 
 Stage 5: new UI with collection selection, presets, problem panel, progress and
 the node layout choices from the UX review.
-
