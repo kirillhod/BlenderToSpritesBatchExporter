@@ -1,579 +1,495 @@
-# Improvement plan for Blender To Sprites Batch Exporter
+# Improvement plan for Blender To Sprites Batch Exporter 3.x
 
-Date: 2026-11-09
-Baseline version: 1.2.0 (one file, 1137 lines)
-Goal: to increase reliability, expand the capabilities of the sprite pipeline, speed up work and bring the interface to the level of a full-fledged tool, gradually dividing the monolithic module into layers.
+Date: 2026-11-11
+Baseline version: 2.0.4
+Base branch: `main` (the repository has no `master` branch)
+Work branch: `feature/improvements-v3`
+Status: planning. No v3 code has been written yet.
 
-> The plan is based on the baseline code analysis in `reports/STAGE_00_REPORT.md`. Time estimates are indicative and are given for one developer; priorities can be changed.
->
-> Revision: the architectural section has been revised - starting with 5 files, growing to 9–10 as needed; splitting into 16+ modules has been postponed until the real growth of the code base.
-
----
-
-## 1. Principles and procedures
-
-1. **Data security first, then new features.** Any mistake should not delete the user's camera, change scene settings without recovery, or overwrite someone else's files.
-2. **Critical hotfixes first, then refactoring without changing behavior, then other fixes and new features.** Hotfix removes the risk of data loss immediately; refactoring after it does not change the behavior and is easier to check.
-3. **Logic separate from UI.** `logic` (later `core`) should not import panels and operators; The UI only displays state and invokes operations.
-4. **Everything is checked before rendering.** A separate preflight stage collects errors and warnings and prevents the launch of obviously problematic exports.
-5. **Single source of state.** Settings, scene snapshots, problems and results are formatted by dataclasses, rather than transmitted in long tuples.
-6. **Compatibility.** Keep `bl_idname` operators, property name `scene.bts_settings` and old settings so as not to break existing scenes and scripts.
-7. **Testability.** Pure functions are covered by unit tests, and rendering is covered by a smoke test in `blender --background`.
+This plan replaces the previous 3.x draft. The draft grew into a platform
+roadmap with atlas packing, CLI, pivots, metadata, a shared global canvas and a
+large module split. None of that is needed now. Version 3 is a focused workflow
+release with five features.
 
 ---
 
-## 2. Architecture: incremental partitioning without premature fragmentation
+## 1. Scope
 
-The current file is 1137 lines. This is enough to make mixing UI, settings and rendering awkward, but not enough to justify 16+ modules. Therefore, the architecture is introduced in two steps: first, minimal separation, then only as real growth occurs.
+Version 3 does five things:
 
-### 2.1. Step 1 - Minimal Separation (Recommended Now)
+| # | Feature | Release |
+|---|---|---|
+| 1 | UI cleanup: tooltips, density, automatic collection sync, readable status | 3.0.0 |
+| 2 | Per-collection overrides for view, framing and resolution | 3.0.0 |
+| 3 | Multi-view export with 4- and 6-direction presets and one naming policy | 3.0.0 |
+| 4 | Animation export: every action of a collection, its frame range and its name | 3.1.0 |
+| 5 | Blender 5.3 compatibility | 3.0.0 |
 
-```
-blender_to_sprites_batch_exporter/
-├── __init__.py       # bl_info, register/unregister, version
-├── properties.py     # BTS_Settings and PropertyGroup (data schema)
-├── logic.py          # all non-UI logic: paths, bounds, camera, isolation,
-│                     # compositor, scene state, render loop
-├── operators.py      # operator wrappers
-└── ui.py             # panels, UIList, drawing
+Two releases are planned: **3.0.0** and **3.1.0**. There is no 3.2.
 
-tests/                # outside the package; does not affect installation and is not
-                      # considered add-on fragmentation
-```
+Animation is 3.1.0 because it reuses the naming and canvas rules introduced for
+multi-view in 3.0.0. Shipping the smaller release first keeps the change surface
+reviewable. The 3.1.0 work is not optional polish; it is the animation feature.
 
-What does it give:
+### 1.1. Explicit non-goals
 
-- logic is separated from the interface - the main goal;
-- the settings are described in one place and are not spread across panels;
-- operators become thin;
-- `logic.py` can be covered with tests;
-- installation and reboot remain simple.
+These are not planned for version 3. They are listed so they do not creep back
+into the work:
 
-`logic.py` will temporarily be ~600-700 lines. This is normal: one visible module is better than five half-empty ones.
+- atlas / spritesheet packing;
+- CLI or JSON build pipeline;
+- pivots, anchors, metadata manifests;
+- localization;
+- exporting individual objects instead of collections;
+- one shared canvas for the whole run;
+- pixel-grid snapping;
+- a rewrite of bounds for arbitrary depsgraph instances;
+- splitting `job.py`, `output.py` or `scene.py`;
+- parallel background rendering;
+- new operator IDs.
 
-### 2.2. Step 2 - separation of logic after growth
+Reasons are in section 12.
 
-When preflight, `BatchJob`, multi-view and animation appear, `logic.py` will grow to ~1500 lines. Then, and only then, is it worth dividing:
+---
 
-```
-blender_to_sprites_batch_exporter/
-├── __init__.py
-├── properties.py
-├── core/
-│   ├── __init__.py
-│   ├── common.py     # constants, paths, names, logging
-│   ├── scene.py      # collections, bounds, isolation, scene state
-│   ├── framing.py    # axes, padding, compute_frame, pixel snap, shared canvas
-│   ├── output.py     # File Output nodes, path planning, name templates
-│   └── job.py        # BatchJob, preflight, ProblemCollector, cancellation
-├── operators.py
-└── ui.py
-```
+## 2. Current state at 2.0.4
 
-Total ~10 files of 150–350 lines. Further fragmentation (`ui/` on panels and lists, `compat/`, separate `problems.py`) - only when real volume appears in a specific module, and not in advance.
+The 2.0.x line already provides the reliable core: target list, preflight,
+cancellable job, predictable paths, File Output support, presets, report and log.
+The remaining friction is in daily use:
 
-### 2.3. Why not 16 files at once?
+1. **Interface noise.** Static help text is drawn as labels, so panels are tall
+   and repetitive. Hints should be tooltips.
+2. **Manual refresh.** The target list is only updated by Analyze or by pressing
+   `Refresh Targets`. Adding a collection in the Outliner does not show it.
+3. **Unclear status.** After Analyze a row can show `1.00 x 1.03`, which is the
+   bounds size in world units. It does not answer "how big will the sprite be?".
+4. **One global configuration.** Padding, view axis and resolution are global,
+   although different collections often need different values.
+5. **One view per run.** `camera_axis` is a single value, so a directional set
+   needs several exports and manual renaming.
+6. **No animation.** Only the current frame is rendered.
+7. **Blender 5.3.** Released today; compatibility has to be verified.
 
-- **Half-empty modules.** `problems.py`, `preflight.py`, `compat.py`, `naming.py` at the current volume contain 30-80 lines and only reduce cohesion.
-- **Extra imports and cycles.** The more boundaries, the greater the chances of circular imports and registration errors.
-- **More difficult to install and develop.** A package of many files requires a careful reboot; Blender's import cache may be hiding changes.
-- **Risk when refactoring.** Moving 1137 lines into 16 files at once increases the likelihood of losing behavior.
-- **Splitting is a means, not an end.** Splitting should be based on the reason for the change, not on the number of lines.
+---
 
-Practical criteria for when to divide a module further:
+## 3. Compatibility contract
 
-- the file contains more than ~350-400 lines;
-- it has two independent reasons for the change;
-- you need to import tests;
-- changes occur in it more often than in neighboring files.
+These rules apply to every task:
 
-### 2.4. Dependency direction
+1. Keep every existing `bl_idname`, `scene.bts_settings` property name and enum
+   identifier. No operator is added or removed in v3.
+2. New behavior is opt-in where it can change output:
+   - overrides are off by default and resolve to the global values;
+   - multi-view defaults to the current single Top view;
+   - animation export is off by default.
+3. Old scenes keep their current output until the user changes something.
+4. Existing UI operators stay, including `bts.refresh_targets`, even when the
+   list updates automatically.
+5. Presets stay version 1. New fields are optional on load; old presets with
+   `camera_axis` map to the matching view boolean.
+6. GPL-3.0-or-later, English-only code, comments, docs and commit messages.
+7. `blender_manifest.toml` keeps `blender_version_min = "5.2.0"`. Both 5.2 LTS
+   and 5.3 are supported.
 
-```
-__init__.py ──> properties
-     ├──> operators ──> logic ──> bpy / mathutils
-     └──> ui ──> properties + operators (and read-only access to logic data)
-```
+---
+
+## 4. Feature 1: interface cleanup
+
+### 4.1. Hints become tooltips
+
+Rule: if a string explains **what a control does or how to use it**, it belongs
+in a Blender tooltip. If it reports **current state or a problem**, it stays on
+screen.
+
+| Current on-screen text | New home |
+|---|---|
+| `Examples: {collection} -> Body.png` | `name_template` property description |
+| `Use 0.01-0.1 for crisp pixel art.` | `filter_size` property description |
+| `Details are in the Problems panel.` | removed |
+| `Run Analyze to validate settings.` | removed; the Problems panel already reports it |
+| Node layout explanations | `node_naming` and related property descriptions |
+| `Light collections are included automatically...` | `keep_lights` description; keep only the risky-collection warning |
+| `Warnings do not block export; errors do.` | `bts.analyze` operator description |
+| `Multi-view presets arrive with 2.1.` | removed |
+| Preset descriptions | one compact line per preset; full details in the README |
+
+Blender does not support tooltips on plain labels or UIList rows, and a shared
+`bts.apply_preset` operator cannot show a different tooltip per built-in preset.
+Text that cannot become a tooltip is either removed, turned into a
+self-explanatory value, or moved to the README. Property descriptions become
+full sentences with examples and defaults.
+
+### 4.2. Density
+
+- Remove full-width separators between closely related rows and use
+  `separator(factor=0.5)` where a visual break is still useful.
+- Use one warning box per issue group instead of nested boxes.
+- Keep `use_property_split` and `use_property_decorate = False`.
+- Use `scale_y` 0.85-0.9 for secondary rows instead of extra labels.
+- Keep Presets and Report closed by default.
+- Target list height 8 rows, Always Include 3 rows.
+
+### 4.3. Collections update automatically
+
+- A lightweight handler on `depsgraph_update_post` compares a cheap fingerprint
+  of the available source collections with the current target list and marks
+  the scene as pending. A debounced one-shot timer applies the sync outside the
+  depsgraph callback.
+- `load_post` may sync directly.
+- The sync runs only when no preflight or job is active, and it is suppressed
+  while the add-on itself changes visibility or excludes during export.
+- Enabled flags, overrides and the active index are preserved by collection
+  name.
+- The manual `bts.refresh_targets` button stays as a fallback and becomes
+  non-destructive, so pressing it does not discard overrides.
+- Renaming a collection is treated as remove + add: the new name starts with
+  defaults. This is documented.
+
+### 4.4. Readable status
+
+The world-unit string is removed. After Analyze, each row shows the canvas it
+will produce:
+
+| Case | Row text |
+|---|---|
+| Single view, still | `512x304` |
+| Several views | `512x512, 4 views` |
+| Animation | `512x512, 12 frames` |
+| Skipped | the skip reason, for example `empty` |
+| Before analysis | empty |
+
+The main panel summary shows `Targets 4/10 | Views 4 | Actions 6 | Tasks 96`.
+The strings carry their units and counts, so no legend is needed.
+
+### 4.5. Panel map
+
+| Panel | Change |
+|---|---|
+| Main | target/view/action/task summary |
+| Collections | automatic list; overrides for the selected collection |
+| Camera & Framing | view toggles and presets move here; framing values |
+| Resolution | unchanged fields; shows global or overridden values |
+| Output & Naming | template, resolved preview, conflicts |
+| Animation | new in 3.1 |
+| Problems, Presets, Report | compacted; no plan text |
+
+---
+
+## 5. Feature 2: per-collection overrides
+
+Overrides cover only the two categories that need per-asset values, split into
+three groups:
+
+| Group | Fields |
+|---|---|
+| View | the six view booleans |
+| Framing | `camera_margin`, `padding_mode`, `padding_pixels`, `padding_units` |
+| Resolution | `pixels_per_unit`, `resolution_multiple`, `square_output`, `min_resolution`, `max_resolution` |
+
+Everything else stays global by design: output directory, format, naming,
+overwrite policy, isolation, Always Include and node settings. Mixing those per
+collection would make the report and the file plan hard to read.
 
 Rules:
 
-- `logic` **does not import** `ui` and `operators`.
-- `ui.py` does not count dimensions, does not scan nodes and does not change the scene - only `draw()` and operator calls.
-- `operators.py` contains a minimum of code: context validation, calling logic, reporting to the user.
-- `properties.py` is the only place to describe properties; panels and logic read them, but don't create them.
-- Differences between Blender versions are first localized in small helper functions inside `logic.py`; a separate `compat` is created only when shims accumulate.
+1. Each group has one toggle. Off means "use the global value".
+2. Turning a toggle on copies the current global values into the collection, so
+   the user edits from a working baseline.
+3. Effective values are resolved once per target in preflight and the same
+   object is used by the job. The UI shows the same numbers.
+4. Overrides are part of the analysis token, so changing one invalidates the
+   cached preview.
+5. Overrides are not stored in presets. A preset changes the globals only;
+   collections with an active override keep their values.
+6. The report lists only the groups that are overridden for that collection.
+7. Validation is the same as for globals: a value that fails validation is a
+   preflight error with the collection name.
 
-### 2.5. Key Entities of Logic
+Storage: the override fields live on `BTS_TargetItem`. There is one entry per
+collection, so no second list and no name lookup is needed. Deleting a
+collection deletes its entry and its overrides. The View group is wired together
+with the view controls in feature 3; Framing and Resolution are independent of
+it.
 
-Introduced gradually, as needed:
+UI: below the target list, a box for the selected collection shows the three
+group checkboxes. When a group is off, a single muted row says `Using global`.
+When on, the controls appear in place.
 
-```python
-@dataclass
-class Bounds:
-    min: Vector
-    max: Vector
-    valid: bool
-
-@dataclass
-class FrameSpec:
-    res_x: int
-    res_y: int
-    ortho_scale: float
-    center: Vector
-    width: float
-    height: float
-
-# Later, at the preflight/job stage:
-@dataclass
-class Target:
-    collection: Collection
-    bounds: Bounds
-    frame: FrameSpec
-    output_paths: list[str]
-    skip_reason: str | None
-
-@dataclass
-class NodeOutputPlan:
-    collection: str
-    node_name: str
-    layout: str
-    base_path: str
-    file_name: str
-    path: str
-    layer_names: list[str]
-    exists: bool
-    notes: list[str]
-
-@dataclass
-class Problem:
-    severity: Literal["ERROR", "WARNING", "INFO"]
-    code: str
-    message: str
-    collection: str | None = None
-    fix_hint: str | None = None
-
-class BatchJob:
-    def preflight(self) -> list[Problem]: ...
-    def analyze(self) -> list[Target]: ...
-    def run(self, progress, cancel_check) -> JobResult: ...
-    def restore(self) -> list[Problem]: ...
-```
-
-`BTS_OT_BatchExport.execute` after stage 4 (introduction of `BatchJob`) turns into ~20–40 lines: collect the config, call `job.preflight()`, show problems, run job, display the result.
-
-### 2.6. Refactoring order (safe commits)
-
-1. **Commit 0.** Branch + smoke-base: fix the current behavior, add a simple test script.
-2. **Commit 1 (hotfix).** Fix critical issues directly in the monolith: camera ownership and secure recording `hide_render`. This is not refactoring yet.
-3. **Commit 2.** Commit `properties.py`; registration does not change.
-4. **Commit 3.** Move `logic.py`: move functions without changing the code, leaving thin wrappers. Check with a smoke test.
-5. **Commit 4.** Move `operators.py`, `ui.py`, `__init__.py`; check `bl_idname`, `scene.bts_settings` and package installation.
-6. **Commit 5.** Add unit tests to pure functions `logic.py`.
-7. **Commit 6.** The remaining P0/P1 fixes are already in the new structure.
-8. **Commit 7.** When the logic grows, divide `logic.py` by `core/*` (step 2).
-9. **Commit 8.** Translate to Blender Extension, upgrade version, add `blender_manifest.toml`, zip build script and CHANGELOG.
-10. **Commit 9.** Only after this - new functions and behavior changes.
-
-At each step: `python -m py_compile` + smoke test in Blender + checking that `bl_idname` and `scene.bts_settings` have not changed.
-
-### 2.7. Compatibility when splitting
-
-- `bl_info` remains in `__init__.py`; when switching to Extension, add `blender_manifest.toml` (it is better to support both installation methods for the transition period).
-- Save all `bl_idname`: `bts.batch_export`, `bts.preview_camera`, `bts.cleanup`, `bts.restore_collections`, `bts.open_output_folder`.
-- Save `bpy.types.Scene.bts_settings` and existing property names.
-- For a new list of collections, instead of the string `keep_collections`, make a migration: at the first start, parse the old string into `CollectionProperty` and mark it with the `settings_migrated` flag.
-- Changing from a single `.py` to a folder - breaking change of setup, but not scene data. Indicate in README and CHANGELOG. For intermediate batch refactoring, use 1.3.0; Assign 2.0.0 after behavior changes (new UI, output policies, sprite capabilities).
+Compatibility: all toggles default to off, so existing scenes and presets
+produce exactly the 2.0.4 result.
 
 ---
 
-## 3. Error correction (based on code analysis results)
+## 6. Feature 3: multi-view
 
-Priorities: **P0** - data loss/impossibility of operation, **P1** - noticeable problems, **P2** - inconvenience, **P3** - code cleanliness.
+### 6.1. Controls
 
-| # | Priority | Problem | Place | Consequence | Solution |
-|---|-----------|----------|-------|-------------|---------|
-| 1 | P0 | The camera is searched/deleted only by name `_BTS_OrthoCamera` | `ensure_camera`, `remove_camera` | Overwriting or deleting a custom camera | Mark the created camera custom property `bts_owned=True`; if the name matches, create `_BTS_OrthoCamera.001`; delete only owned; store a link to the source camera |
-| 2 | P0 | File Output “Don't Modify” mode writes all collections to the same paths | `apply_node_paths` | Silent file overwriting | Preflight planning of all paths; detect duplicates and suggest/require policy (error, omission, overwrite, suffix) |
-| 3 | P0 | Write `hide_render` without error handling | `isolate_collection_by_hide` | Crash on linked/override objects | try/except on object + Problem; preflight checks `ob.library`/override and suggests Exclude |
-| 4 | P0 | No collision detection after name sanitization (`a/b` and `a\b` → `a_b`) | `logic.py` (path functions), `execute` | Overwriting results | Plan names in advance; in case of collision, add `_2`, `_3` or give an error |
-| 5 | P0 | Emergency renaming based on mtime and snapshot difference | `prefix_new_files` | Can rename extraneous fresh files; expensive on large folders | Remove for regular scenarios: names are known in advance. Leave fallback only as an explicit option with an exact list of expected paths |
-| 6 | P0 | No cancellation of long export | `BTS_OT_BatchExport` | The user waits until the end | Modal operator with timer/cancellation check between collections and frames; correct `finally`-restore |
-| 7 | P1 | `keep_lights` does not work in Exclude mode | `isolate_collection_by_exclude` | Light from a separate collection disappears | Automatically save collections with light (and only light in them - via hide_render), or explicitly document and move the option to Advanced |
-| 8 | P1 | Objects are not directly isolated in the Scene Collection | `isolate_collection_by_exclude` | Garbage in every frame | For objects outside collections, use hide_render; add warning to preflight |
-| 9 | P1 | Checks `node_override_base`/`write_main_output` work even without nodes | `execute` | False error "Base Dir is empty" | Check only with `using_nodes` / `write_still` |
-| 10 | P1 | Relative `//` is checked only for Output Directory | `execute` | Nodes can write to nowhere in an unsaved file | Validate all node base directories after path resolution |
-| 11 | P1 | All File Output nodes are collected, including unconnected ones | `collect_file_outputs` | Extra files, unexpected entries | Bypass only nodes reachable from the Composite output (with the “all nodes” option) |
-| 12 | P1 | Editing nodes from linked library | `apply_node_paths` | Posting errors, broken links | Skip `id_data.library` with WARNING; do not try to change and “restore” |
-| 13 | P1 | Render Border/Crop/Stamp and similar settings are not reset | `execute` | Cropped or captioned sprites | Expand snapshot: `use_border`, `use_crop_to_border`, `use_stamp`, `use_stamp_*`, `use_file_extension`; set safe values during rendering |
-| 14 | P1 | No check that the engine supports transparency/format | `preflight` | Unpredictable result | Warn for Workbench and incompatible format/color/depth combinations |
-| 15 | P2 | Incorrect color depth is silently ignored (eg 32 for PNG) | `apply_image_settings` | The user does not understand the result | Table of acceptable values by format; validation in preflight and UI |
-| 16 | P2 | No handling of Windows reserved names (CON, NUL, COM1...) | `sanitize_filename` | Write Error | List of reserved names + prefix `_` |
-| 17 | P2 | Progress does not take into account skipped collections | `execute` | Inaccurate progress | Count completed attempts, separately show skipped/failed |
-| 18 | P2 | Composer scan every time the panel is redrawn | `BTS_PT_Output.draw` | UI brakes on complex scenes | Cache with invalidation by scene/node tree or update only by button/handler |
-| 19 | P2 | Preview changes scene resolution forever | `BTS_OT_PreviewCamera` | Unexpected settings change | Add `{'UNDO'}` and/or “restore after preview” option |
-| 20 | P3 | Dead code/flags (`node_is_multilayer`, second element `get_compositor_tree`) | `logic.py` (nodes) | Confusion | Remove or use as intended |
-| 21 | P3 | Strange check `cam_obj.name not in scene.collection.objects` | `ensure_camera` | Fragility | Explicitly check `scene.collection.objects.get(name)` |
-| 22 | P3 | Wide `except Exception: pass` | Everywhere in modules | Hidden errors | Log with context, collect Problem |
-| 23 | P3 | No `{'UNDO'}` from Batch Export | `bl_options` | Settings changes cannot be rolled back | Either add UNDO or explicitly warn and always restore the state |
-| 24 | P1 | "Collection Goes To" has no layout that reproduces normal naming; Prefix duplicates a collection token already present in the node file name; Subfolder is a grouping mode; Don't Modify is manual-only | `properties.py`, `logic.py`, `ui.py` | The user cannot predict node output paths; simple compositor exports do not produce `<Collection>.exr` | Add `NodeOutputPlan`, Collection Name and Automatic layouts, duplicate-token detection and a path preview; preserve the old enum identifiers |
+- Six booleans: `view_top`, `view_bottom`, `view_front`, `view_back`,
+  `view_right`, `view_left`, shown as toggle buttons in **Camera & Framing**.
+- `camera_axis` is kept as the legacy value. When exactly one view is selected,
+  it mirrors that view so old presets and scripts keep working. With several
+  views it is ignored.
+- `views_migrated` maps the old `camera_axis` to the matching boolean once.
+- A collection with `override_view` uses its own six booleans.
+- At least one view must be selected per target; an empty set is a preflight
+  error.
 
-**Separately:** add to preflight checks that are currently missing:
+### 6.2. Presets
 
-- cannot create or bind a temporary camera to the scene;
-- Output Directory inside the addon/system folder;
-- paths are too long;
-- the collection is empty or all objects are `hide_render`;
-- several collections with the same final name;
-- compositing with nodes is enabled, but the nodes are not connected to the Composite;
-- the scene has a Render Border/Stamp;
-- the selected format does not support the selected Color/Depth;
-- File Output nodes are located in the linked library;
-- the node layout is incompatible with the setup: `Collection Name` with
-  several File Output nodes, or `Don't Modify` with several target collections;
-- two active File Output nodes resolve to the same final path;
-- node-only mode will write EXR multilayer while the selected add-on format is
-  PNG/JPEG/WebP;
-- for the selected isolation mode there are objects that cannot be hidden.
+- **4 Directions**: front, back, right, left.
+- **6 Directions**: all six.
+- Both set the template to `{collection}_{axis}` and use the global framing and
+  resolution values.
 
-Problem output format: one aggregated report in the panel and in `self.report` at the end, without duplicate messages for each collection.
+### 6.3. One canvas per collection
 
-### 3.1. UX review: "Collection Goes To" and File Output nodes
+All directions of one collection share one canvas: the largest result of the
+selected axes. The same 3D bounds are projected differently per axis, so the
+add-on computes the required resolution per axis and keeps the maximum width,
+height and orthographic scale.
 
-Date: 2026-11-10. Full scenario matrix and acceptance criteria:
-`reports/UX_REVIEW_COLLECTION_GOES_TO.md`.
+This keeps the scale identical between directions and prevents a wide side view
+from producing a smaller sprite. Different collections keep their own canvas, as
+in 2.0.4. In 3.1 the same rule extends across animation frames.
 
-Observed in Blender 5.2.3: a File Output node writes **one multilayer EXR per
-node**. `node.file_name` is the file name; `node.file_output_items` are layer
-names inside that EXR, not separate output files.
+### 6.4. Naming policy
 
-Consequences for the current modes:
+Tokens in 3.0: `{collection}`, `{axis}`. In 3.1: `{action}`, `{frame}`.
+Integer padding is supported: `{frame:04d}`.
 
-- `Subfolder` only changes `node.directory`. The result is
-  `<base>/<Collection>/<node file name>.exr`, not `<Collection>.exr`. It is a
-  grouping layout for several files per collection, not a sprite naming mode.
-- `Filename Prefix` writes `<base>/<Collection>_<node file name>.exr`. If the
-  node is already named after the collection, the result is `Body_Body.exr`.
-  The current code also prefixes the layer names, which is unnecessary.
-- `Don't Modify` leaves the authored paths untouched. One compositor tree
-  cannot route different collections to different files, so it is safe only
-  for a single target; multi-target use is already rejected in stage 3.
-- No mode produces `<base>/<Collection>.exr`, the node-mode equivalent of the
-  familiar main render path. That missing layout is the source of the
-  confusion.
-- Node-only mode is EXR multilayer only. The UI hides the format selector but
-  does not say that the result is EXR, so PNG expectations are not met.
-- There is no path preview, so the user cannot see the effect of a layout
-  before rendering.
+Axis words are lowercase: `top`, `bottom`, `front`, `back`, `right`, `left`.
 
-Decisions:
+The canonical names are:
 
-1. Introduce `NodeOutputPlan` for every `(collection, active File Output node)`
-   pair: effective base directory, file name, layout, full path, existing-file
-   state and duplicate-token notes.
-2. Add `Collection Name` (`FILENAME`): `node.file_name = <Collection>`, layer
-   names unchanged. Valid only with exactly one active File Output node.
-3. Add `Automatic` (`AUTO`): `Collection Name` for one node, `Subfolder` for
-   several. New scenes use Automatic; the resolved layout is displayed.
-4. Keep `Subfolder` and `Prefix` and document them as grouping and flat
-   multi-output layouts. Neither changes layer names in 5.2.
-5. Make `Prefix` duplicate-safe: if the authored name already equals the
-   collection or starts with `<Collection>_`, do not add the token again.
-6. Keep `Don't Modify` as a manual single-target mode with an actionable error
-   for multi-target runs.
-7. Treat node mode as an advanced EXR path: show the actual node format, and
-   show the add-on format controls only when the main render is also written.
-8. Add a path preview in the Output panel and full path/collision output in
-   preflight. The preview and the job use the same resolver.
-9. Rename the user-facing control to "Node Output Layout". Preserve the
-   property `node_naming` and the identifiers `SUBFOLDER`, `PREFIX`, `NONE`;
-   add `FILENAME` and `AUTO`; migrate old scenes to their previous layout.
+| Case | Example |
+|---|---|
+| One view, still | `Body.png` |
+| Several views | `Body_front.png` |
+| Animation, one view | `Body_Walk_0001.png` |
+| Animation, several views | `Body_Walk_front_0001.png` |
 
-Scheduling:
+If several views are selected and the template does not contain `{axis}`, the
+add-on appends `_{axis}` and reports an INFO note with the resolved template.
+The same rule adds `_{action}` and `_{frame:04d}` in animation runs. Tokens that
+are present are respected; missing tokens are appended at the end in the order
+action, axis, frame.
 
-- Stage 4 (1.4.0): `NodeOutputPlan`, effective path resolution, duplicate-token
-  guard, preflight checks for node paths and existing files. No UI redesign.
-- Stage 5 (2.0.0): new enum values and default, migration marker, layout UI,
-  path preview, node-format notice, renamed control and tooltips.
-- Stage 6 (2.1.0): name templates reuse the node plan and add `{node}` next to
-  `{collection}`.
+The recommended complete template is
+`{collection}_{action}_{axis}_{frame:04d}`; parts that are not active are
+omitted. The canonical examples above use either the default `{collection}`
+template or that complete template. With a partial template the auto-appended
+tokens follow the existing text, so the preview always shows the exact result;
+write the complete template when the order matters.
+
+The template remains global. Per-collection templates are not planned: they
+would multiply the collision cases without a clear need.
+
+A custom oblique or isometric camera is not part of v3.
 
 ---
 
-## 4. Improving algorithms
+## 7. Feature 4: animation export (3.1.0)
 
-### 4.1. Single "sprite" canvas (high priority)
+### 7.1. What is exported
 
-Now each collection receives its own resolution based on its dimensions. For sprites this is often unacceptable: frames must be the same size and scale.
+`export_animations` is off by default. When it is on:
 
-Add **Uniform Canvas** mode:
+- each target collection is scanned recursively for objects with
+  `animation_data`;
+- the active action and actions referenced by NLA strips are collected;
+- actions are deduplicated by datablock, and their owner objects are remembered;
+- an action that no object references is not exported.
 
-- one common `pixels_per_unit` and common canvas size for all purposes;
-- fit modes: `Contain` (guaranteed to fit), `Cover` (fills the canvas), `Stretch` (not recommended);
-- alignment of the content inside the canvas: 3x3 (center, bottom-center, etc.);
-- general `ortho_scale` and general `res_x/res_y`;
-- optionally fixed canvas size from the preset (32, 64, 128, 256, 512, 1024);
-- display the final size and scale factor in the UI before rendering.
+A collection without actions still exports its current frame as a still.
 
-This is more important than it seems: without a shared canvas, animations and sprite sets jump around in size and position.
+### 7.2. Frame range
 
-### 4.2. Snap to pixel grid
+For each action:
 
-For stable sprites and animation:
+- if `action.use_frame_range` is set, use `frame_start` and `frame_end`;
+- otherwise use `action.frame_range`;
+- round outward to whole frames;
+- apply `animation_frame_step` (default 1);
+- `{frame}` is the scene frame number.
 
-- round the camera center to half a texel: `center = round(center * ppu) / ppu` (or taking into account the parity of the resolution);
-- with the same `ortho_scale` and resolution, the camera should not produce subpixel drift between frames;
-- add test: two adjacent frames with a small object shift must have an integer shift.
+The ranges are shown in Analyze before launch.
 
-### 4.3. Multiple angles in one run
+### 7.3. Evaluation and restore
 
-Sprites require directions. Add a selection of axes:
+For every action:
 
-- Top, Bottom, Front, Back, Right, Left (checkboxes or toggle buttons);
-- one job bypasses the selected axes and adds a suffix to the name (`{axis}`);
-- dimensions and the overall canvas are calculated along all axes (union) at once, so that the frames are consistent;
-- presets: “4 directions”, “6 directions”, “isometry” (the latter is a separate angle setting).
+1. Assign it to its owner object and select a compatible action slot.
+2. Mute the other NLA tracks of that owner.
+3. Set the scene frame and render a still.
+4. Restore the action, slot, NLA mute states and frame in `finally`.
 
-### 4.4. Animation and frame range
+Other objects keep their own animation. Actions are evaluated by Blender at the
+chosen frame, so constraints and modifiers work, but NLA blending and layered
+action mixes are not baked. This limitation is documented in the UI and README.
 
-- Frame Start / End / Step fields;
-- general dimensions over the range (union bounds), and not adjustment on each frame - otherwise the camera “breathes”;
-- file name with `{frame:04d}`;
-- the ability to render as a sequence of still frames (preferred) or through animation;
-- warning if an object goes beyond the boundaries between frames (can be checked selectively).
+### 7.4. One size for every frame
 
-### 4.5. Exact dimensions taking into account instances
+The canvas of a collection is the union over **all exported actions and all
+sampled frames**. Every selected view is projected from that same union, so the
+directions keep one scale. Every file of that collection has the same
+resolution and scale, including frames of different actions. This is the
+requirement that makes an animation sequence usable in an engine.
 
-The current crawl takes into account only Empty.instance_collection. Improve:
+Sampling costs `actions x frames`; rendering costs `actions x views x frames`.
+Preflight shows the task count and warns above 1000 tasks. Cancel works between
+frames; the frame already rendering finishes.
 
-- build an index of objects and their world-space bounding boxes once by `depsgraph.object_instances`;
-- take into account Geometry Nodes instances, particle systems, array modifiers, instancing by vertices/faces, collection instances;
-- correctly determine whether an instance belongs to a collection: for ordinary objects - `users_collection`, for instances - the instancer/parent collection; for controversial cases - a custom rule;
-- for objects with an empty bound_box (volume, grease pencil, curves) use evaluated mesh/geometry fallback only when it is really needed, freeing temporary data;
-- build aggregates along the collection tree in one pass, rather than recursively for each target;
-- cache the result for the duration of the job; for animation - union by frames.
+### 7.5. Tasks and names
 
-Difficulty: medium/high, but this is what eliminates most of the “empty” and incorrectly cropped collections.
+Task order is fixed: `collection -> action -> axis -> frame`.
 
-### 4.6. Smarter isolation
-
-- Hybrid mode: collections are isolated via exclude, and objects that cannot be excluded (scene root) are isolated via hide_render.
-- `Always Include`: replace the string with commas with a normal list of collections with a picker.
-- “Keep Lights”: keep the light without opening extraneous meshes; if necessary, hide non-light objects in saved collections.
-- Option “Keep Objects” (list of objects) - useful for substrates, references, ground.
-- Pre-launch check: which objects will remain visible in each frame (diagnostics).
-- Always restore state even when canceled/excluded; verify the recovery and write to the log if something failed.
-
-### 4.7. Planning paths and names instead of post-renaming
-
-- Before rendering, build a complete list of output files for all collections/axes/frames.
-- Check collisions, existing files, prohibited names, path length.
-- Rewrite policy: `Ask`, `Error`, `Skip`, `Overwrite`, `Suffix`. Default - `Ask`: before starting, show the number and list of existing files; for headless mode - `Error`. We do not leave silent overwrite as the default behavior.
-- Name templates: `{collection}`, `{axis}`, `{frame}`, `{index}`, `{scene}`, `{date}`; preview and validation of tokens.
-- Leave native naming via File Output items in the main way; Remove fallback renaming from the standard script.
-
-### 4.8. Correct work with files and states
-
-- Do not touch `use_compositing` unless required; If required, explicitly communicate that other compositing effects may change.
-- Take a snapshot of the state using the context manager (`with SceneState(scene, view_layer, nodes):`) so that recovery is guaranteed.
-- Store “what exactly was changed” and restore only that (less side effects and faster).
-- After recovery, check key values (camera, resolution, exclude, hide_render, node paths) and add WARNING if recovery failed.
-
-### 4.9. Optional for sprite pipeline
-
-- Pivot/anchor: center bounds, origin of the collection, origin of the active object, manual Empty, offset in pixels.
-- Metadata export (JSON): name, size, bounds, pivot, filepath - for import into the game engine.
-- Packaging into an atlas/sprite sheet (can be done in a separate step; via the Blender Image API or an optional dependency).
-- Option "one sprite per object" in addition to "per collection".
-- CLI/JSON config for headless launch (`blender -b --python ...`) to be integrated into CI/pipeline.
+Default names follow section 6.4. Overwrite policies apply per produced file;
+`Skip` skips an existing file, not the whole collection.
 
 ---
 
-## 5. Performance optimization
+## 8. Feature 5: Blender 5.3
 
-| Region | Now | Offered | Expected effect |
-|---------|--------|--------------|------------------|
-| Dimensions | Recursive traversal for each collection, repeated updates view layer | One world-bounds index, tree aggregation, cache per job | O(N) instead of O(C×N), less lag on large scenes |
-| Instances | Empty.instance_collection only | Iteration `depsgraph.object_instances` | More correct and without repeated recursion |
-| File Output nodes | Tree search at each iteration and each redraw of the panel | One `CompositorIndex` per job + cache for UI | Removes unnecessary bypasses and panel brakes |
-| Snapshots | Snapshot of all scene objects | Snapshot of only mutable objects/properties | Less memory and time |
-| Fallback renaming | `os.walk` + mtime ±2 s | Exact list of expected paths; without recursive scanning | Faster and safer |
-| `view_layer.update()` | Often | Only with a real change in visibility | Fewer depsgraph recalculations |
-| Progress | No cancellation, approximate | Modal loop, cancel between tasks, ETA | UI remains responsive |
-| Logging | No | Timings by collections, debug log | It is clear what exactly is slowing down |
-
-Additionally:
-
-- Do not recalculate `depsgraph` for each target unless necessary; the rendering is still sequential, but the Python overhead can be removed.
-- For very large batches (hundreds of collections), consider optionally running several Blender background processes (`--background`) to distribute collections. This is complex and risky (licenses, GPU, memory), therefore only as a separate experimental stage.
-- Measure time: analysis, isolation, rendering, file recording; display the final table in the report.
+- Keep support for 5.2.3 LTS and 5.3. The manifest minimum stays 5.2.0.
+- Verify: install, enable, disable, render, File Output nodes (image and
+  multilayer EXR), image settings, depsgraph bounds, action slots, NLA, and
+  `frame_set`.
+- Fix only actual breakages. No opportunistic rewrite.
+- Add 5.3 to the smoke matrix and record both versions in the reports.
+- If an API used by the add-on is removed without a 5.2 fallback, requiring 5.3
+  is acceptable, but only with a documented reason.
 
 ---
 
-## 6. User interface (one of the main priorities)
+## 9. Architecture
 
-### 6.1. General panel structure
+No module split in v3. The existing layout stays. Four small modules are added
+where the new logic has a clear boundary:
 
-```
-┌ Blender To Sprites ──────────────────────────────┐
-│  Targets: 12 collections · 3 views · frames 1–8  │
-│  [ Analyze ]  [ Batch Export ]  [ Cancel ]       │
-│  Progress: ███████░░░ 42%  (14/32, 1 error)      │
-│  ⚠ 2 warnings  [Details]                         │
-├ ▾ Collections (12) ──────────────────────────────┤
-│  ☑ Body        512×512   ☑ Weapon   256×256      │
-│  ☐ UI          empty     ☑ Props    128×128      │
-│  [All] [None] [Active] [Search: ______]          │
-│  Always include: [Collection ▾] [+] [−]          │
-├ ▾ Framing ───────────────────────────────────────┤
-│  Views: [Top] [Front] [Right] [Custom…]          │
-│  Fit: Contain ▾   Padding: 10%                   │
-│  Anchor: ⊞   ☑ Shared canvas: 512×512 ▾          │
-├ ▾ Output ────────────────────────────────────────┤
-│  //sprites/  [Open]                              │
-│  Name: {collection}_{axis}   Preview: ...        │
-│  Format: PNG ▾  RGBA ▾  8 bit ▾                  │
-│  Overwrite: Ask ▾                                │
-├ ▾ Advanced ──────────────────────────────────────┤
-│  Isolation: Exclude ▾  ☑ Keep lights             │
-│  ☑ Use File Output nodes                         │
-│  ☐ Write main render                             │
-│  ☑ Remove camera after export                    │
-│  [Presets…] [Save report]                        │
-└──────────────────────────────────────────────────┘
-```
+| Module | Purpose |
+|---|---|
+| `core/overrides.py` | resolve global values plus per-collection overrides into one settings object |
+| `core/naming.py` | strict token formatter, auto-suffix and collision checks |
+| `core/tasks.py` | expand collections, actions and views into `RenderTask` objects |
+| `core/animation.py` | action discovery, ranges, slot assignment and NLA isolation |
 
-### 6.2. Specific UI improvements
+Dependency rules stay as before: `ui` and `operators` call `logic`; `core.*`
+never imports `ui` or `operators`; `properties.py` remains the only place where
+properties are declared.
 
-1. **List of collections with checkboxes and sizes.** Instead of “all/only enabled/active” - explicit selection of goals; `export_source` remains only as a starting filter/button for mass filling of the list. After the “Analyze” button, show the calculated size, bounds and warnings. This dramatically increases control and reduces the number of random renders.
-2. **Button “Analysis” (Preflight).** Counts dimensions, final names and sizes, checks for errors, does not render anything. The user sees what will happen.
-3. **Separate panel/section “Problems”.** Grouped ERROR/WARNING/INFO with codes and tips; buttons “Open settings”, “Fix”, “Ignore for this launch”.
-4. **Cancel and progress.** Modal operator: current collection/view/frame, ETA, “Cancel” button, correct state restoration.
-5. **Normal “Always Include”.** Replace the string with commas with CollectionProperty + UIList + picker. Leave the line only for migration.
-6. **Name template with live preview.** Show 2-3 example names and a list of conflicts before launch.
-7. **Understandable captions and tooltips.** For example, `Depth` → `Color Depth`, `Camera Distance Margin` → `Camera Offset (units)`, `Padding` → `Padding (px)`; Each parameter has a short description and impact on the result.
-8. **Presets.** “Pixel Art Top”, “2D Platformer Front”, “Multi-view 4/6”, “Animation Sequence”. Saving in JSON to a user config; download/export.
-9. **Destructive Warnings** Confirmation for “Unhide Everything”, deleting camera, overwriting files, exporting outside project.
-10. **Result after export.** Number of files, time, missed/incorrect, “Open folder”, “Open log”, “Copy report” buttons.
-11. **Information panel.** Brief description of the pipeline and link to README/help; A hint is that for sprites it is better to enable a single canvas.
-12. **Localization RU/EN.** English as source, Russian via `bpy.app.translations` (optional). At a minimum, remove ambiguous terms.
-13. **Caching for UI.** Do not scan nodes and do not count bounds in `draw()` on each redraw; store the result of “Analysis” and invalidate by button/scene change.
-14. **Keyboard/Menu.** Add an operator to the Render/Export menu and to the F3 search with a clear name; The hotkey is not assigned automatically.
-15. **Accessibility.** Single icons, grouping by meaning, no default “magic” numbers, safe values for new users.
-
-### 6.3. Default settings (suggested)
-
-- single canvas - an option included in the new presets; old scenes retain the same mode until explicitly turned on;
-- `Ask` with existing files: show the list and ask for confirmation; `Overwrite` is explicitly available;
-- `Always Include` - empty list;
-- auto-delete temporary camera - enabled;
-- `Padding` as a percentage of the object size as a more predictable option (in addition to px/units);
-- clear report after export.
+`job.py` keeps the render loop, `output.py` keeps main-render paths, and
+`scene.py` keeps bounds, isolation and snapshots. They are large, but splitting
+them is not part of the user-visible goal and would add review risk.
 
 ---
 
-## 7. Testing and quality control
+## 10. Testing
 
-### 7.1. Unit tests (without Blender or with minimal stubs)
+### 10.1. Unit tests
 
-- `sanitize_filename`: prohibited characters, spaces/dots, empty name, reserved names Windows, Unicode.
-- `safe_join`, `split_base`, `make_relative_slot`, `ensure_slash`.
-- Name patterns: token substitution, escaping, collisions, extensions.
-- `compute_frame`: padding px/units, square, min/max, multiplicity, no negative dimensions, edge cases.
-- Axes: correct directions and pairs of width/height axes.
-- `ProblemCollector`: deduplication, aggregation, sorting.
-- Preflight: logical checks on fake data.
+- template formatting: every token, padding, unknown token, empty result,
+  auto-suffix order, collisions;
+- override resolution: group off, group on, edge values, invalid values;
+- view migration: each legacy axis maps to one boolean;
+- task expansion: collection x action x axis x frame order and counts;
+- canvas: one size across views, one size across frames, per-collection
+  isolation;
+- action range: manual range, `frame_range`, step, reversed range;
+- status strings: still, views, frames, skipped.
 
-### 7.2. Smoke test in Blender (`blender -b --factory-startup --python tests/smoke_blender.py`)
+Unit tests stay Blender-free and use `tests/stub_bpy.py`. `animation.py` is
+tested with fake objects that expose `animation_data`, tracks and actions.
 
-Script:
+### 10.2. Smoke tests in Blender 5.2.3 and 5.3
 
-1. Create 3 collections: two with meshes, one empty; light in a separate collection; camera.
-2. Add a File Output node (to check the composer branch).
-3. Run `bts.batch_export` with a small resolution: Workbench - for a quick basic test, EEVEE - a separate script for the File Output branch (Workbench does not check the composer).
-4. Check:
-- files have been created and have the expected names/sizes;
-- empty collection skipped;
-- original camera, resolution, format, exclude, hide_render and node paths have been restored;
-- temporary camera deleted (if enabled);
-- when restarted with the `Error` policy, old files are not overwritten;
-- canceling between collections leaves the scene in its original state.
-5. Separate scenario: an object with Geometry Nodes instances falls into bounds.
+- UI draws in every panel and every mode;
+- two collections with different overrides produce different padding and scale;
+- 4- and 6-direction runs produce unique names and one canvas per collection;
+- animation with two actions and two views produces stable sizes, correct names
+  and restores the action, frame and NLA state;
+- cancel during a sequence restores the scene;
+- old scene and old preset load with unchanged output.
 
-Startup scripts: `tests/run_tests.ps1` (Windows) and `tests/run_tests.sh`. CI optional: GitHub Actions with Blender image (heavy) or local run before release.
+### 10.3. Manual checks
 
-### 7.3. Determination of Done
-
-- No known P0/P1 errors.
-- All state changes are restored; There is a test for cancellation and for rendering errors.
-- Preflight covers all currently checked errors and does not generate false positives.
-- Single canvas, multi-view and name templates are covered with tests.
-- README/CHANGELOG updated; The installation of the package was tested on a clean Blender.
-- There is a log with timings for diagnostics.
+- tooltips are readable and no static hint labels remain;
+- adding or deleting a collection updates the list without pressing anything;
+- the row status is understandable without a legend;
+- per-collection padding is visible in the rendered files;
+- 5.3 clean install runs a small export;
+- panel height stays reasonable with 50+ collections.
 
 ---
 
-## 8. Documentation and release
+## 11. Roadmap
 
-- **README**: installation (legacy addon and Extension), quick start, panel screenshot, settings table, output examples, troubleshooting.
-- **CHANGELOG.md**: semantic versioning; 1.3.0 - intermediate transition to the package without changing behavior, 2.0.0 - new UI, output policies and sprite capabilities.
-- **Help inside the addon**: short Help panel or link to README.
-- **Build script**: `build.ps1`/`build.py` → zip package without `tests`, with the correct version from manifest.
-- **Log file**: by default in the output or temp folder; Debug option.
-- **License** and attribution - explicitly indicate in manifest/README.
+| Release | Scope | Estimate |
+|---|---|---|
+| **3.0.0** | UI cleanup, per-collection overrides, multi-view, naming, Blender 5.3 | 2 weeks |
+| **3.1.0** | animation export | 2 weeks |
 
----
-
-## 9. Roadmap by stages
-
-| Stage | Contents | Result | Rating* |
-|------|------------|-----------|---------|
-| 0 | Branch, smoke-base, fixing current behavior | A secure base for change | 0.5 days |
-| 1 | Hotfix P0: camera ownership, secure recording `hide_render` | There is no risk of deleting someone else's camera or falling on linked objects | 0.5–1 day |
-| 2 | Minimum separation: `__init__ / properties / logic / operators / ui` + tests | Logic separated from UI, behavior preserved | 1.5–2.5 days |
-| 3 | P0/P1 not requiring `BatchJob`: path planning and overwrite, name collisions, node and relative path checks, Render Border/Stamp (deferred to stage 4) | Predictable and secure file output | 2-3 days |
-| 4 | `ProblemCollector`, preflight, `BatchJob`, cancel; with the growth of logic - division into `core/*` | All checks before rendering, pure logic | 2–4 days |
-| 5 | New UI: Collection List, Analysis, Issues, Progress/Cancel, Presets | Manageable and intuitive interface | 4–6 days |
-| 6 | Single canvas, pixel snap, multi-view, name templates | Full sprite export | 4–7 days |
-| 7 | Animation, union bounds, exact instances, anchors/metadata | Pipeline for animations and engines | 5–8 days |
-| 8 | Atlas/spritesheet, CLI/JSON, optional concurrency | Ecosystem Expansion | 5+ days |
-
-\* Estimates are indicative; Steps 4–5 can be partially combined. If UI is more important than new features, stage 5 can be started immediately after stage 2, without waiting for preflight/BatchJob.
-
-### What to do first (top 10)
-
-1. Hotfix: camera ownership and secure recording `hide_render` - right in the current monolith.
-2. Minimum division into 5 files without changing behavior - remove the confusion of logic and UI.
-3. Path planning, rewrite policy and name collision detection.
-4. Aggregated preflight and `BatchJob` instead of separate checks in `execute`.
-5. Cancel export and guaranteed restoration of the scene state.
-6. Correction of node checks, relative paths, Render Border/Stamp.
-7. The list of collections and the “Analysis” button are the greatest increase in convenience.
-8. A single canvas and pixel snap - without this, sprites are rarely suitable.
-9. Multi-view, name templates and presets.
-10. Animation, exact instances, anchors and metadata.
+3.0.0 does not change existing output unless the user enables a feature.
+3.1.0 changes output only when `export_animations` is on.
 
 ---
 
-## 10. Risks and how to reduce them
+## 12. Rejected and deferred
 
-- **Refactoring breaks registration.** At each stage, check the installation on a clean Blender, save `bl_idname` and `bts_settings`; conduct a smoke test.
-- **Excessive crushing.** Do not create a module “for the future”; divide only if there is a real volume or a second reason for the change. The guideline is 5 files now, 9–10 after the logic grows.
-- **Change addon format (file → package).** Specify in CHANGELOG; check both installation methods; Don't change Blender version unless necessary.
-- **API of Blender 5.x is changing.** First keep all calls to compositor/file_output_items in helper functions `logic.py`, and when accumulated, move them to `core/common.py` or `compat`; add version check and clear message.
-- **Accurate bounds for instances can be expensive.** First measure on real scenes; cache; fallback on bound_box.
-- **Cancel during `bpy.ops.render.render`.** Blender does not always allow you to interrupt the current render; cancel should work between tasks and the current frame should complete. Don't promise an immediate stop.
-- **Single canvas changes the usual behavior.** Make it an option and show a preview; keep old mode for compatibility.
-- **Presets and new properties.** Consider migration and default values so that old scenes open without surprises.
+| Item | Decision | Reason |
+|---|---|---|
+| Atlas / spritesheet | rejected | External tools already do this; it is not part of batch rendering. |
+| CLI / JSON pipeline | rejected | No current need; the UI covers the workflow. |
+| Pivots and metadata | deferred | Engine-specific; add on request. |
+| Shared canvas for all collections | rejected | Per-collection canvas plus overrides and per-collection view/frame union covers the real need. |
+| Pixel-grid snap | deferred | Not requested; PPU and rounding handle typical pixel art. |
+| Instance-aware bounds rewrite | deferred | Revisit only if a real scene reports a wrong result. |
+| `job.py` / `output.py` / `scene.py` split | deferred | Internal only; adds review risk now. |
+| Localization | deferred | English-only project. |
+| Object targets | deferred | The collection model is the product. |
+| New operator IDs | rejected | Existing operators and presets are enough. |
+| Parallel rendering | rejected | Not needed at the current scale. |
 
 ---
 
-## 11. Summary
+## 13. Definition of done
 
-The addon already solves the basic problem: "collection → one static sprite with an orthographic camera." The main directions for improvement:
+### 3.0.0
 
-1. **Reliability** - do not touch someone else’s camera, do not overwrite files silently, always restore the scene, validate everything in advance.
-2. **Algorithms** - single canvas, pixel snap, precise instances, multi-view, animation, path planning.
-3. **Interface** - explicit list of collections, “Analysis”, aggregated problems, progress with cancellation, presets, clear captions.
-4. **Architecture** - step-by-step separation: first 5 files (`__init__ / properties / logic / operators / ui`), then `core/*` as they grow; tests and documentation.
+- Static hints are gone from panels; the remaining labels report state or errors.
+- The collection list updates automatically and keeps enabled flags and
+  overrides.
+- Row status shows canvas size and view count, never world units.
+- A collection can override view, framing and resolution; turning all overrides
+  off reproduces 2.0.4 output exactly.
+- 4- and 6-direction runs produce correctly named files with one canvas per
+  collection.
+- Unknown naming tokens and name collisions are caught before rendering.
+- Blender 5.2.3 and 5.3 both pass the smoke suite.
+- README, CHANGELOG, manifest and package contract use 3.0.0.
+- No new operator ID was introduced.
 
-This order allows you to first eliminate the risk of data loss and obtain a testable basis, and then increase the functionality of the sprite pipeline without increasing the complexity of the monolith.
+### 3.1.0
+
+- Every action of a collection is exported over its own frame range.
+- All frames of a collection have the same size and scale across actions and
+  views.
+- Names include the action and the frame by default.
+- Cancelling a sequence restores the action, slot, NLA state, frame, camera and
+  render settings.
+- README, CHANGELOG, manifest and package contract use 3.1.0.
+
+---
+
+## 14. Summary
+
+The 2.x work made the exporter safe. Version 3 makes it comfortable and
+expressive without turning it into a platform:
+
+1. Remove interface noise and manual steps.
+2. Let each collection use the framing and resolution it needs.
+3. Export all directions in one run with predictable names.
+4. Export all actions of a character with one stable canvas.
+5. Keep working on the current Blender.
+
+Everything else stays out until a real workflow asks for it.
