@@ -24,6 +24,36 @@ def _invalidate_analysis(_self, context):
         pass
 
 
+def _active_target_changed(_self, context):
+    """Mirror the active target row in the Outliner, unless sync set it."""
+    try:
+        from .logic import active_target_update_suppressed, find_layer_collection
+        if active_target_update_suppressed():
+            return
+        index = int(getattr(_self, "active_target_index", 0))
+        if not 0 <= index < len(_self.target_items):
+            return
+        name = _self.target_items[index].name
+        view_layer = getattr(context, "view_layer", None)
+        if view_layer is None:
+            return
+        layer = find_layer_collection(view_layer, name)
+        if layer is not None and view_layer.active_layer_collection != layer:
+            view_layer.active_layer_collection = layer
+    except Exception:
+        pass
+
+
+def _export_source_changed(_self, context):
+    """Clear preflight and rebuild the visible target list for the new mode."""
+    _invalidate_analysis(_self, context)
+    try:
+        from .logic import request_target_sync
+        request_target_sync(context)
+    except Exception:
+        pass
+
+
 class BTS_TargetItem(PropertyGroup):
     """One collection selected for export."""
 
@@ -66,7 +96,11 @@ class BTS_Settings(PropertyGroup):
         description="Show only target rows whose collection name contains this text",
         default="",
     )
-    active_target_index: IntProperty(default=0, min=0)
+    active_target_index: IntProperty(
+        default=0,
+        min=0,
+        update=_active_target_changed,
+    )
     active_include_index: IntProperty(default=0, min=0)
     active_preview_index: IntProperty(default=0, min=0)
     active_node_index: IntProperty(default=0, min=0)
@@ -337,7 +371,7 @@ class BTS_Settings(PropertyGroup):
             ('TOPLEVEL', "Top-Level Only", "Offer only collections directly under the scene collection"),
         ],
         default='ALL',
-        update=_invalidate_analysis,
+        update=_export_source_changed,
     )
     skip_empty: BoolProperty(
         name="Skip Empty Collections",

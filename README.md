@@ -75,6 +75,14 @@ is treated as a delete plus an add, so the new name starts with default values.
 Enabled flags and per-collection settings survive a sync. **Refresh Targets** is
 only a manual fallback.
 
+The **Export** menu filters both the visible list and the actual export:
+**All Collections**, **Only Included**, **Active Collection** and
+**Top-Level Only**. The full target registry and its enabled flags are kept when
+the mode changes, so switching back restores the previous selection.
+**Active Collection** shows only the collection selected in the Outliner.
+Selecting a collection in the Outliner also selects its target row, and selecting
+a target row selects that collection in the Outliner.
+
 After **Analyze**, each row shows the canvas that will be produced, for example
 `512x304`. The row is empty before an analysis and after any setting change
 that invalidates it. World-unit bounds are not shown.

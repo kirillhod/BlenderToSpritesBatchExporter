@@ -7,7 +7,7 @@ Target releases: 2.1.0, 2.2.0, 2.3.0, 3.0.0, 3.1.0
 
 The repository uses `main` as its default branch. `feature/improvements-v3`
 was created from `origin/main` at `1710a0e`. Stage U is implemented and
-released as 2.1.0; its UI follow-up fixes are 2.1.1 and 2.1.2.
+released as 2.1.0; its UI follow-up fixes are 2.1.1, 2.1.2 and 2.1.3.
 
 This sequence covers only the five features in the plan. It is intentionally
 smaller than the previous draft: no module splits, no atlas, no CLI, no pivots,
@@ -247,7 +247,7 @@ readable row status.
   then build the zip with `tools/build_zip.ps1`.
 - **Check:** tests pass; the zip installs and reports 2.1.0.
 - **Done:** 2.1.0 is released and stage U is complete. The follow-up UI fixes
-  from review are released as 2.1.1 and 2.1.2.
+  from review are released as 2.1.1, 2.1.2 and 2.1.3.
 
 ---
 

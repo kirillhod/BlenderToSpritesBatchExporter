@@ -2,6 +2,17 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [2.1.3] - 2026-11-11
+
+### Fixed
+- `Export` modes now filter both the visible target list and the actual
+  export. `Active Collection` shows only the active Outliner collection even
+  after switching from `All Collections`.
+- Selecting a collection in the Outliner selects and activates its target row.
+  Selecting a target row selects that collection in the Outliner.
+- `All` and `None` affect only the collections visible in the current export
+  mode. The full target registry and its enabled flags survive mode switches.
+
 ## [2.1.2] - 2026-11-11
 
 ### Changed

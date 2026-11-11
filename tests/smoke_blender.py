@@ -696,6 +696,102 @@ def run_target_sync_test():
     logic.unregister_target_sync()
 
 
+def run_target_filter_test():
+    """export_source filters targets and the Outliner selection is mutual."""
+    from blender_to_sprites_batch_exporter import logic, ui
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon = load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    weapon = make_collection("Weapon")
+    extra = make_collection("Extra")
+    add_cube(body, "BodyCube")
+    add_cube(weapon, "WeaponCube", location=(4.0, 0.0, 0.0), size=0.5)
+    add_cube(extra, "ExtraCube", location=(8.0, 0.0, 0.0), size=0.5)
+
+    settings = scene.bts_settings
+    settings.output_dir = tempfile.mkdtemp(prefix="bts_filter_")
+    settings.export_source = "ALL"
+    settings.skip_empty = True
+    settings.use_compositor_nodes = False
+    logic.migrate_settings(bpy.context, settings)
+    logic.sync_target_items(bpy.context, settings)
+
+    names = [item.name for item in settings.target_items]
+    check(names == ["Body", "Weapon", "Extra"], "Initial target registry: %r" % (names,))
+
+    def set_active(name):
+        layer = logic.find_layer_collection(bpy.context.view_layer, name)
+        check(layer is not None, "Layer collection not found: %s" % name)
+        bpy.context.view_layer.active_layer_collection = layer
+
+    def flush_sync():
+        logic.sync_depsgraph_handler(scene)
+        logic.apply_pending_target_sync()
+        logic.sync_target_items(bpy.context, settings)
+
+    def active_name():
+        index = int(settings.active_target_index)
+        return settings.target_items[index].name
+
+    set_active("Body")
+    flush_sync()
+    check(active_name() == "Body", "Outliner selection did not set the active row")
+
+    settings.export_source = "ACTIVE"
+    flush_sync()
+    check(
+        [c.name for c in logic.gather_target_collections(bpy.context, settings)]
+        == ["Body"],
+        "ACTIVE mode exported more than the active collection",
+    )
+    ulist = ui.BTS_UL_Targets
+    class _FilterFlags:
+        bitflag_filter_item = 1
+    flags, _order = ulist.filter_items(
+        _FilterFlags(), bpy.context, settings, "target_items"
+    )
+    visible = [
+        item.name
+        for item, flag in zip(settings.target_items, flags)
+        if flag
+    ]
+    check(visible == ["Body"], "ACTIVE filter shows: %r" % (visible,))
+    check(
+        len(settings.target_items) == 3,
+        "The filter discarded the persistent target registry",
+    )
+
+    set_active("Weapon")
+    flush_sync()
+    check(active_name() == "Weapon", "New Outliner selection did not activate its row")
+    check(
+        [c.name for c in logic.gather_target_collections(bpy.context, settings)]
+        == ["Weapon"],
+        "ACTIVE mode did not follow the new Outliner collection",
+    )
+
+    extra_item = next(item for item in settings.target_items if item.name == "Extra")
+    extra_item.enabled = False
+    settings.export_source = "ALL"
+    flush_sync()
+    exported = sorted(c.name for c in logic.gather_target_collections(bpy.context, settings))
+    check(exported == ["Body", "Weapon"], "ALL filter export: %r" % (exported,))
+    check(extra_item.enabled is False, "Disabled flag was lost after mode switches")
+
+    weapon_index = list(settings.target_items).index(
+        next(item for item in settings.target_items if item.name == "Weapon")
+    )
+    settings.active_target_index = weapon_index
+    check(
+        bpy.context.view_layer.active_layer_collection.collection.name == "Weapon",
+        "Selecting a target row did not select it in the Outliner",
+    )
+    logic.unregister_target_sync()
+
+
 class _FakeOperator:
     pass
 
@@ -912,6 +1008,7 @@ def run_test():
     run_collision_test()
     run_target_list_test()
     run_target_sync_test()
+    run_target_filter_test()
     run_analysis_and_cancel_test()
     run_compositor_test()
     run_ui_draw_probe()

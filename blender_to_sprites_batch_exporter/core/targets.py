@@ -13,10 +13,40 @@ _SYNC_SUPPRESSED = 0
 _SYNC_PENDING = set()
 _SYNC_LAST = {}
 _SYNC_TIMER_REGISTERED = False
+_ACTIVE_INDEX_SUPPRESSED = 0
+
+
+def _active_collection_name(context):
+    """Name of the Outliner collection, or an empty string for the scene root."""
+    view_layer = getattr(context, "view_layer", None)
+    active = getattr(view_layer, "active_layer_collection", None)
+    root = getattr(view_layer, "layer_collection", None)
+    if active is None or active == root:
+        return ""
+    collection = getattr(active, "collection", None)
+    return str(getattr(collection, "name", "") or "")
+
+
+def active_target_update_suppressed():
+    """True while sync writes the active row without touching the Outliner."""
+    return _ACTIVE_INDEX_SUPPRESSED > 0
+
+
+def set_active_target_index(settings, index):
+    """Set the active target row without echoing the change back to Outliner."""
+    global _ACTIVE_INDEX_SUPPRESSED
+    value = int(index)
+    if int(getattr(settings, "active_target_index", 0)) == value:
+        return
+    _ACTIVE_INDEX_SUPPRESSED += 1
+    try:
+        settings.active_target_index = value
+    finally:
+        _ACTIVE_INDEX_SUPPRESSED -= 1
 
 
 def target_fingerprint(context, settings):
-    """Cheap description of the available source collections."""
+    """Cheap description of the available source collections and active item."""
     names = tuple(
         collection.name for collection in gather_source_collections(context, settings)
     )
@@ -24,6 +54,7 @@ def target_fingerprint(context, settings):
         str(getattr(settings, "export_source", "")),
         bool(getattr(settings, "skip_empty", True)),
         names,
+        _active_collection_name(context),
     )
 
 
@@ -201,23 +232,36 @@ def migrate_settings(context, settings):
         settings.name_template = "{collection}"
 
 
+def source_collection_names(context, settings):
+    """Names currently selected by the ``export_source`` filter."""
+    return {
+        collection.name
+        for collection in gather_source_collections(context, settings)
+    }
+
+
+def _target_index(settings, name):
+    for index, item in enumerate(settings.target_items):
+        if item.name == name:
+            return index
+    return None
+
+
 def _restore_active_index(settings, name):
     items = list(settings.target_items)
-    if name:
-        for index, item in enumerate(items):
-            if item.name == name:
-                settings.active_target_index = index
-                return
-    count = len(items)
-    try:
-        current = int(getattr(settings, "active_target_index", 0))
-    except (TypeError, ValueError):
-        current = 0
-    settings.active_target_index = min(max(0, current), max(0, count - 1))
+    index = _target_index(settings, name) if name else None
+    if index is None:
+        count = len(items)
+        try:
+            current = int(getattr(settings, "active_target_index", 0))
+        except (TypeError, ValueError):
+            current = 0
+        index = min(max(0, current), max(0, count - 1))
+    set_active_target_index(settings, index)
 
 
 def sync_target_items(context, settings):
-    """Add newly available source collections and drop deleted ones."""
+    """Add available source collections, drop deleted ones and follow Outliner."""
     migrate_settings(context, settings)
     source = gather_source_collections(context, settings)
     source_names = [collection.name for collection in source]
@@ -235,7 +279,19 @@ def sync_target_items(context, settings):
         if name not in existing:
             _target_add(settings, name, True)
 
-    _restore_active_index(settings, active_name)
+    outliner_active = _active_collection_name(context)
+    if outliner_active:
+        index = _target_index(settings, outliner_active)
+        if index is not None:
+            if getattr(settings, "export_source", "") == 'ACTIVE':
+                item = settings.target_items[index]
+                if not item.enabled:
+                    item.enabled = True
+            set_active_target_index(settings, index)
+        else:
+            _restore_active_index(settings, active_name)
+    else:
+        _restore_active_index(settings, active_name)
     scene = getattr(context, "scene", None)
     if scene is not None:
         try:
@@ -257,8 +313,16 @@ def enabled_target_names(settings):
     ]
 
 
-def set_all_targets(settings, enabled):
+def set_all_targets(settings, enabled, context=None):
+    names = None
+    if context is not None:
+        try:
+            names = source_collection_names(context, settings)
+        except Exception:  # noqa: BLE001
+            names = None
     for item in settings.target_items:
+        if names is not None and item.name not in names:
+            continue
         item.enabled = bool(enabled)
 
 

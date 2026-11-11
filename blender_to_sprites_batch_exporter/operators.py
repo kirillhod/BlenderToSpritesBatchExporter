@@ -252,13 +252,13 @@ class BTS_OT_RefreshTargets(Operator):
 class BTS_OT_TargetsAll(Operator):
     bl_idname = "bts.targets_all"
     bl_label = "Enable All"
-    bl_description = "Enable every collection in the target list"
+    bl_description = "Enable every collection visible in the current export mode"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         settings = context.scene.bts_settings
         sync_target_items(context, settings)
-        set_all_targets(settings, True)
+        set_all_targets(settings, True, context)
         clear_analysis_cache(context.scene)
         return {'FINISHED'}
 
@@ -266,13 +266,13 @@ class BTS_OT_TargetsAll(Operator):
 class BTS_OT_TargetsNone(Operator):
     bl_idname = "bts.targets_none"
     bl_label = "Disable All"
-    bl_description = "Disable every collection in the target list"
+    bl_description = "Disable every collection visible in the current export mode"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
         settings = context.scene.bts_settings
         sync_target_items(context, settings)
-        set_all_targets(settings, False)
+        set_all_targets(settings, False, context)
         clear_analysis_cache(context.scene)
         return {'FINISHED'}
 

@@ -510,17 +510,24 @@ def gather_source_collections(context, settings):
 
 
 def gather_target_collections(context, settings):
-    """Return enabled target items, or fall back to the source filter.
+    """Return enabled target items that also pass the ``export_source`` filter.
 
-    Once ``target_items`` has been populated it is the source of truth. An
-    empty list still means "not initialized yet" so old scenes keep working.
+    ``target_items`` is the persistent registry, so switching the filter back
+    restores the previous flags. Once the registry is initialized it is still
+    the source of truth for which collections may be exported.
     """
     items = getattr(settings, "target_items", None)
     migrated = bool(getattr(settings, "target_items_migrated", False))
     if items is not None and (len(items) > 0 or migrated):
+        source_names = {
+            collection.name
+            for collection in gather_source_collections(context, settings)
+        }
         result = []
         for item in items:
             if not getattr(item, "enabled", True):
+                continue
+            if item.name not in source_names:
                 continue
             collection = bpy.data.collections.get(item.name)
             if collection is not None:

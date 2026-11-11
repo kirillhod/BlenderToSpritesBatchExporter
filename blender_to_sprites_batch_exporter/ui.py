@@ -4,6 +4,7 @@ from bpy.types import Panel, UIList
 
 from .logic import (
     DEPTH_CAPABLE,
+    gather_source_collections,
     get_job_status,
     is_relative_unsaved,
     normalize_image_settings,
@@ -58,8 +59,17 @@ def _target_status_text(status, compact=False):
     return f"Skipped: {value}"
 
 
-def _enabled_targets(settings):
-    return sum(1 for item in settings.target_items if item.enabled)
+def _target_counts(context, settings):
+    """Enabled and visible target counts for the current export mode."""
+    try:
+        names = {
+            collection.name
+            for collection in gather_source_collections(context, settings)
+        }
+        items = [item for item in settings.target_items if item.name in names]
+    except Exception:  # noqa: BLE001
+        items = list(settings.target_items)
+    return sum(1 for item in items if item.enabled), len(items)
 
 
 class BTS_UL_Targets(UIList):
@@ -79,12 +89,21 @@ class BTS_UL_Targets(UIList):
     def filter_items(self, context, data, propname):
         items = getattr(data, propname)
         search = str(data.target_search or "").strip().casefold()
-        flags = [
-            self.bitflag_filter_item
-            if not search or search in item.name.casefold()
-            else 0
-            for item in items
-        ]
+        source_names = None
+        if context is not None:
+            try:
+                source_names = {
+                    collection.name
+                    for collection in gather_source_collections(context, data)
+                }
+            except Exception:  # noqa: BLE001
+                source_names = None
+        flags = []
+        for item in items:
+            visible = source_names is None or item.name in source_names
+            if visible and search:
+                visible = search in item.name.casefold()
+            flags.append(self.bitflag_filter_item if visible else 0)
         return flags, []
 
 
@@ -130,10 +149,10 @@ class BTS_PT_MainPanel(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
         settings = context.scene.bts_settings
-        enabled = _enabled_targets(settings)
+        enabled, visible = _target_counts(context, settings)
         analysis = peek_cached_analysis(context.scene)
         summary = (
-            f"Targets: {enabled}/{len(settings.target_items)}   "
+            f"Targets: {enabled}/{visible}   "
             f"Views: {target_view_count(settings)}"
         )
         if analysis is not None:
