@@ -4,7 +4,7 @@ Date: 2026-11-11
 Baseline version: 2.0.4
 Base branch: `main` (the repository has no `master` branch)
 Work branch: `feature/improvements-v3`
-Status: planning. No v3 code has been written yet.
+Status: in progress. Stage U is implemented and released as 2.1.0.
 
 This plan replaces the previous 3.x draft. The draft grew into a platform
 roadmap with atlas packing, CLI, pivots, metadata, a shared global canvas and a
@@ -19,17 +19,20 @@ Version 3 does five things:
 
 | # | Feature | Release |
 |---|---|---|
-| 1 | UI cleanup: tooltips, density, automatic collection sync, readable status | 3.0.0 |
-| 2 | Per-collection overrides for view, framing and resolution | 3.0.0 |
-| 3 | Multi-view export with 4- and 6-direction presets and one naming policy | 3.0.0 |
+| 1 | UI cleanup: tooltips, density, automatic collection sync, readable status | 2.1.0 |
+| 2 | Per-collection overrides for view, framing and resolution | 2.2.0 |
+| 3 | Multi-view export with 4- and 6-direction presets and one naming policy | 2.3.0 |
 | 4 | Animation export: every action of a collection, its frame range and its name | 3.1.0 |
 | 5 | Blender 5.3 compatibility | 3.0.0 |
 
-Two releases are planned: **3.0.0** and **3.1.0**. There is no 3.2.
+Releases are incremental: **2.1.0**, **2.2.0**, **2.3.0**, **3.0.0** and
+**3.1.0**. There is no 3.2.
 
-Animation is 3.1.0 because it reuses the naming and canvas rules introduced for
-multi-view in 3.0.0. Shipping the smaller release first keeps the change surface
-reviewable. The 3.1.0 work is not optional polish; it is the animation feature.
+Each stage ships a testable build instead of waiting for the final release. UI
+cleanup is 2.1.0, overrides are 2.2.0, multi-view and naming are 2.3.0, and
+Blender 5.3 plus the combined verification is 3.0.0. Animation is 3.1.0 because
+it reuses the naming and canvas rules introduced in 2.3.0. The 3.1.0 work is not
+optional polish; it is the animation feature.
 
 ### 1.1. Explicit non-goals
 
@@ -426,11 +429,14 @@ tested with fake objects that expose `animation_data`, tracks and actions.
 
 | Release | Scope | Estimate |
 |---|---|---|
-| **3.0.0** | UI cleanup, per-collection overrides, multi-view, naming, Blender 5.3 | 2 weeks |
+| **2.1.0** | UI cleanup | 3 days |
+| **2.2.0** | per-collection overrides | 4 days |
+| **2.3.0** | multi-view, canvas and naming | 3 days |
+| **3.0.0** | Blender 5.3 and combined verification | 2 days |
 | **3.1.0** | animation export | 2 weeks |
 
-3.0.0 does not change existing output unless the user enables a feature.
-3.1.0 changes output only when `export_animations` is on.
+The 2.x releases do not change existing output unless the user enables a
+feature. 3.1.0 changes output only when `export_animations` is on.
 
 ---
 
@@ -454,18 +460,31 @@ tested with fake objects that expose `animation_data`, tracks and actions.
 
 ## 13. Definition of done
 
-### 3.0.0
+### 2.1.0
 
 - Static hints are gone from panels; the remaining labels report state or errors.
-- The collection list updates automatically and keeps enabled flags and
-  overrides.
-- Row status shows canvas size and view count, never world units.
-- A collection can override view, framing and resolution; turning all overrides
-  off reproduces 2.0.4 output exactly.
+- The collection list updates automatically and keeps enabled flags.
+- Row status shows canvas size, never world units.
+- README, CHANGELOG, manifest and package contract use 2.1.0.
+
+### 2.2.0
+
+- A collection can override framing and resolution.
+- Turning all overrides off reproduces 2.0.4 output exactly.
+- README, CHANGELOG, manifest and package contract use 2.2.0.
+
+### 2.3.0
+
 - 4- and 6-direction runs produce correctly named files with one canvas per
   collection.
 - Unknown naming tokens and name collisions are caught before rendering.
+- Row status adds the view count when it applies.
+- README, CHANGELOG, manifest and package contract use 2.3.0.
+
+### 3.0.0
+
 - Blender 5.2.3 and 5.3 both pass the smoke suite.
+- The combined 2.1.0-2.3.0 behavior is verified together.
 - README, CHANGELOG, manifest and package contract use 3.0.0.
 - No new operator ID was introduced.
 

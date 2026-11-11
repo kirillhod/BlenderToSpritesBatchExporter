@@ -3,10 +3,11 @@
 Date: 2026-11-11
 Base: `IMPROVEMENT_PLAN.md` (v3 revision, 2026-11-11)
 Baseline add-on version: 2.0.4
-Target releases: 3.0.0, 3.1.0
+Target releases: 2.1.0, 2.2.0, 2.3.0, 3.0.0, 3.1.0
 
 The repository uses `main` as its default branch. `feature/improvements-v3`
-was created from `origin/main` at `1710a0e`. No v3 commit exists yet.
+was created from `origin/main` at `1710a0e`. Stage U is implemented and
+released as 2.1.0.
 
 This sequence covers only the five features in the plan. It is intentionally
 smaller than the previous draft: no module splits, no atlas, no CLI, no pivots,
@@ -75,7 +76,8 @@ Do not commit the reference export.
 - All scene changes go through snapshots and `finally` restoration.
 - Warnings and errors go through `Problem` and `ProblemCollector`.
 - English only in code, comments, docs, tests and commit messages.
-- Update `CHANGELOG.md` under `[Unreleased]` as tasks land.
+- Update `CHANGELOG.md` under `[Unreleased]` as tasks land; at release time
+  rename it to the stage version.
 
 ### 2.1. Definition of a safe commit
 
@@ -92,11 +94,11 @@ Do not commit the reference export.
 ```
 S0 baseline
  |
- +-- U1-U6  UI cleanup (3.0.0)
+ +-- U1-U6  UI cleanup (2.1.0)
  |
- +-- O1-O5  per-collection overrides (3.0.0)
+ +-- O1-O5  per-collection overrides (2.2.0)
  |
- +-- V1-V6  multi-view, canvas, naming (3.0.0)
+ +-- V1-V6  multi-view, canvas, naming (2.3.0)
  |      |
  |      +-- C1  Blender 5.3 verification
  |             |
@@ -145,7 +147,7 @@ S0 -> U3 -> U4 -> O1 -> O2 -> O3 -> V1 -> V2 -> V3 -> V4 -> V5 -> C1 -> C2
 
 ---
 
-## 5. Stage U. Interface cleanup (3.0.0)
+## 5. Stage U. Interface cleanup (2.1.0)
 
 **Result:** no static help labels, less vertical noise, automatic target list,
 readable row status.
@@ -241,11 +243,14 @@ readable row status.
 ### U6. Tests and documentation
 - **Depends:** U1-U5.
 - **Actions:** UI draw smoke, string checks, README screenshots text, CHANGELOG.
-- **Done:** stage U is complete.
+  Set 2.1.0 in `__init__.py`, `blender_manifest.toml` and the package contract,
+  then build the zip with `tools/build_zip.ps1`.
+- **Check:** tests pass; the zip installs and reports 2.1.0.
+- **Done:** 2.1.0 is released and stage U is complete.
 
 ---
 
-## 6. Stage O. Per-collection overrides (3.0.0)
+## 6. Stage O. Per-collection overrides (2.2.0)
 
 **Result:** a collection can override framing and resolution without touching
 the globals. The View override is added in stage V, together with the view
@@ -321,12 +326,14 @@ properties it belongs to.
 ### O5. Tests and documentation
 - **Depends:** O1-O4.
 - **Actions:** unit tests, smoke with two collections that use different padding
-  and PPU, README section, CHANGELOG.
-- **Done:** stage O is complete.
+  and PPU, README section, CHANGELOG. Set 2.2.0 in all four places and build
+  the zip.
+- **Check:** turning every override off reproduces the 2.0.4 output.
+- **Done:** 2.2.0 is released and stage O is complete.
 
 ---
 
-## 7. Stage V. Multi-view, canvas and naming (3.0.0)
+## 7. Stage V. Multi-view, canvas and naming (2.3.0)
 
 **Result:** several directions in one run, one canvas per collection and
 predictable names.
@@ -438,8 +445,10 @@ predictable names.
 ### V6. Tests and documentation
 - **Depends:** V1-V5.
 - **Actions:** unit tests, smoke with 1/4/6 axes and a collection that
-  overrides its views, README views and naming sections, CHANGELOG.
-- **Done:** stage V is complete.
+  overrides its views, README views and naming sections, CHANGELOG. Set 2.3.0
+  in all four places and build the zip.
+- **Check:** the reference scene still matches with new toggles off.
+- **Done:** 2.3.0 is released and stage V is complete.
 
 ---
 
@@ -622,9 +631,9 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 | Milestone | Result | Version |
 |---|---|---|
 | M0 | baseline in 5.2.3 and 5.3, reference export | 2.0.4 |
-| M1 | UI cleanup | 3.0.0-dev |
-| M2 | per-collection overrides | 3.0.0-dev |
-| M3 | multi-view, canvas and naming | 3.0.0-dev |
+| M1 | UI cleanup | 2.1.0 |
+| M2 | per-collection overrides | 2.2.0 |
+| M3 | multi-view, canvas and naming | 2.3.0 |
 | M4 | 5.3 verified, 3.0.0 released | 3.0.0 |
 | M5 | animation | 3.1.0-dev |
 | M6 | 3.1.0 released | 3.1.0 |
@@ -633,21 +642,34 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ## 12. Manual checklist
 
-### 3.0.0
+### 2.1.0
 
 - [ ] Tooltips explain the settings; no static hint labels remain.
 - [ ] Adding, deleting or renaming a collection updates the list without
       pressing Refresh.
-- [ ] Enabled flags and overrides survive the automatic sync.
-- [ ] Row status shows canvas size and view count, not world units.
+- [ ] Enabled flags survive the automatic sync.
+- [ ] Row status shows canvas size, not world units.
+- [ ] The 2.1.0 zip installs and enables in 5.2 and 5.3.
+
+### 2.2.0
+
 - [ ] Turning an override group on copies the global values.
 - [ ] Two collections with different padding and PPU render differently.
 - [ ] Turning all overrides off reproduces the 2.0.4 output.
+- [ ] The 2.2.0 zip installs and enables in 5.2 and 5.3.
+
+### 2.3.0
+
 - [ ] 4-axis and 6-axis runs write unique names with one canvas.
 - [ ] Unknown tokens and name collisions block the export.
 - [ ] The path preview matches the written files.
-- [ ] The add-on enables and disables cleanly in 5.2 and 5.3.
+- [ ] Row status shows the view count when it applies.
 - [ ] A 2.0.4 scene opens with the legacy view selected.
+- [ ] The 2.3.0 zip installs and enables in 5.2 and 5.3.
+
+### 3.0.0
+
+- [ ] The add-on enables and disables cleanly in 5.2 and 5.3.
 - [ ] Preset save/load works on Windows; old presets load.
 - [ ] Cancel during a real export restores camera, excludes and render state.
 - [ ] The release zip installs on clean 5.2 and 5.3 profiles.

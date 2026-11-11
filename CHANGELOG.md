@@ -2,7 +2,7 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
-## [Unreleased]
+## [2.1.0] - 2026-11-11
 
 ### Added
 - `LICENSE` file with the GNU General Public License v3.0 or later.
