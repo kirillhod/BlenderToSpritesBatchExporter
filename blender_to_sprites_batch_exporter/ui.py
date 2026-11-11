@@ -3,17 +3,20 @@
 from bpy.types import Panel, UIList
 
 from .logic import (
-    BUILTIN_PRESET_DESCRIPTIONS,
-    BUILTIN_PRESETS,
     DEPTH_CAPABLE,
     get_job_status,
     is_relative_unsaved,
-    node_output_format_label,
     normalize_image_settings,
     peek_cached_analysis,
     resolve_node_layout,
     target_view_count,
 )
+
+
+# Share of the row left for the collection name; the rest is the status column.
+_TARGET_NAME_FACTOR = 0.55
+_PREVIEW_NAME_FACTOR = 0.42
+_NODE_NAME_FACTOR = 0.42
 
 
 def _left_checkbox(layout, owner, prop, text=None):
@@ -26,34 +29,37 @@ def _left_checkbox(layout, owner, prop, text=None):
         row.prop(owner, prop, text=text)
 
 
-def _trim(text, limit=150):
-    text = " ".join(str(text).split())
-    return text if len(text) <= limit else text[: limit - 3] + "..."
+def _wrap_text(text, width=48):
+    """Split one long string into readable panel lines without losing text."""
+    value = " ".join(str(text or "").split())
+    if not value:
+        return []
+    lines = []
+    while len(value) > width:
+        cut = value.rfind(" ", 0, width + 1)
+        if cut <= 0:
+            cut = width
+        lines.append(value[:cut])
+        value = value[cut:].lstrip()
+    if value:
+        lines.append(value)
+    return lines
+
+
+def _target_status_text(status, compact=False):
+    """Explain the value shown to the right of a target name."""
+    value = str(status or "").strip()
+    if not value:
+        return ""
+    if value[0].isdigit():
+        return value if compact else f"Canvas {value}"
+    if compact:
+        return "skipped"
+    return f"Skipped: {value}"
 
 
 def _enabled_targets(settings):
     return sum(1 for item in settings.target_items if item.enabled)
-
-
-def _short_path(path, base):
-    value = str(path or "").replace("\\", "/")
-    root = str(base or "").replace("\\", "/").rstrip("/")
-    if root and value.casefold().startswith(root.casefold() + "/"):
-        return value[len(root) + 1:]
-    return value
-
-
-def _preview_plan(analysis):
-    if analysis is None:
-        return None
-    for target in analysis.targets:
-        if target.skipped:
-            continue
-        if target.node_plans:
-            return target.node_plans[0]
-        if target.output_plan is not None:
-            return target.output_plan
-    return None
 
 
 class BTS_UL_Targets(UIList):
@@ -62,21 +68,20 @@ class BTS_UL_Targets(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         row = layout.row(align=True)
         row.prop(item, "enabled", text="")
-        row.label(text=item.name, icon='OUTLINER_COLLECTION')
+        split = row.split(factor=_TARGET_NAME_FACTOR, align=True)
+        split.label(text=item.name, icon='OUTLINER_COLLECTION')
         analysis = peek_cached_analysis(context.scene)
         if analysis is not None and item.size_status:
-            row.label(text=item.size_status)
+            split.label(text=_target_status_text(item.size_status, compact=True))
         elif not item.enabled:
-            row.label(text="disabled")
+            split.label(text="disabled")
 
     def filter_items(self, context, data, propname):
         items = getattr(data, propname)
         search = str(data.target_search or "").strip().casefold()
-        if not search:
-            return [], []
         flags = [
             self.bitflag_filter_item
-            if search in item.name.casefold()
+            if not search or search in item.name.casefold()
             else 0
             for item in items
         ]
@@ -88,6 +93,29 @@ class BTS_UL_AlwaysInclude(UIList):
 
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
         layout.label(text=item.name, icon='OUTLINER_COLLECTION')
+
+
+class BTS_UL_Preview(UIList):
+    bl_idname = "BTS_UL_Preview"
+
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        split = row.split(factor=_PREVIEW_NAME_FACTOR, align=True)
+        split.label(text=item.name, icon='OUTLINER_COLLECTION')
+        split.label(
+            text=item.path,
+            icon='ERROR' if item.exists else 'FILE_IMAGE',
+        )
+
+
+class BTS_UL_NodeOutputs(UIList):
+    bl_idname = "BTS_UL_NodeOutputs"
+
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        split = row.split(factor=_NODE_NAME_FACTOR, align=True)
+        split.label(text=item.name, icon='NODE_COMPOSITING')
+        split.label(text=item.detail)
 
 
 class BTS_PT_MainPanel(Panel):
@@ -122,9 +150,8 @@ class BTS_PT_MainPanel(Panel):
                      f"skipped {status.get('skipped', 0)}  "
                      f"failed {status.get('failed', 0)}"
             )
-        col = layout.column(align=True)
-        col.scale_y = 1.6
-        col.operator("bts.batch_export", icon='RENDER_ANIMATION')
+        row = layout.row(align=True)
+        row.operator("bts.batch_export", icon='RENDER_ANIMATION')
         row = layout.row(align=True)
         row.operator("bts.analyze", icon='VIEWZOOM')
         row.operator("bts.cancel_export", icon='CANCEL')
@@ -166,7 +193,15 @@ class BTS_PT_Source(Panel):
         row = layout.row(align=True)
         row.operator("bts.refresh_targets", icon='FILE_REFRESH')
         row.prop(settings, "target_search", text="", icon='VIEWZOOM')
-        layout.template_list(
+        list_layout = layout.column()
+        list_layout.use_property_split = False
+        list_layout.use_property_decorate = False
+        header_row = list_layout.row(align=True)
+        header_row.label(icon='BLANK1')
+        split = header_row.split(factor=_TARGET_NAME_FACTOR, align=True)
+        split.label(text="Collection", icon='OUTLINER_COLLECTION')
+        split.label(text="Canvas / status")
+        list_layout.template_list(
             "BTS_UL_Targets",
             "",
             settings,
@@ -202,12 +237,6 @@ class BTS_PT_Source(Panel):
         row.operator("bts.remove_always_include", text="Remove", icon='REMOVE')
         layout.prop(settings, "isolation_mode")
         layout.prop(settings, "keep_lights")
-        if settings.isolation_mode == 'EXCLUDE' and settings.keep_lights:
-            info = layout.box()
-            info.label(
-                text="Other objects in light collections may appear in the render.",
-                icon='INFO',
-            )
 
 
 class BTS_PT_Camera(Panel):
@@ -282,6 +311,7 @@ class BTS_PT_Output(Panel):
             self._draw_main_output(layout, settings, context.scene.render)
             if nodes:
                 layout.label(text="File Output nodes found but disabled.", icon='INFO')
+        self._draw_path_preview(layout, settings)
 
     def _draw_main_output(self, layout, settings, render):
         layout.prop(settings, "output_dir")
@@ -291,7 +321,6 @@ class BTS_PT_Output(Panel):
         layout.prop(settings, "use_transparent")
         layout.prop(render, "filter_size")
         layout.operator("bts.open_output_folder", icon='FILE_FOLDER').path = settings.output_dir
-        self._draw_preview(layout, settings, None)
 
     def _draw_node_output(self, layout, settings, analysis, nodes, render):
         compositing_off = not getattr(render, "use_compositing", True)
@@ -303,7 +332,7 @@ class BTS_PT_Output(Panel):
                 icon='ERROR',
             )
 
-        layout.label(text=f"{len(nodes)} active File Output node(s)", icon='NODE_COMPOSITING')
+        self._draw_node_list(layout, settings, nodes)
         layout.prop(settings, "node_naming")
         resolved = resolve_node_layout(settings.node_naming, nodes)
         node_only = bool(settings.use_compositor_nodes and not settings.write_main_output)
@@ -336,14 +365,7 @@ class BTS_PT_Output(Panel):
             error.alert = True
             error.label(text="Base Directory is empty!", icon='ERROR')
         layout.prop(settings, "write_main_output")
-        if node_only:
-            info = layout.box()
-            info.label(
-                text=f"Node output: {node_output_format_label(nodes[0])}",
-                icon='FILE_IMAGE',
-            )
-            info.label(text="Enable Also Save Main Render for PNG/JPEG.")
-        else:
+        if not node_only:
             self._draw_format(layout, settings)
         layout.prop(settings, "use_transparent")
         layout.prop(render, "filter_size")
@@ -357,31 +379,58 @@ class BTS_PT_Output(Panel):
                 text=f"{len(analysis.conflicts)} existing file(s) need confirmation.",
                 icon='ERROR',
             )
-            for conflict in analysis.conflicts[:3]:
-                box.label(
-                    text=_trim(
-                        f"{conflict.collection}: "
-                        f"{_short_path(conflict.path, settings.output_dir)}"
-                    )
-                )
-        self._draw_preview(layout, settings, analysis)
+            for conflict in analysis.conflicts:
+                for line in _wrap_text(f"{conflict.collection}: {conflict.path}"):
+                    box.label(text=line)
         layout.operator("bts.open_output_folder", icon='FILE_FOLDER').path = settings.output_dir
 
-    def _draw_preview(self, layout, settings, analysis):
-        if analysis is None:
+    def _draw_node_list(self, layout, settings, nodes):
+        layout.label(
+            text=f"File Output Nodes ({len(nodes)})",
+            icon='NODE_COMPOSITING',
+        )
+        list_layout = layout.column()
+        list_layout.use_property_split = False
+        list_layout.use_property_decorate = False
+        header = list_layout.row(align=True)
+        split = header.split(factor=_NODE_NAME_FACTOR, align=True)
+        split.label(text="Node", icon='NODE_COMPOSITING')
+        split.label(text="Format / outputs")
+        list_layout.template_list(
+            "BTS_UL_NodeOutputs",
+            "",
+            settings,
+            "node_items",
+            settings,
+            "active_node_index",
+            rows=3,
+        )
+
+    def _draw_path_preview(self, layout, settings):
+        if not len(settings.preview_items):
             return
-        plan = _preview_plan(analysis)
-        if plan is None:
+        row = layout.row()
+        row.use_property_split = False
+        row.prop(settings, "show_path_preview", text="Path Preview")
+        row.label(text=f"{len(settings.preview_items)} file(s)")
+        if not settings.show_path_preview:
             return
-        box = layout.box()
-        box.label(text="Path Preview", icon='FILE_IMAGE')
-        box.label(text=_trim(_short_path(getattr(plan, "path", ""), settings.output_dir)))
-        if getattr(plan, "exists", False):
-            box.label(text="File already exists", icon='ERROR')
-        if analysis.node_plans:
-            extra = len(analysis.node_plans) - 1
-            if extra > 0:
-                box.label(text=f"... and {extra} node output(s)")
+        list_layout = layout.column()
+        list_layout.use_property_split = False
+        list_layout.use_property_decorate = False
+        header = list_layout.row(align=True)
+        split = header.split(factor=_PREVIEW_NAME_FACTOR, align=True)
+        split.label(text="Collection", icon='OUTLINER_COLLECTION')
+        split.label(text="Path")
+        list_layout.template_list(
+            "BTS_UL_Preview",
+            "",
+            settings,
+            "preview_items",
+            settings,
+            "active_preview_index",
+            rows=4,
+        )
 
     def _draw_format(self, layout, settings):
         layout.prop(settings, "file_format")
@@ -420,16 +469,17 @@ class BTS_PT_Problems(Panel):
                 continue
             box = layout.box()
             box.label(text=f"{severity.title()} ({len(group)})", icon=icon)
-            for problem in group[:6]:
+            for problem in group:
                 col = box.column(align=True)
-                col.scale_y = 0.85
-                col.label(text=_trim(f"{problem.code}: {problem.message}"))
+                col.scale_y = 0.9
+                for line in _wrap_text(f"{problem.code}: {problem.message}"):
+                    col.label(text=line)
                 if problem.collection:
                     col.label(text=f"Collection: {problem.collection}")
                 if problem.fix_hint:
-                    col.label(text=_trim(problem.fix_hint))
-            if len(group) > 6:
-                box.label(text=f"... and {len(group) - 6} more")
+                    for line in _wrap_text(problem.fix_hint):
+                        col.label(text=line)
+                col.separator(factor=0.25)
         row = layout.row(align=True)
         row.operator("bts.analyze", icon='VIEWZOOM')
         row.operator("bts.copy_report", icon='COPYDOWN')
@@ -447,13 +497,12 @@ class BTS_PT_Presets(Panel):
     def draw(self, context):
         layout = self.layout
         settings = context.scene.bts_settings
-        for name in BUILTIN_PRESETS:
-            layout.operator("bts.apply_preset", text=name, icon='PRESET').preset = name
-            description = BUILTIN_PRESET_DESCRIPTIONS.get(name, "")
-            if description:
-                col = layout.column(align=True)
-                col.scale_y = 0.85
-                col.label(text=description, icon='INFO')
+        layout.operator_menu_enum(
+            "bts.apply_preset",
+            "preset",
+            text="Apply Built-in Preset",
+            icon='PRESET',
+        )
         layout.separator(factor=0.5)
         layout.prop(settings, "preset_description")
         row = layout.row(align=True)
@@ -462,27 +511,15 @@ class BTS_PT_Presets(Panel):
 
 
 class BTS_PT_Report(Panel):
-    bl_label = "Report"
+    bl_label = "Log"
     bl_idname = "BTS_PT_report"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Batch Export"
     bl_parent_id = "BTS_PT_main"
-    bl_options = {'DEFAULT_CLOSED'}
 
     def draw(self, context):
         layout = self.layout
-        settings = context.scene.bts_settings
-        report = settings.last_report
-        if report:
-            box = layout.box()
-            for line in report.splitlines()[:20]:
-                box.label(text=line)
-            if len(report.splitlines()) > 20:
-                box.label(text="... see the log file for the full report")
-        else:
-            layout.label(text="No export report yet.", icon='INFO')
         row = layout.row(align=True)
         row.operator("bts.copy_report", icon='COPYDOWN')
         row.operator("bts.open_log", icon='TEXT')
-        row.operator("bts.open_output_folder", icon='FILE_FOLDER').path = settings.output_dir

@@ -4,7 +4,7 @@ Date: 2026-11-11
 Baseline version: 2.0.4
 Base branch: `main` (the repository has no `master` branch)
 Work branch: `feature/improvements-v3`
-Status: in progress. Stage U is implemented and released as 2.1.0.
+Status: in progress. Stage U is implemented and released as 2.1.0; its UI follow-up fixes are 2.1.1 and 2.1.2.
 
 This plan replaces the previous 3.x draft. The draft grew into a platform
 roadmap with atlas packing, CLI, pivots, metadata, a shared global canvas and a

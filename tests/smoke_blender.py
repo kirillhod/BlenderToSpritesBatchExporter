@@ -243,6 +243,18 @@ def run_compositor_test():
     # A matching node format must not produce a mismatch warning.
     analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
     check(
+        len(settings.node_items) > 0,
+        "File Output node list is empty",
+    )
+    check(
+        all(item.name and item.detail for item in settings.node_items),
+        "File Output node list rows are incomplete",
+    )
+    check(
+        len(settings.preview_items) > 0,
+        "Path Preview list is empty in node mode",
+    )
+    check(
         any(problem.code == "node_format_mismatch" for problem in analysis.problems),
         "EXR node with PNG selected must warn about the format",
     )
@@ -518,6 +530,14 @@ def run_target_list_test():
         plan.path.endswith("Body_sprite.png"),
         "Name template path: %r" % (plan.path,),
     )
+    check(
+        len(settings.preview_items) > 0,
+        "Path Preview list is empty in main-output mode",
+    )
+    check(
+        all(item.path for item in settings.preview_items),
+        "Path Preview rows have no path",
+    )
 
     settings.pixels_per_unit = 16.0
     settings.preset_description = "Custom pixel preset"
@@ -538,6 +558,19 @@ def run_target_list_test():
     check(
         settings.preset_description == logic.builtin_preset_description("Pixel Art Top"),
         "Built-in preset description was not applied",
+    )
+    preset_rna = bpy.ops.bts.apply_preset.get_rna_type()
+    preset_items = {
+        item.identifier: item.description
+        for item in preset_rna.properties["preset"].enum_items
+    }
+    check(
+        set(preset_items) == set(logic.BUILTIN_PRESETS),
+        "Preset enum identifiers: %r" % (sorted(preset_items),),
+    )
+    check(
+        all(preset_items[name] for name in preset_items),
+        "A preset enum item has no tooltip description",
     )
     result = bpy.ops.bts.save_preset(filepath=preset_file)
     check(result == {"FINISHED"}, "Save preset operator: %r" % (result,))

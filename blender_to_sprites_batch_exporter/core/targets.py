@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import bpy
 
+from .output import node_output_format_label
 from .scene import gather_source_collections
 
 
@@ -334,13 +335,78 @@ def format_target_status(res_x, res_y, view_count=1, frame_count=0, skip_reason=
     return text
 
 
+def _clear_collection(items):
+    """Remove every item from a Blender collection property."""
+    if items is None:
+        return
+    while len(items):
+        items.remove(len(items) - 1)
+
+
+def _preview_display_path(plan, base_dir):
+    """Path shown in the compact preview list, relative to the output dir."""
+    path = str(
+        getattr(plan, "path", "") or getattr(plan, "abs_path", "") or ""
+    ).replace("\\", "/")
+    if not path:
+        return ""
+    base = str(base_dir or "").replace("\\", "/").rstrip("/")
+    if base:
+        prefix = base + "/"
+        if path.casefold().startswith(prefix.casefold()):
+            return path[len(prefix):]
+    return path
+
+
+def _add_preview_item(settings, collection_name, plan):
+    items = getattr(settings, "preview_items", None)
+    if items is None or getattr(plan, "skipped", False):
+        return
+    path = _preview_display_path(plan, getattr(settings, "output_dir", ""))
+    if not path:
+        return
+    item = items.add()
+    item.name = str(collection_name)
+    item.path = path
+    item.exists = bool(getattr(plan, "exists", False))
+
+
+def _update_output_lists(settings, analysis):
+    """Fill the compact Path Preview and File Output node lists."""
+    _clear_collection(getattr(settings, "preview_items", None))
+    _clear_collection(getattr(settings, "node_items", None))
+    if analysis is None:
+        return
+    for target in analysis.targets:
+        if target.skipped:
+            continue
+        plan = target.output_plan
+        if plan is not None:
+            _add_preview_item(settings, target.name, plan)
+        for plan in target.node_plans:
+            _add_preview_item(settings, target.name, plan)
+    node_items = getattr(settings, "node_items", None)
+    if node_items is None:
+        return
+    for node in (getattr(analysis, "all_file_outputs", {}) or {}).values():
+        item = node_items.add()
+        item.name = str(getattr(node, "name", "") or "File Output")
+        detail = node_output_format_label(node)
+        outputs = len(getattr(node, "file_output_items", ()) or ())
+        if outputs:
+            detail += f" ({outputs})"
+        item.detail = detail
+
+
 def clear_target_status(scene):
-    """Erase stored row status strings for one scene."""
+    """Erase stored row status strings and output lists for one scene."""
     settings = getattr(scene, "bts_settings", None)
     if settings is None:
         return
     for item in settings.target_items:
         item.size_status = ""
+    _clear_collection(getattr(settings, "preview_items", None))
+    _clear_collection(getattr(settings, "node_items", None))
 
 
 def clear_all_target_statuses():
@@ -350,7 +416,8 @@ def clear_all_target_statuses():
 
 
 def update_target_status(settings, analysis):
-    """Store a short canvas/status string for the collection UIList."""
+    """Store compact collection, preview and node-list state."""
+    _update_output_lists(settings, analysis)
     for item in settings.target_items:
         item.size_status = ""
     if analysis is None:

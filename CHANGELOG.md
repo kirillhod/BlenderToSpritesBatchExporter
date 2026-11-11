@@ -2,6 +2,35 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [2.1.2] - 2026-11-11
+
+### Changed
+- The target list uses a fixed two-column table with `Collection` and
+  `Canvas / status` headers. The list no longer inherits property split, so
+  every row starts on the same left edge and the canvas value is not pushed
+  out by long names.
+- `Path Preview` is a compact, scrollable list with a `Collection` / `Path`
+  header. A checkbox hides or shows it, and the full path list no longer
+  stretches the panel.
+- File Output node information is a compact scrollable list that replaces the
+  separate "active File Output node(s)" and "Node output" hints.
+
+## [2.1.1] - 2026-11-11
+
+### Changed
+- The Problems panel lists every message, collection and fix hint in full.
+- Built-in presets use one dropdown menu; each preset explanation is shown only
+  as a hover tooltip.
+- `Batch Export Collections` and the secondary actions use compact rows.
+- The Report tab is now `Log`, stays open, and contains only `Copy Log` and
+  `Open Log`; the report body and the duplicate Output Folder button are gone.
+
+### Removed
+- The inline hint under `Also Save Main Render`; the same information is in the
+  property tooltip.
+- The inline note about objects in light collections; the `Always Keep Lights`
+  tooltip already explains it.
+
 ## [2.1.0] - 2026-11-11
 
 ### Added

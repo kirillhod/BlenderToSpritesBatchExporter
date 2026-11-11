@@ -38,9 +38,26 @@ class BTS_CollectionRef(PropertyGroup):
     name: StringProperty(name="Collection")
 
 
+class BTS_PreviewItem(PropertyGroup):
+    """One planned output file in the Path Preview list."""
+
+    name: StringProperty(name="Collection")
+    path: StringProperty(name="Path")
+    exists: BoolProperty(name="Exists", default=False)
+
+
+class BTS_NodeItem(PropertyGroup):
+    """One File Output node in the compact node list."""
+
+    name: StringProperty(name="Node")
+    detail: StringProperty(name="Details")
+
+
 class BTS_Settings(PropertyGroup):
     target_items: CollectionProperty(type=BTS_TargetItem)
     always_include_items: CollectionProperty(type=BTS_CollectionRef)
+    preview_items: CollectionProperty(type=BTS_PreviewItem)
+    node_items: CollectionProperty(type=BTS_NodeItem)
     target_items_migrated: BoolProperty(default=False, options={'HIDDEN'})
     always_include_migrated: BoolProperty(default=False, options={'HIDDEN'})
     layout_migrated: BoolProperty(default=False, options={'HIDDEN'})
@@ -51,6 +68,13 @@ class BTS_Settings(PropertyGroup):
     )
     active_target_index: IntProperty(default=0, min=0)
     active_include_index: IntProperty(default=0, min=0)
+    active_preview_index: IntProperty(default=0, min=0)
+    active_node_index: IntProperty(default=0, min=0)
+    show_path_preview: BoolProperty(
+        name="Path Preview",
+        description="Show the planned output files in a compact list",
+        default=True,
+    )
     name_template: StringProperty(
         name="Name Template",
         description=(
@@ -163,7 +187,7 @@ class BTS_Settings(PropertyGroup):
         description=(
             "Save the Render Result in addition to File Output files. Required "
             "for the add-on Format, Color and Depth settings to take effect in "
-            "node mode"
+            "node mode, and to write PNG or JPEG from File Output nodes"
         ),
         default=False,
     )

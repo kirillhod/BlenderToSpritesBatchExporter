@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Blender To Sprites Batch Exporter",
     "author": "kirillhod",
-    "version": (2, 1, 0),
+    "version": (2, 1, 2),
     "blender": (5, 2, 0),
     "location": "View3D > Sidebar (N) > Batch Export",
     "description": "Batch render collections to sprites with an auto-fitted orthographic camera.",
@@ -19,7 +19,13 @@ from .logic import (
     sync_depsgraph_handler,
     unregister_target_sync,
 )
-from .properties import BTS_CollectionRef, BTS_Settings, BTS_TargetItem
+from .properties import (
+    BTS_CollectionRef,
+    BTS_NodeItem,
+    BTS_PreviewItem,
+    BTS_Settings,
+    BTS_TargetItem,
+)
 from .operators import (
     BTS_OT_ActivateTarget,
     BTS_OT_AddAlwaysInclude,
@@ -51,15 +57,21 @@ from .ui import (
     BTS_PT_Resolution,
     BTS_PT_Source,
     BTS_UL_AlwaysInclude,
+    BTS_UL_NodeOutputs,
+    BTS_UL_Preview,
     BTS_UL_Targets,
 )
 
 classes = (
     BTS_TargetItem,
     BTS_CollectionRef,
+    BTS_PreviewItem,
+    BTS_NodeItem,
     BTS_Settings,
     BTS_UL_Targets,
     BTS_UL_AlwaysInclude,
+    BTS_UL_Preview,
+    BTS_UL_NodeOutputs,
     BTS_OT_BatchExport,
     BTS_OT_Analyze,
     BTS_OT_CancelExport,

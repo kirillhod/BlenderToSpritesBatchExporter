@@ -3,12 +3,13 @@
 import os
 
 import bpy
-from bpy.props import BoolProperty, StringProperty
+from bpy.props import BoolProperty, EnumProperty, StringProperty
 from bpy.types import Operator
 
 from .logic import (
     BatchJob,
     BUILTIN_PRESETS,
+    BUILTIN_PRESET_DESCRIPTIONS,
     add_always_include,
     analyze_scene,
     apply_preset,
@@ -349,17 +350,17 @@ class BTS_OT_RemoveAlwaysInclude(Operator):
 
 class BTS_OT_CopyReport(Operator):
     bl_idname = "bts.copy_report"
-    bl_label = "Copy Report"
-    bl_description = "Copy the last export report to the clipboard"
+    bl_label = "Copy Log"
+    bl_description = "Copy the last export log to the clipboard"
     bl_options = {'REGISTER'}
 
     def execute(self, context):
         report_text = context.scene.bts_settings.last_report
         if not report_text:
-            self.report({'WARNING'}, "No report yet. Run Analyze or Batch Export.")
+            self.report({'WARNING'}, "No log yet. Run Analyze or Batch Export.")
             return {'CANCELLED'}
         context.window_manager.clipboard = report_text
-        self.report({'INFO'}, "Report copied to the clipboard.")
+        self.report({'INFO'}, "Log copied to the clipboard.")
         return {'FINISHED'}
 
 
@@ -378,13 +379,25 @@ class BTS_OT_OpenLog(Operator):
         return {'FINISHED'}
 
 
+def _builtin_preset_items():
+    """Preset identifiers with their explanations as menu tooltips."""
+    return [
+        (name, name, BUILTIN_PRESET_DESCRIPTIONS.get(name, "Apply this preset"))
+        for name in BUILTIN_PRESETS
+    ]
+
+
 class BTS_OT_ApplyPreset(Operator):
     bl_idname = "bts.apply_preset"
     bl_label = "Apply Preset"
     bl_description = "Apply a built-in framing and resolution preset to the global settings"
     bl_options = {'REGISTER', 'UNDO'}
 
-    preset: StringProperty(default="")
+    preset: EnumProperty(
+        name="Preset",
+        description="Built-in framing and resolution preset",
+        items=_builtin_preset_items(),
+    )
 
     def execute(self, context):
         values = BUILTIN_PRESETS.get(self.preset)
