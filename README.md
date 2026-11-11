@@ -67,6 +67,18 @@ one.
 5. Press **Analyze** to check paths and problems.
 6. Press **Batch Export**.
 
+## Collections
+
+The target list follows the scene automatically. New collections appear and
+deleted collections disappear without pressing anything. Renaming a collection
+is treated as a delete plus an add, so the new name starts with default values.
+Enabled flags and per-collection settings survive a sync. **Refresh Targets** is
+only a manual fallback.
+
+After **Analyze**, each row shows the canvas that will be produced, for example
+`512x304`. The row is empty before an analysis and after any setting change
+that invalidates it. World-unit bounds are not shown.
+
 ## Pixel art
 
 - [Filter Size](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html):
@@ -77,6 +89,17 @@ one.
 - **Pixels / Unit**: controls the final sprite size.
 - **Padding**: keeps sprites away from the image edge.
 - **Round To Multiple Of**: helps keep sprite sizes consistent.
+
+## Presets
+
+Built-in presets change the global framing and resolution settings. They do not
+touch the output directory, naming or file format.
+
+| Preset | Settings | Best for |
+|---|---|---|
+| Pixel Art Top | Top view, 32 px per unit, 1 px padding, square sprites | Crisp top-down tiles |
+| Platformer Front | Front view, 64 px per unit, 2 px padding | Side-view characters and props |
+| High Resolution Top | Top view, 128 px per unit, 8 px padding | Detailed top-down art |
 
 ## Output names
 
@@ -112,7 +135,6 @@ gets its own file.
 - **Don't Modify** is a manual single-collection mode.
 - Cancel stops between collections; the render that is already running
   finishes first.
-- Multi-view and 4/6-direction presets are planned for the next version.
 
 ## For developers
 

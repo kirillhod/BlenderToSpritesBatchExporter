@@ -10,6 +10,34 @@ All notable changes to the project. Versions follow semantic versioning.
 - UX review of the File Output "Collection Goes To" modes and a revised stage
   4-5 plan for node output layouts, duplicate-token detection and path preview.
 - Smoke test `tests/smoke_blender.py` and launchers for Windows/POSIX.
+- Automatic target-list sync: the Collections panel now follows collection
+  creation, deletion and filtering without pressing Refresh Targets.
+- Readable target row status after Analyze: the final canvas such as `512x304`,
+  plus view and frame counts when they apply.
+- Tooltips with examples and defaults for every visible setting in Collections,
+  Camera & Framing, Resolution and Output & Naming.
+
+### Changed
+- Static help labels were removed from the panels; state and error labels stay.
+- Collections rows are taller (8 rows), Always Include shows 3 rows, and
+  related controls use tighter separators.
+- Preset descriptions are one compact line per preset; the full descriptions
+  moved to the README.
+- `Refresh Targets` is now non-destructive: it keeps enabled flags, row state
+  and the active row instead of rebuilding the list.
+- Blender 5.3 compatibility was verified with the smoke suite (Blender 5.2.3
+  was not installed in the test environment).
+
+### Removed
+- World-unit status text such as `1.00 x 1.03` from the target list.
+- Static hint labels for examples, filter size, the Problems panel, node
+  layouts, the Analyze button and the obsolete multi-view note.
+- The duplicate Analyze button and analysis-cache notice in Output & Naming.
+
+### Tests
+- Unit coverage for the target status formatter and UI text contract.
+- Smoke coverage for automatic target sync, status clearing, tooltip text and
+  operator descriptions.
 
 ## [2.0.4] - 2026-11-10
 

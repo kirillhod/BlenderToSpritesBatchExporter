@@ -28,7 +28,6 @@ from .logic import (
     load_preset,
     migrate_settings,
     preset_path,
-    rebuild_target_items,
     remove_always_include,
     remove_camera,
     request_cancel,
@@ -192,7 +191,10 @@ class BTS_OT_BatchExport(Operator):
 class BTS_OT_Analyze(Operator):
     bl_idname = "bts.analyze"
     bl_label = "Analyze Export"
-    bl_description = "Run preflight checks without rendering"
+    bl_description = (
+        "Run preflight checks without rendering. Warnings do not block export; "
+        "errors do"
+    )
     bl_options = {'REGISTER'}
 
     def execute(self, context):
@@ -230,17 +232,17 @@ class BTS_OT_CancelExport(Operator):
 class BTS_OT_RefreshTargets(Operator):
     bl_idname = "bts.refresh_targets"
     bl_label = "Refresh Targets"
-    bl_description = "Rebuild the target list from the current collection filter"
+    bl_description = (
+        "Sync the target list with the current collection filter. Existing "
+        "enabled flags and overrides are kept"
+    )
     bl_options = {'REGISTER', 'UNDO'}
 
     replace: BoolProperty(default=True, options={'HIDDEN'})
 
     def execute(self, context):
         settings = context.scene.bts_settings
-        if self.replace:
-            rebuild_target_items(context, settings)
-        else:
-            sync_target_items(context, settings)
+        sync_target_items(context, settings)
         clear_analysis_cache(context.scene)
         self.report({'INFO'}, f"{len(settings.target_items)} target(s).")
         return {'FINISHED'}
@@ -249,6 +251,7 @@ class BTS_OT_RefreshTargets(Operator):
 class BTS_OT_TargetsAll(Operator):
     bl_idname = "bts.targets_all"
     bl_label = "Enable All"
+    bl_description = "Enable every collection in the target list"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -262,6 +265,7 @@ class BTS_OT_TargetsAll(Operator):
 class BTS_OT_TargetsNone(Operator):
     bl_idname = "bts.targets_none"
     bl_label = "Disable All"
+    bl_description = "Disable every collection in the target list"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -291,6 +295,7 @@ class BTS_OT_TargetsActive(Operator):
 class BTS_OT_ActivateTarget(Operator):
     bl_idname = "bts.activate_target"
     bl_label = "Make Active"
+    bl_description = "Select the chosen target collection in the Outliner"
     bl_options = {'REGISTER'}
 
     collection: StringProperty(default="")
@@ -330,6 +335,7 @@ class BTS_OT_AddAlwaysInclude(Operator):
 class BTS_OT_RemoveAlwaysInclude(Operator):
     bl_idname = "bts.remove_always_include"
     bl_label = "Remove"
+    bl_description = "Remove the selected collection from Always Include"
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
@@ -375,6 +381,7 @@ class BTS_OT_OpenLog(Operator):
 class BTS_OT_ApplyPreset(Operator):
     bl_idname = "bts.apply_preset"
     bl_label = "Apply Preset"
+    bl_description = "Apply a built-in framing and resolution preset to the global settings"
     bl_options = {'REGISTER', 'UNDO'}
 
     preset: StringProperty(default="")

@@ -44,14 +44,20 @@ class BTS_Settings(PropertyGroup):
     target_items_migrated: BoolProperty(default=False, options={'HIDDEN'})
     always_include_migrated: BoolProperty(default=False, options={'HIDDEN'})
     layout_migrated: BoolProperty(default=False, options={'HIDDEN'})
-    target_search: StringProperty(name="Filter", default="")
+    target_search: StringProperty(
+        name="Filter",
+        description="Show only target rows whose collection name contains this text",
+        default="",
+    )
     active_target_index: IntProperty(default=0, min=0)
     active_include_index: IntProperty(default=0, min=0)
     name_template: StringProperty(
         name="Name Template",
         description=(
-            "Name for the main render. Use {collection}; for example "
-            "{collection} or {collection}_sprite"
+            "File name template for the main render. {collection} is replaced "
+            "by the collection name. Default: {collection}. Examples: "
+            "{collection} writes Body.png; {collection}_sprite writes "
+            "Body_sprite.png"
         ),
         default="{collection}",
         update=_invalidate_analysis,
@@ -65,16 +71,70 @@ class BTS_Settings(PropertyGroup):
     )
     debug_log: BoolProperty(name="Debug Log", default=False)
 
-    output_dir: StringProperty(name="Output Directory", description="Folder for rendered sprites", default="//sprites/", subtype='DIR_PATH')
-    file_format: EnumProperty(name="Format", items=[('PNG', "PNG", ""), ('JPEG', "JPEG", ""), ('OPEN_EXR', "EXR", ""), ('TIFF', "TIFF", ""), ('WEBP', "WebP", ""), ('TARGA', "Targa", ""), ('BMP', "BMP", "")], default='PNG')
-    color_mode: EnumProperty(name="Color", items=[('BW', "BW", ""), ('RGB', "RGB", ""), ('RGBA', "RGBA", "")], default='RGBA')
-    color_depth: EnumProperty(name="Depth", items=[('8', "8", ""), ('16', "16", ""), ('32', "32", "")], default='8')
-    use_transparent: BoolProperty(name="Transparent Film", default=True)
-    use_compositor_nodes: BoolProperty(name="Use File Output Nodes", description="Let File Output nodes write the files", default=True)
+    output_dir: StringProperty(
+        name="Output Directory",
+        description=(
+            "Folder for rendered sprites. A path starting with // is relative "
+            "to the saved .blend file; save the file before exporting"
+        ),
+        default="//sprites/",
+        subtype='DIR_PATH',
+    )
+    file_format: EnumProperty(
+        name="Format",
+        description="Image format for the main render",
+        items=[
+            ('PNG', "PNG", "Lossless image with alpha support"),
+            ('JPEG', "JPEG", "Compact image without alpha"),
+            ('OPEN_EXR', "EXR", "High dynamic range image"),
+            ('TIFF', "TIFF", "Lossless image with alpha support"),
+            ('WEBP', "WebP", "Compact image with optional alpha"),
+            ('TARGA', "Targa", "Legacy image with alpha support"),
+            ('BMP', "BMP", "Uncompressed image without alpha"),
+        ],
+        default='PNG',
+    )
+    color_mode: EnumProperty(
+        name="Color",
+        description="Color channels stored in the main render",
+        items=[
+            ('BW', "BW", "Grayscale, single channel"),
+            ('RGB', "RGB", "Color without transparency"),
+            ('RGBA', "RGBA", "Color with transparency"),
+        ],
+        default='RGBA',
+    )
+    color_depth: EnumProperty(
+        name="Depth",
+        description="Bits per color channel for formats that support a choice",
+        items=[
+            ('8', "8", "8 bits per channel"),
+            ('16', "16", "16 bits per channel"),
+            ('32', "32", "32 bits per channel"),
+        ],
+        default='8',
+    )
+    use_transparent: BoolProperty(
+        name="Transparent Film",
+        description="Write transparent pixels instead of the world background",
+        default=True,
+    )
+    use_compositor_nodes: BoolProperty(
+        name="Use File Output Nodes",
+        description=(
+            "Let connected File Output nodes write the files. When disabled, "
+            "the compositor is turned off during export"
+        ),
+        default=True,
+    )
 
     node_naming: EnumProperty(
         name="Node Output Layout",
-        description="Where the collection identity is placed in File Output paths",
+        description=(
+            "Where the collection identity is placed in File Output paths. "
+            "Automatic picks a safe layout; the other modes set the folder or "
+            "file prefix explicitly"
+        ),
         items=[
             ('AUTO', "Automatic",
              "Write <Collection>_<socket name>.exr for every File Output node"),
@@ -92,15 +152,29 @@ class BTS_Settings(PropertyGroup):
 
     node_override_base: BoolProperty(
         name="Override Node Base Paths",
-        description="Replace every File Output node base path with the Output Directory",
+        description=(
+            "Replace every File Output node base path with the Output "
+            "Directory. When off, node paths stay unchanged"
+        ),
         default=False,
     )
     write_main_output: BoolProperty(
         name="Also Save Main Render",
-        description="Save the Render Result in addition to File Output files",
+        description=(
+            "Save the Render Result in addition to File Output files. Required "
+            "for the add-on Format, Color and Depth settings to take effect in "
+            "node mode"
+        ),
         default=False,
     )
-    nodes_connected_only: BoolProperty(name="Only Connected Nodes", description="Use only File Output nodes connected to the compositor output; disconnected nodes never write files", default=True)
+    nodes_connected_only: BoolProperty(
+        name="Only Connected Nodes",
+        description=(
+            "Use only File Output nodes connected to the compositor output; "
+            "disconnected nodes never write files"
+        ),
+        default=True,
+    )
 
     overwrite_policy: EnumProperty(
         name="Overwrite",
@@ -115,22 +189,134 @@ class BTS_Settings(PropertyGroup):
         default='OVERWRITE',
     )
 
-    camera_axis: EnumProperty(name="View Axis", items=[('TOP', "Top", "Look down -Z"), ('BOTTOM', "Bottom", "Look up +Z"), ('FRONT', "Front", "Look along +Y"), ('BACK', "Back", "Look along -Y"), ('RIGHT', "Right", "Look along -X"), ('LEFT', "Left", "Look along +X")], default='TOP')
-    camera_margin: FloatProperty(name="Camera Distance Margin", description="Extra distance between camera and bounds", default=10.0, min=0.01, soft_max=1000.0)
-    auto_cleanup_camera: BoolProperty(name="Remove Camera After Export", default=True)
+    camera_axis: EnumProperty(
+        name="View Axis",
+        description=(
+            "Direction the camera looks from for a single-view export. "
+            "Default: Top"
+        ),
+        items=[
+            ('TOP', "Top", "Look down -Z"),
+            ('BOTTOM', "Bottom", "Look up +Z"),
+            ('FRONT', "Front", "Look along +Y"),
+            ('BACK', "Back", "Look along -Y"),
+            ('RIGHT', "Right", "Look along -X"),
+            ('LEFT', "Left", "Look along +X"),
+        ],
+        default='TOP',
+    )
+    camera_margin: FloatProperty(
+        name="Camera Distance Margin",
+        description=(
+            "Extra distance between the camera and the collection bounds. "
+            "Keeps geometry away from the camera clipping plane. Default: 10"
+        ),
+        default=10.0,
+        min=0.01,
+        soft_max=1000.0,
+    )
+    auto_cleanup_camera: BoolProperty(
+        name="Remove Camera After Export",
+        description="Delete the temporary camera after the export finishes",
+        default=True,
+    )
 
-    padding_mode: EnumProperty(name="Padding Mode", items=[('PIXELS', "Pixels", ""), ('UNITS', "Units", "")], default='PIXELS')
-    padding_pixels: IntProperty(name="Padding", default=16, min=0, soft_max=512)
-    padding_units: FloatProperty(name="Padding", default=0.1, min=0.0, soft_max=100.0)
+    padding_mode: EnumProperty(
+        name="Padding Mode",
+        description="Measure the empty border around the sprite in pixels or world units",
+        items=[
+            ('PIXELS', "Pixels", "Padding is a number of output pixels"),
+            ('UNITS', "Units", "Padding is a distance in Blender units"),
+        ],
+        default='PIXELS',
+    )
+    padding_pixels: IntProperty(
+        name="Padding",
+        description="Empty border in output pixels around the collection. Default: 16",
+        default=16,
+        min=0,
+        soft_max=512,
+    )
+    padding_units: FloatProperty(
+        name="Padding",
+        description="Empty border in Blender units around the collection. Default: 0.1",
+        default=0.1,
+        min=0.0,
+        soft_max=100.0,
+    )
 
-    pixels_per_unit: FloatProperty(name="Pixels / Unit", default=100.0, min=0.001, soft_max=2048.0)
-    resolution_multiple: IntProperty(name="Round To Multiple Of", default=1, min=1, soft_max=64)
-    square_output: BoolProperty(name="Square Output", default=False)
-    min_resolution: IntProperty(name="Min Res", default=1, min=1, soft_max=8192)
-    max_resolution: IntProperty(name="Max Res", description="0 = unlimited", default=0, min=0, soft_max=16384)
+    pixels_per_unit: FloatProperty(
+        name="Pixels / Unit",
+        description=(
+            "Output pixels per Blender unit. Higher values produce larger, "
+            "more detailed sprites. Default: 100"
+        ),
+        default=100.0,
+        min=0.001,
+        soft_max=2048.0,
+    )
+    resolution_multiple: IntProperty(
+        name="Round To Multiple Of",
+        description=(
+            "Round width and height up to a multiple of this value. "
+            "1 disables rounding. Default: 1"
+        ),
+        default=1,
+        min=1,
+        soft_max=64,
+    )
+    square_output: BoolProperty(
+        name="Square Output",
+        description="Force the same width and height for every sprite",
+        default=False,
+    )
+    min_resolution: IntProperty(
+        name="Min Res",
+        description="Minimum width and height in pixels. Default: 1",
+        default=1,
+        min=1,
+        soft_max=8192,
+    )
+    max_resolution: IntProperty(
+        name="Max Res",
+        description="Maximum width and height in pixels. 0 means unlimited. Default: 0",
+        default=0,
+        min=0,
+        soft_max=16384,
+    )
 
-    isolation_mode: EnumProperty(name="Isolation", items=[('EXCLUDE', "Exclude Collections", ""), ('HIDE', "Disable in Renders", "")], default='EXCLUDE')
+    isolation_mode: EnumProperty(
+        name="Isolation",
+        description="How other collections are hidden while a target is rendered",
+        items=[
+            ('EXCLUDE', "Exclude Collections", "Temporarily exclude other collections from the view layer"),
+            ('HIDE', "Disable in Renders", "Temporarily disable other objects in renders"),
+        ],
+        default='EXCLUDE',
+    )
     keep_collections: StringProperty(name="Always Include", description="Comma-separated collection names that stay visible", default="")
-    keep_lights: BoolProperty(name="Always Keep Lights", default=True)
-    export_source: EnumProperty(name="Export", items=[('ALL', "All Collections", ""), ('INCLUDED', "Only Included", ""), ('ACTIVE', "Active Collection", ""), ('TOPLEVEL', "Top-Level Only", "")], default='ALL', update=_invalidate_analysis)
-    skip_empty: BoolProperty(name="Skip Empty Collections", description="Skip collections without renderable geometry", default=True)
+    keep_lights: BoolProperty(
+        name="Always Keep Lights",
+        description=(
+            "Keep collections that contain lights so the render stays lit. "
+            "Other objects in those collections may appear in the render"
+        ),
+        default=True,
+    )
+    export_source: EnumProperty(
+        name="Export",
+        description="Which collections seed the target list: all collections, only included ones, the active collection, or top-level collections only",
+        items=[
+            ('ALL', "All Collections", "Offer every collection in the scene"),
+            ('INCLUDED', "Only Included", "Offer only collections that are not excluded from the view layer"),
+            ('ACTIVE', "Active Collection", "Offer only the active collection"),
+            ('TOPLEVEL', "Top-Level Only", "Offer only collections directly under the scene collection"),
+        ],
+        default='ALL',
+        update=_invalidate_analysis,
+    )
+    skip_empty: BoolProperty(
+        name="Skip Empty Collections",
+        description="Skip collections without renderable geometry",
+        default=True,
+    )

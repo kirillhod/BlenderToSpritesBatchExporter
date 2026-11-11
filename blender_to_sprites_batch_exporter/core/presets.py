@@ -76,18 +76,9 @@ BUILTIN_PRESETS = {
 }
 
 BUILTIN_PRESET_DESCRIPTIONS = {
-    "Pixel Art Top": (
-        "Top view, 32 px per unit, 1 px padding and square sprites. "
-        "Best for crisp top-down pixel-art tiles."
-    ),
-    "Platformer Front": (
-        "Front view, 64 px per unit and 2 px padding. "
-        "Best for side-view characters and platformer props."
-    ),
-    "High Resolution Top": (
-        "Top view, 128 px per unit and 8 px padding. "
-        "Best for detailed, high-resolution top-down art."
-    ),
+    "Pixel Art Top": "Top view, 32 px per unit, 1 px padding, square sprites.",
+    "Platformer Front": "Front view, 64 px per unit, 2 px padding.",
+    "High Resolution Top": "Top view, 128 px per unit, 8 px padding.",
 }
 
 

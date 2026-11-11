@@ -12,7 +12,13 @@ import bpy
 from bpy.props import PointerProperty
 
 from . import logic
-from .logic import clear_analysis_cache, migrate_settings
+from .logic import (
+    clear_analysis_cache,
+    migrate_settings,
+    request_target_sync,
+    sync_depsgraph_handler,
+    unregister_target_sync,
+)
 from .properties import BTS_CollectionRef, BTS_Settings, BTS_TargetItem
 from .operators import (
     BTS_OT_ActivateTarget,
@@ -93,6 +99,10 @@ def _clear_cache_on_load(*_args):
             migrate_settings(bpy.context, settings)
     except Exception:
         pass
+    try:
+        request_target_sync(bpy.context)
+    except Exception:
+        pass
 
 
 def register():
@@ -102,6 +112,9 @@ def register():
     handlers = bpy.app.handlers.load_post
     if _clear_cache_on_load not in handlers:
         handlers.append(_clear_cache_on_load)
+    depsgraph_handlers = bpy.app.handlers.depsgraph_update_post
+    if sync_depsgraph_handler not in depsgraph_handlers:
+        depsgraph_handlers.append(sync_depsgraph_handler)
 
 
 def unregister():
@@ -110,6 +123,10 @@ def unregister():
     handlers = bpy.app.handlers.load_post
     if _clear_cache_on_load in handlers:
         handlers.remove(_clear_cache_on_load)
+    depsgraph_handlers = bpy.app.handlers.depsgraph_update_post
+    if sync_depsgraph_handler in depsgraph_handlers:
+        depsgraph_handlers.remove(sync_depsgraph_handler)
+    unregister_target_sync()
     clear_analysis_cache()
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

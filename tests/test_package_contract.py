@@ -126,5 +126,39 @@ class RegistrationContractTest(unittest.TestCase):
             self.assertNotIn("import .operators", source)
 
 
+class UiTextContractTest(unittest.TestCase):
+    def test_static_hints_are_not_drawn(self):
+        source = (
+            ROOT / "blender_to_sprites_batch_exporter" / "ui.py"
+        ).read_text(encoding="utf-8")
+        banned = (
+            "Examples: {collection}",
+            "Use 0.01-0.1 for crisp pixel art.",
+            "Details are in the Problems panel.",
+            "Run Analyze to validate settings.",
+            "Multi-view presets arrive with 2.1.",
+            "Light collections are included automatically.",
+            "Warnings do not block export; errors do.",
+            "File Output detection uses the analysis cache.",
+            "File name = Collection + socket name.",
+            "The node name and label are not used.",
+            "An existing collection token is not duplicated.",
+            "Compositing is disabled!",
+            "Compositing will be disabled during export.",
+        )
+        for text in banned:
+            self.assertNotIn(text, source)
+
+    def test_every_operator_has_a_description(self):
+        for cls in addon.classes:
+            name = getattr(cls, "bl_idname", "")
+            if not name.startswith("bts."):
+                continue
+            self.assertTrue(
+                str(getattr(cls, "bl_description", "") or "").strip(),
+                f"{name} has no bl_description",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -12,6 +12,7 @@ from .logic import (
     normalize_image_settings,
     peek_cached_analysis,
     resolve_node_layout,
+    target_view_count,
 )
 
 
@@ -62,7 +63,8 @@ class BTS_UL_Targets(UIList):
         row = layout.row(align=True)
         row.prop(item, "enabled", text="")
         row.label(text=item.name, icon='OUTLINER_COLLECTION')
-        if item.size_status:
+        analysis = peek_cached_analysis(context.scene)
+        if analysis is not None and item.size_status:
             row.label(text=item.size_status)
         elif not item.enabled:
             row.label(text="disabled")
@@ -101,11 +103,15 @@ class BTS_PT_MainPanel(Panel):
         layout.use_property_decorate = False
         settings = context.scene.bts_settings
         enabled = _enabled_targets(settings)
-        layout.label(
-            text=f"Targets: {enabled}/{len(settings.target_items)}   "
-                 f"Angle: {settings.camera_axis.title()}   Frame: 1",
-            icon='OUTLINER_COLLECTION',
+        analysis = peek_cached_analysis(context.scene)
+        summary = (
+            f"Targets: {enabled}/{len(settings.target_items)}   "
+            f"Views: {target_view_count(settings)}"
         )
+        if analysis is not None:
+            tasks = sum(1 for target in analysis.targets if not target.skipped)
+            summary += f"   Tasks: {tasks}"
+        layout.label(text=summary, icon='OUTLINER_COLLECTION')
         status = get_job_status()
         if status.get("running"):
             box = layout.box()
@@ -130,19 +136,16 @@ class BTS_PT_MainPanel(Panel):
             box = layout.box()
             box.alert = True
             box.label(text="Unsaved file + relative '//' path", icon='ERROR')
-        analysis = peek_cached_analysis(context.scene)
         if analysis is not None:
             counts = analysis.counts
-            box = layout.box()
-            box.label(
-                text=f"Analysis: {len(analysis.targets)} target(s), "
-                     f"{counts['ERROR']} error(s), "
-                     f"{counts['WARNING']} warning(s)",
-                icon='ERROR' if counts['ERROR'] else 'INFO',
-            )
-            box.label(text="Details are in the Problems panel.")
-        else:
-            layout.label(text="Run Analyze to validate settings.", icon='INFO')
+            if counts['ERROR'] or counts['WARNING']:
+                row = layout.row()
+                row.alert = bool(counts['ERROR'])
+                row.label(
+                    text=f"Analysis: {counts['ERROR']} error(s), "
+                         f"{counts['WARNING']} warning(s)",
+                    icon='ERROR' if counts['ERROR'] else 'STATUS_WARNING',
+                )
 
 
 class BTS_PT_Source(Panel):
@@ -170,7 +173,7 @@ class BTS_PT_Source(Panel):
             "target_items",
             settings,
             "active_target_index",
-            rows=7,
+            rows=8,
         )
         row = layout.row(align=True)
         row.operator("bts.targets_all", text="All")
@@ -179,14 +182,11 @@ class BTS_PT_Source(Panel):
         row.operator("bts.activate_target", text="Make Active", icon='RESTRICT_SELECT_OFF')
         _left_checkbox(layout, settings, "skip_empty")
 
-        layout.separator()
+        layout.separator(factor=0.5)
         layout.label(text="Always Include", icon='OUTLINER_COLLECTION')
         include_items = settings.always_include_items
         if len(include_items) == 0:
-            layout.label(
-                text="No collections. Use Add Active to include one.",
-                icon='INFO',
-            )
+            layout.label(text="No collections selected.", icon='INFO')
         else:
             layout.template_list(
                 "BTS_UL_AlwaysInclude",
@@ -195,7 +195,7 @@ class BTS_PT_Source(Panel):
                 "always_include_items",
                 settings,
                 "active_include_index",
-                rows=min(3, len(include_items)),
+                rows=3,
             )
         row = layout.row(align=True)
         row.operator("bts.add_always_include", text="Add Active", icon='ADD')
@@ -204,8 +204,10 @@ class BTS_PT_Source(Panel):
         layout.prop(settings, "keep_lights")
         if settings.isolation_mode == 'EXCLUDE' and settings.keep_lights:
             info = layout.box()
-            info.label(text="Light collections are included automatically.", icon='INFO')
-            info.label(text="Other objects in those collections may render too.")
+            info.label(
+                text="Other objects in light collections may appear in the render.",
+                icon='INFO',
+            )
 
 
 class BTS_PT_Camera(Panel):
@@ -224,7 +226,7 @@ class BTS_PT_Camera(Panel):
         layout.prop(settings, "camera_axis")
         layout.prop(settings, "camera_margin")
         layout.prop(settings, "auto_cleanup_camera")
-        layout.separator()
+        layout.separator(factor=0.5)
         layout.prop(settings, "padding_mode", expand=True)
         layout.prop(
             settings,
@@ -269,11 +271,6 @@ class BTS_PT_Output(Panel):
         analysis = peek_cached_analysis(context.scene)
         nodes = list(analysis.all_file_outputs.values()) if analysis else []
 
-        if analysis is None:
-            box = layout.box()
-            box.label(text="File Output detection uses the analysis cache.", icon='INFO')
-            box.operator("bts.analyze", icon='VIEWZOOM')
-
         if nodes:
             _left_checkbox(layout, settings, "use_compositor_nodes")
             if settings.use_compositor_nodes:
@@ -284,20 +281,15 @@ class BTS_PT_Output(Panel):
         else:
             self._draw_main_output(layout, settings, context.scene.render)
             if nodes:
-                box = layout.box()
-                box.label(text="File Output nodes found but disabled.", icon='INFO')
-                box.label(text="Compositing will be disabled during export.")
+                layout.label(text="File Output nodes found but disabled.", icon='INFO')
 
     def _draw_main_output(self, layout, settings, render):
         layout.prop(settings, "output_dir")
         layout.prop(settings, "name_template")
-        layout.label(text="Examples: {collection} -> Body.png", icon='FILE_IMAGE')
-        layout.label(text="{collection}_sprite -> Body_sprite.png")
         self._draw_format(layout, settings)
         layout.prop(settings, "overwrite_policy")
         layout.prop(settings, "use_transparent")
         layout.prop(render, "filter_size")
-        layout.label(text="Use 0.01-0.1 for crisp pixel art.", icon='INFO')
         layout.operator("bts.open_output_folder", icon='FILE_FOLDER').path = settings.output_dir
         self._draw_preview(layout, settings, None)
 
@@ -306,8 +298,10 @@ class BTS_PT_Output(Panel):
         if compositing_off:
             warn = layout.box()
             warn.alert = True
-            warn.label(text="Compositing is disabled!", icon='ERROR')
-            warn.label(text="It will be force-enabled during export.")
+            warn.label(
+                text="Compositing is disabled; it will be force-enabled during export.",
+                icon='ERROR',
+            )
 
         layout.label(text=f"{len(nodes)} active File Output node(s)", icon='NODE_COMPOSITING')
         layout.prop(settings, "node_naming")
@@ -321,22 +315,15 @@ class BTS_PT_Output(Panel):
                 "NONE": "Don't Modify",
             }.get(resolved, resolved)
             layout.label(text=f"Resolved: {label}", icon='INFO')
-        if settings.node_naming == 'PREFIX':
-            info = layout.box()
-            info.label(text="File name = Collection + socket name.", icon='INFO')
-            info.label(text="The node name and label are not used.")
-            info.label(text="An existing collection token is not duplicated.")
         if len(nodes) != 1 and settings.node_naming == 'FILENAME':
             warn = layout.box()
             warn.alert = True
             warn.label(text="Collection Only ignores socket names.", icon='ERROR')
             warn.label(text="It requires exactly one File Output node.")
-            warn.label(text="Use Automatic, Collection Folder or Collection + Socket.")
         if len(analysis.targets) > 1 and settings.node_naming == 'NONE':
             warn = layout.box()
             warn.alert = True
             warn.label(text="Don't Modify is a single-collection mode.", icon='ERROR')
-            warn.label(text="Use Automatic, Collection Folder or Collection + Socket.")
 
         layout.prop(settings, "node_override_base")
         layout.prop(
@@ -360,11 +347,9 @@ class BTS_PT_Output(Panel):
             self._draw_format(layout, settings)
         layout.prop(settings, "use_transparent")
         layout.prop(render, "filter_size")
-        layout.label(text="Use 0.01-0.1 for crisp pixel art.", icon='INFO')
         layout.prop(settings, "overwrite_policy")
         if settings.write_main_output:
             layout.prop(settings, "name_template")
-            layout.label(text="Example: {collection} -> Body.png", icon='FILE_IMAGE')
         if analysis.conflicts:
             box = layout.box()
             box.alert = True
@@ -437,6 +422,7 @@ class BTS_PT_Problems(Panel):
             box.label(text=f"{severity.title()} ({len(group)})", icon=icon)
             for problem in group[:6]:
                 col = box.column(align=True)
+                col.scale_y = 0.85
                 col.label(text=_trim(f"{problem.code}: {problem.message}"))
                 if problem.collection:
                     col.label(text=f"Collection: {problem.collection}")
@@ -444,7 +430,6 @@ class BTS_PT_Problems(Panel):
                     col.label(text=_trim(problem.fix_hint))
             if len(group) > 6:
                 box.label(text=f"... and {len(group) - 6} more")
-        layout.label(text="Warnings do not block export; errors do.", icon='INFO')
         row = layout.row(align=True)
         row.operator("bts.analyze", icon='VIEWZOOM')
         row.operator("bts.copy_report", icon='COPYDOWN')
@@ -463,21 +448,17 @@ class BTS_PT_Presets(Panel):
         layout = self.layout
         settings = context.scene.bts_settings
         for name in BUILTIN_PRESETS:
-            box = layout.box()
-            box.operator("bts.apply_preset", text=name, icon='PRESET').preset = name
+            layout.operator("bts.apply_preset", text=name, icon='PRESET').preset = name
             description = BUILTIN_PRESET_DESCRIPTIONS.get(name, "")
             if description:
-                box.label(text=description, icon='INFO')
-        layout.separator()
+                col = layout.column(align=True)
+                col.scale_y = 0.85
+                col.label(text=description, icon='INFO')
+        layout.separator(factor=0.5)
         layout.prop(settings, "preset_description")
         row = layout.row(align=True)
         row.operator("bts.save_preset", text="Save JSON", icon='FILE_TICK')
         row.operator("bts.load_preset", text="Load JSON", icon='FILEBROWSER')
-        if settings.preset_description:
-            box = layout.box()
-            box.label(text="Current preset description:", icon='INFO')
-            box.label(text=_trim(settings.preset_description))
-        layout.label(text="Multi-view presets arrive with 2.1.", icon='INFO')
 
 
 class BTS_PT_Report(Panel):

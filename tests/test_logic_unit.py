@@ -741,5 +741,55 @@ class NodeOutputPlanTest(unittest.TestCase):
             self.assertFalse(plans[0].skipped)
 
 
+class TargetStatusTest(unittest.TestCase):
+    def test_single_still(self):
+        self.assertEqual(logic.format_target_status(512, 304), "512x304")
+
+    def test_several_views(self):
+        self.assertEqual(
+            logic.format_target_status(512, 512, view_count=4),
+            "512x512, 4 views",
+        )
+
+    def test_several_frames(self):
+        self.assertEqual(
+            logic.format_target_status(512, 512, frame_count=12),
+            "512x512, 12 frames",
+        )
+
+    def test_views_and_frames(self):
+        self.assertEqual(
+            logic.format_target_status(64, 64, view_count=6, frame_count=2),
+            "64x64, 6 views, 2 frames",
+        )
+
+    def test_single_view_and_frame_are_omitted(self):
+        self.assertEqual(
+            logic.format_target_status(32, 48, view_count=1, frame_count=1),
+            "32x48",
+        )
+
+    def test_skip_reason_wins(self):
+        self.assertEqual(
+            logic.format_target_status(0, 0, skip_reason="no renderable geometry"),
+            "no renderable geometry",
+        )
+
+    def test_missing_size_is_empty(self):
+        self.assertEqual(logic.format_target_status(0, 0), "")
+
+    def test_view_count_is_one_before_multi_view(self):
+        self.assertEqual(logic.target_view_count(make_settings()), 1)
+
+    def test_clear_target_status(self):
+        items = [
+            SimpleNamespace(size_status="512x304"),
+            SimpleNamespace(size_status="skipped"),
+        ]
+        scene = SimpleNamespace(bts_settings=SimpleNamespace(target_items=items))
+        logic.clear_target_status(scene)
+        self.assertEqual([item.size_status for item in items], ["", ""])
+
+
 if __name__ == "__main__":
     unittest.main()

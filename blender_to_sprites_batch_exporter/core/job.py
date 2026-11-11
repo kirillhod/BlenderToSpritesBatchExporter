@@ -302,8 +302,10 @@ def clear_analysis_cache(scene=None):
     global _ANALYSIS_CACHE
     if scene is None:
         _ANALYSIS_CACHE = {}
+        clear_all_target_statuses()
         return
     _ANALYSIS_CACHE.pop(scene.as_pointer(), None)
+    clear_target_status(scene)
 
 
 def peek_cached_analysis(scene):
@@ -320,23 +322,27 @@ def get_cached_analysis(context, settings):
     token, result = cached
     current = analysis_token(context, settings)
     if token != current:
-        _ANALYSIS_CACHE.pop(key, None)
+        clear_analysis_cache(context.scene)
         return None
     return result
 
 
 def analyze_scene(context, settings, use_cache=False, allow_existing=False):
     """Run preflight and optionally reuse or refresh the analysis cache."""
-    migrate_settings(context, settings)
-    sync_target_items(context, settings)
-    if use_cache:
-        cached = get_cached_analysis(context, settings)
-        if cached is not None:
-            return cached, True
+    push_target_sync_suppression()
+    try:
+        migrate_settings(context, settings)
+        sync_target_items(context, settings)
+        if use_cache:
+            cached = get_cached_analysis(context, settings)
+            if cached is not None:
+                return cached, True
 
-    result = _run_preflight(context, settings, allow_existing=allow_existing)
-    _ANALYSIS_CACHE[context.scene.as_pointer()] = (result.token, result)
-    return result, False
+        result = _run_preflight(context, settings, allow_existing=allow_existing)
+        _ANALYSIS_CACHE[context.scene.as_pointer()] = (result.token, result)
+        return result, False
+    finally:
+        pop_target_sync_suppression()
 
 
 # ============================================================
@@ -352,7 +358,11 @@ def _policy_settings(settings):
 
 def preflight(context, settings, allow_existing=False):
     """Public preflight entry point."""
-    return _run_preflight(context, settings, allow_existing=allow_existing)
+    push_target_sync_suppression()
+    try:
+        return _run_preflight(context, settings, allow_existing=allow_existing)
+    finally:
+        pop_target_sync_suppression()
 
 
 def _run_preflight(context, settings, allow_existing=False):
@@ -650,6 +660,18 @@ def _run_preflight(context, settings, allow_existing=False):
         plan = main_plan_by_name.get(collection_name)
         target.output_plan = plan
         target.node_plans = list(node_plans_by_collection.get(collection_name, []))
+        if bounds_value is not None:
+            frame = compute_frame(
+                bounds_value.minimum, bounds_value.maximum, settings
+            )
+            target.frame = FrameSpec(
+                res_x=frame["res_x"],
+                res_y=frame["res_y"],
+                ortho_scale=frame["ortho_scale"],
+                width=frame["width"],
+                height=frame["height"],
+                center=frame["center"],
+            )
         if bounds is None and getattr(settings, "skip_empty", True):
             target.skip_reason = "no renderable geometry"
         elif plan is not None and plan.skipped:
@@ -767,6 +789,7 @@ class BatchJob:
         self._keep_collections = ()
         self._progress_started = False
         self._start_time = 0.0
+        self._sync_suppressed = False
 
     # --------------------------------------------------------
     def _report(self, severity, message):
@@ -800,6 +823,9 @@ class BatchJob:
         """Prepare snapshots, camera and render state. Returns success."""
         global _ACTIVE_JOB
         _ACTIVE_JOB = self
+        if not self._sync_suppressed:
+            push_target_sync_suppression()
+            self._sync_suppressed = True
         self._start_time = time.time()
         self._started = True
         _set_job_status(
@@ -946,7 +972,15 @@ class BatchJob:
         )
         item = get_target_item(settings, collection.name)
         if item is not None:
-            item.size_status = f"{target.frame.res_x}x{target.frame.res_y}"
+            target_views = len(getattr(target, "axes", ()) or ()) or target_view_count(
+                settings
+            )
+            item.size_status = format_target_status(
+                target.frame.res_x,
+                target.frame.res_y,
+                view_count=target_views,
+                frame_count=int(getattr(target, "frame_count", 0) or 0),
+            )
         rd.resolution_x = target.frame.res_x
         rd.resolution_y = target.frame.res_y
 
@@ -1054,6 +1088,11 @@ class BatchJob:
         return extensions
 
     # --------------------------------------------------------
+    def _release_sync_suppression(self):
+        if self._sync_suppressed:
+            pop_target_sync_suppression()
+            self._sync_suppressed = False
+
     def finish(self):
         """Restore all snapshots and build the result. Idempotent."""
         if self._finished:
@@ -1071,6 +1110,7 @@ class BatchJob:
             self._progress_started = False
 
         if not self._started:
+            self._release_sync_suppression()
             return self.result
 
         restore_failures = []
@@ -1186,6 +1226,7 @@ class BatchJob:
             skipped=self.result.skipped,
             failed=self.result.failed,
         )
+        self._release_sync_suppression()
         return self.result
 
     def run(self):

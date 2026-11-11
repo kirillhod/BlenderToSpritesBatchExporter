@@ -402,6 +402,13 @@ def run_analysis_and_cancel_test():
     check(not analysis.errors, "Preflight reported errors: %r" % (analysis.problems,))
     check(cached is False, "First analysis unexpectedly came from cache")
     check(os.listdir(out_dir) == [], "Preflight rendered files")
+    body_item = next(
+        item for item in settings.target_items if item.name == "Body"
+    )
+    check(
+        re.fullmatch(r"\d+x\d+", body_item.size_status),
+        "Row status is not a canvas size: %r" % (body_item.size_status,),
+    )
 
     result = bpy.ops.bts.analyze()
     check(result == {"FINISHED"}, "Analyze operator failed: %r" % (result,))
@@ -588,6 +595,72 @@ def run_collision_test():
     for name in files:
         os.remove(os.path.join(out_dir, name))
     os.rmdir(out_dir)
+
+
+def run_target_sync_test():
+    """Auto-sync keeps flags, overrides and the active row by name."""
+    from blender_to_sprites_batch_exporter import logic
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    addon = load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    weapon = make_collection("Weapon")
+    add_cube(body, "BodyCube")
+    add_cube(weapon, "WeaponCube", location=(4.0, 0.0, 0.0), size=0.5)
+
+    settings = scene.bts_settings
+    settings.export_source = "ALL"
+    settings.skip_empty = True
+    logic.migrate_settings(bpy.context, settings)
+    names = [item.name for item in settings.target_items]
+    check("Body" in names and "Weapon" in names, "Sync seed list: %r" % (names,))
+
+    body_item = next(item for item in settings.target_items if item.name == "Body")
+    weapon_item = next(item for item in settings.target_items if item.name == "Weapon")
+    body_item.enabled = False
+    settings.active_target_index = list(settings.target_items).index(weapon_item)
+
+    extra = make_collection("Extra")
+    add_cube(extra, "ExtraCube", location=(8.0, 0.0, 0.0), size=0.5)
+    logic.sync_depsgraph_handler(
+        bpy.context.scene, bpy.context.evaluated_depsgraph_get()
+    )
+    logic.apply_pending_target_sync()
+    names = [item.name for item in settings.target_items]
+    check("Extra" in names, "Auto-sync did not add a collection: %r" % (names,))
+    body_item = next(item for item in settings.target_items if item.name == "Body")
+    check(body_item.enabled is False, "Auto-sync lost the disabled flag")
+    active = settings.active_target_index
+    check(
+        0 <= active < len(settings.target_items)
+        and settings.target_items[active].name == "Weapon",
+        "Auto-sync did not preserve the active row",
+    )
+
+    bpy.data.collections.remove(extra)
+    logic.sync_depsgraph_handler(
+        bpy.context.scene, bpy.context.evaluated_depsgraph_get()
+    )
+    logic.apply_pending_target_sync()
+    names = [item.name for item in settings.target_items]
+    check("Extra" not in names, "Auto-sync did not drop a deleted collection: %r" % (names,))
+
+    body_item.size_status = "512x304"
+    logic.clear_analysis_cache(scene)
+    check(
+        all(not item.size_status for item in settings.target_items),
+        "Clearing the analysis did not clear row statuses",
+    )
+
+    logic.push_target_sync_suppression()
+    check(
+        logic.request_target_sync(bpy.context) is False,
+        "Sync was requested while suppressed",
+    )
+    logic.pop_target_sync_suppression()
+    logic.unregister_target_sync()
 
 
 class _FakeOperator:
@@ -805,6 +878,7 @@ def run_test():
 
     run_collision_test()
     run_target_list_test()
+    run_target_sync_test()
     run_analysis_and_cancel_test()
     run_compositor_test()
     run_ui_draw_probe()
