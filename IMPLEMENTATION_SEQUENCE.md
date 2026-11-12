@@ -3,7 +3,7 @@
 Date: 2026-11-11
 Base: `IMPROVEMENT_PLAN.md` (v3 revision, 2026-11-11)
 Baseline add-on version: 2.0.4
-Target releases: 2.1.0, 2.2.0, 2.3.0, 3.0.0, 3.1.0
+Target releases: 2.1.0, 2.1.1, 2.1.2, 2.1.3, 2.2.0, 2.3.0, 3.0.0, 3.1.0
 
 The repository uses `main` as its default branch. `feature/improvements-v3`
 was created from `origin/main` at `1710a0e`. Stage U is implemented and
@@ -33,17 +33,17 @@ no shared global canvas.
 | Area | File | Notes |
 |---|---|---|
 | Settings | `properties.py` | override fields, view booleans, animation fields |
-| Target list and migration | `core/targets.py` | auto-sync, status strings, view migration |
+| Target list and migration | `core/targets.py` | auto-sync, status strings, export filter, Outliner link, view migration |
 | Axis and framing | `core/framing.py` | per-axis canvas, one canvas per collection |
-| Bounds | `core/scene.py` | `get_collection_bounds` is reused unchanged |
+| Bounds | `core/scene.py` | `get_collection_bounds` is reused unchanged; target gathering applies the export filter |
 | Preflight and job | `core/job.py` | task loop, overrides, animation sampling |
 | Paths | `core/output.py` | per-task names |
 | Node output | `core/output.py` | per-task stems for File Output nodes |
-| UI | `ui.py` | tooltips, density, override box, views, animation |
+| UI | `ui.py` | tooltips, density, target table, output lists, override box, views, animation |
 | Presets | `core/presets.py` | view fields, 4/6 direction presets |
 | Registration | `__init__.py` | load/depsgraph handlers, version |
 | Facade | `logic.py` | re-export new modules |
-| Contract | `tests/test_package_contract.py` | version only; no new operator IDs |
+| Contract | `tests/test_package_contract.py` | version, operator IDs, panel IDs and UIList IDs |
 
 ### 1.3. Evidence to capture before the first feature commit
 
@@ -78,6 +78,7 @@ Do not commit the reference export.
 - English only in code, comments, docs, tests and commit messages.
 - Update `CHANGELOG.md` under `[Unreleased]` as tasks land; at release time
   rename it to the stage version.
+- Tag every version commit with `vX.Y.Z`. Do not push unless explicitly asked.
 
 ### 2.1. Definition of a safe commit
 
@@ -94,7 +95,7 @@ Do not commit the reference export.
 ```
 S0 baseline
  |
- +-- U1-U6  UI cleanup (2.1.0)
+ +-- U1-U7  UI cleanup (2.1.0-2.1.3)
  |
  +-- O1-O5  per-collection overrides (2.2.0)
  |
@@ -109,15 +110,15 @@ S0 baseline
 
 Safe parallelism:
 
-- U and O can run in parallel after S0; both touch `properties.py` and `ui.py`,
-  so merge them in the stated order.
+- Stage U is complete; start O1 next. O touches `properties.py` and `ui.py`,
+  so land it before V.
 - V4 (naming) is pure Python and can start as soon as V1 defines the axis list.
-- The 5.3 baseline in S0 runs before any change.
+- The 5.3 baseline in S0 ran before the first change.
 
 Critical path:
 
 ```
-S0 -> U3 -> U4 -> O1 -> O2 -> O3 -> V1 -> V2 -> V3 -> V4 -> V5 -> C1 -> C2
+S0 -> U3 -> U4 -> U7 -> O1 -> O2 -> O3 -> V1 -> V2 -> V3 -> V4 -> V5 -> C1 -> C2
 ```
 
 ---
@@ -147,10 +148,15 @@ S0 -> U3 -> U4 -> O1 -> O2 -> O3 -> V1 -> V2 -> V3 -> V4 -> V5 -> C1 -> C2
 
 ---
 
-## 5. Stage U. Interface cleanup (2.1.0)
+## 5. Stage U. Interface cleanup (2.1.0-2.1.3)
 
 **Result:** no static help labels, less vertical noise, automatic target list,
 readable row status.
+
+**Status:** complete. 2.1.0 shipped the stage; review fixes shipped as 2.1.1,
+2.1.2 and 2.1.3. Tags: `v2.1.0`, `v2.1.2`, `v2.1.3`. The 2.1.1 build was an
+intermediate uncommitted build; its changes are included in 2.1.2. Current
+verification: 73 unit tests and the Blender 5.3 smoke suite pass.
 
 ### U1. Tooltip pass
 - **Depends:** S0.
@@ -162,10 +168,11 @@ readable row status.
   3. Remove the static labels listed in plan section 4.1.
   4. Keep labels that report state or problems, for example an unsaved relative
      path, a missing output folder or a disabled compositor.
-  5. Reduce preset descriptions to one compact line per preset; move the full
-     descriptions to the README.
+  5. Preset explanations are per-item tooltips in an `EnumProperty` menu. No
+     description is drawn inline under the preset buttons.
 - **Check:** manual hover in 5.2 and 5.3; `grep` shows no removed hint strings.
-- **Done:** static help lives in tooltips or the README.
+- **Done:** static help lives in tooltips or the README. Released in 2.1.0 and
+  refined in 2.1.1.
 
 ### U2. Density pass
 - **Depends:** U1.
@@ -173,19 +180,25 @@ readable row status.
 - **Actions:**
   1. Replace long separators with `separator(factor=0.5)`.
   2. Remove nested boxes and keep one box per warning group.
-  3. Use `scale_y` 0.85-0.9 for secondary rows.
-  4. Set target list rows to 8 and Always Include to 3.
-  5. Keep Presets and Report closed by default.
+  3. Use `scale_y` 0.85-0.9 only for secondary text such as Problems entries.
+  4. Set target list rows to 8 and Always Include to 3. Final lists also use
+     Path Preview 4 rows and File Output nodes 3 rows.
+  5. Keep Presets closed by default. The Report tab became `Log`, is always
+     open and contains only `Copy Log` and `Open Log`.
+  6. Keep main action buttons at standard row height; do not enlarge them.
 - **Check:** a 50-collection scene keeps the main panel usable; UI draw smoke.
-- **Done:** panels are shorter without losing information.
+- **Done:** panels are shorter without losing information. Released in 2.1.0,
+  refined in 2.1.1 and 2.1.2.
 
 ### U3. Automatic target sync
 - **Depends:** U2.
-- **Files:** `core/targets.py`, `core/job.py`, `__init__.py`, `ui.py`.
+- **Files:** `core/targets.py`, `core/scene.py`, `core/job.py`, `__init__.py`,
+  `ui.py`, `properties.py`.
 - **Actions:**
-  1. Add `target_fingerprint(context, settings)`: source collection names plus
-     `export_source` and `skip_empty`.
-  2. Add a module-level `_SYNC_STATE` keyed by scene pointer.
+  1. Add `target_fingerprint(context, settings)`: source collection names,
+     `export_source`, `skip_empty` and the active Outliner collection.
+  2. Add module-level sync state keyed by scene pointer (`_SYNC_PENDING`,
+     `_SYNC_LAST`, `_SYNC_TIMER_REGISTERED`).
   3. The `depsgraph_update_post` handler only compares the fingerprint and marks
      the scene as pending. A one-shot `bpy.app.timers` callback applies
      `sync_target_items` outside the depsgraph callback, then unregisters.
@@ -202,10 +215,22 @@ readable row status.
      `rebuild_target_items` to preserve overrides and the active index. Do not
      remove the ID.
   8. Unregister the handlers and the timer in `unregister()`.
+  9. Review follow-up (2.1.3): make `export_source` a filter over the persistent
+     target registry. It filters both the visible list and
+     `gather_target_collections`, so `Active Collection` shows and exports only
+     the active Outliner collection.
+  10. Review follow-up (2.1.3): selecting a collection in the Outliner sets the
+      active target row, and selecting a target row sets the Outliner collection.
+      Suppress the active-index update while sync writes the row.
+  11. Review follow-up (2.1.3): `All` and `None` affect only the collections
+      visible in the current export mode.
 - **Check:** add, delete and rename a collection in the Outliner; the list
   updates without pressing anything; flags and overrides survive; the manual
-  refresh does not discard overrides; export causes no churn.
-- **Done:** manual refresh is optional.
+  refresh does not discard overrides; export causes no churn; switching to
+  `Active Collection` hides the other rows and exports only the active one;
+  Outliner and target selection follow each other.
+- **Done:** manual refresh is optional and the export mode is a real filter.
+  Released in 2.1.0, filter and Outliner link in 2.1.3.
 
 ### U4. Readable status
 - **Depends:** U3.
@@ -214,31 +239,39 @@ readable row status.
   1. Remove the world-unit fallback from `update_target_status`.
   2. Store the canvas as `512x304` when there is one view and as
      `512x512, N views` when there are several. In 3.1 add `, N frames`.
-  3. Store the skip reason when a target is skipped.
+  3. Draw the target list as a fixed two-column table with `Collection` and
+     `Canvas / status` headers. A skipped target shows the short `skipped`
+     marker and the row stays compact.
   4. Draw the status only when the cached analysis exists, and clear all stored
      status strings when `clear_analysis_cache` runs. A stale cache then leaves
      the rows empty instead of showing old numbers.
-  5. Update the main panel summary to show targets, views and tasks. Actions are
-     added in 3.1.
+  5. Update the main panel summary to show enabled/visible targets, views and
+     tasks. The visible count follows the current `export_source` filter.
   6. Remove `Angle: ... Frame: 1` from the summary; the views and frame are
      visible in their panels.
-- **Check:** unit tests for the formatter; smoke after Analyze.
-- **Done:** a row answers "how big will this sprite be?".
+- **Check:** unit tests for the formatter; smoke after Analyze; left edges and
+  status columns line up.
+- **Done:** a row answers "how big will this sprite be?" without a legend.
+  Released in 2.1.0, table layout in 2.1.2.
 
 ### U5. Panel tidy-up
 - **Depends:** U4.
 - **Files:** `ui.py`.
 - **Actions:**
   1. Keep the existing panel order: Main, Collections, Camera & Framing,
-     Resolution, Output & Naming, Problems, Presets, Report.
+     Resolution, Output & Naming, Problems, Presets, Log.
   2. Reserve space in Camera & Framing for the view toggles added in V5.
   3. Remove the `Multi-view presets arrive with 2.1` note.
   4. Keep Analyze in the Main panel and in the Problems panel next to the
      messages; remove the duplicate from Output. Do not draw it in three
      places.
   5. Do not compute bounds or scan nodes in `draw()`.
+  6. Review follow-up: Path Preview and File Output node information are compact
+     `template_list` views, not boxes that expand with the data.
+  7. Review follow-up: the Report panel is `Log`, stays open and contains only
+     `Copy Log` and `Open Log`; the `BTS_PT_report` ID is preserved.
 - **Check:** every panel draws in an empty file and in a scene with targets.
-- **Done:** the panel map matches plan section 4.5.
+- **Done:** the panel map matches plan section 4.5. Released through 2.1.2.
 
 ### U6. Tests and documentation
 - **Depends:** U1-U5.
@@ -246,8 +279,33 @@ readable row status.
   Set 2.1.0 in `__init__.py`, `blender_manifest.toml` and the package contract,
   then build the zip with `tools/build_zip.ps1`.
 - **Check:** tests pass; the zip installs and reports 2.1.0.
-- **Done:** 2.1.0 is released and stage U is complete. The follow-up UI fixes
-  from review are released as 2.1.1, 2.1.2 and 2.1.3.
+- **Done:** 2.1.0 is released and stage U is functionally complete. The
+  follow-up review releases are recorded in U7.
+
+### U7. Review follow-ups (2.1.1-2.1.3)
+- **Depends:** U6.
+- **Files:** `ui.py`, `properties.py`, `operators.py`, `core/targets.py`,
+  `core/scene.py`, `tests/`, docs.
+- **Actions:**
+  1. 2.1.1: Problems shows every message without truncation; preset
+     explanations are menu tooltips; main actions are compact; the Report tab is
+     `Log`, stays open and contains only `Copy Log` and `Open Log`; the inline
+     hints under `Also Save Main Render` and `Always Keep Lights` are removed
+     from the panel and kept in tooltips.
+  2. 2.1.2: the target list becomes a fixed `Collection` / `Canvas / status`
+     table; Path Preview becomes a hideable, scrollable compact list; File Output
+     node information becomes one compact scrollable list.
+  3. 2.1.3: `export_source` filters the visible list and the export; the
+     Outliner and the active target row follow each other; the target registry
+     and flags survive mode switches; `All`/`None` affect visible targets only.
+  4. Add smoke coverage for target filtering, Outliner linkage, output-list
+     population and compact UI draw. Keep the 73 unit tests green.
+  5. Bump `bl_info`, manifest and package contract for each patch; rebuild the
+     zip; tag `v2.1.0`, `v2.1.2` and `v2.1.3`. The 2.1.1 build was an
+     intermediate uncommitted build and is included in 2.1.2.
+- **Check:** 73 unit tests pass; smoke passes in Blender 5.3; the 2.1.3 zip
+  registers, unregisters and applies the target filter correctly.
+- **Done:** Stage U and all review fixes are released. Next is O1.
 
 ---
 
@@ -258,7 +316,7 @@ the globals. The View override is added in stage V, together with the view
 properties it belongs to.
 
 ### O1. Properties
-- **Depends:** U6.
+- **Depends:** U7.
 - **Files:** `properties.py`.
 - **Actions:**
   1. Add to `BTS_TargetItem`:
@@ -605,15 +663,20 @@ stable canvas.
 
 | Level | What it checks | When |
 |---|---|---|
-| Unit | templates, overrides, view migration, tasks, canvas, action ranges, status | after every pure module |
+| Unit | templates, overrides, view migration, tasks, canvas, action ranges, status, UI helpers | after every pure module |
 | Smoke basic | export, names, sizes, restore | every stage |
-| Smoke UI | all panels, tooltip strings, 50 collections, override box | U and O |
+| Smoke UI | all panels, tooltip strings, 50 collections, target table, output lists, override box | U and O |
+| Smoke targets | export-mode filtering, registry persistence, Outliner ↔ target row | U follow-up |
 | Smoke overrides | two collections with different padding/PPU, legacy match | O |
 | Smoke views | 1, 4 and 6 axes, unique names, one canvas | V |
 | Smoke naming | tokens, padding, unknown token, auto suffix, collisions | V |
 | Smoke 5.3 | install, render, nodes, action slots, NLA | C1 and A8 |
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
-| Manual | tooltips, auto-sync, status, per-collection output, clean install | before each tag |
+| Manual | tooltips, auto-sync, target filter, status, per-collection output, clean install | before each tag |
+
+Current U results: 73 unit tests pass; smoke passes in Blender 5.3. The 5.2.3
+run is still pending because that Blender version is not installed in the test
+environment.
 
 Minimal local check:
 
@@ -633,6 +696,9 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 |---|---|---|
 | M0 | baseline in 5.2.3 and 5.3, reference export | 2.0.4 |
 | M1 | UI cleanup | 2.1.0 |
+| M1a | UI review fixes (intermediate, included in 2.1.2) | 2.1.1 |
+| M1b | compact Path Preview and node lists | 2.1.2 |
+| M1c | target filter and Outliner link | 2.1.3 |
 | M2 | per-collection overrides | 2.2.0 |
 | M3 | multi-view, canvas and naming | 2.3.0 |
 | M4 | 5.3 verified, 3.0.0 released | 3.0.0 |
@@ -645,12 +711,37 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ### 2.1.0
 
-- [ ] Tooltips explain the settings; no static hint labels remain.
-- [ ] Adding, deleting or renaming a collection updates the list without
+- [x] Tooltips explain the settings; no static hint labels remain.
+- [x] Adding, deleting or renaming a collection updates the list without
       pressing Refresh.
-- [ ] Enabled flags survive the automatic sync.
-- [ ] Row status shows canvas size, not world units.
-- [ ] The 2.1.0 zip installs and enables in 5.2 and 5.3.
+- [x] Enabled flags survive the automatic sync.
+- [x] Row status shows canvas size, not world units.
+- [ ] The 2.1.0 zip installs and enables in 5.2 and 5.3. (5.3 verified; 5.2.3
+      was not installed.)
+
+### 2.1.1 (intermediate, superseded by 2.1.2)
+
+- [x] Problems lists every message, collection and fix hint in full.
+- [x] Preset explanations appear only as menu tooltips.
+- [x] Main action buttons use compact rows.
+- [x] `Log` stays open and contains only `Copy Log` and `Open Log`.
+- [x] The inline hints under `Also Save Main Render` and `Always Keep Lights`
+      are gone; their tooltips explain them.
+
+### 2.1.2
+
+- [x] Target rows share the same left edge and the canvas column is visible.
+- [x] Path Preview is hideable, scrollable and compact.
+- [x] File Output node information is one compact scrollable list.
+
+### 2.1.3
+
+- [x] `Active Collection` shows only the active Outliner collection.
+- [x] Selecting a collection in the Outliner activates its target row.
+- [x] Selecting a target row selects the collection in the Outliner.
+- [x] The target registry and enabled flags survive export-mode switches.
+- [x] `All` and `None` affect only the visible targets.
+- [x] The 2.1.3 zip installs and registers in 5.3.
 
 ### 2.2.0
 
@@ -693,6 +784,12 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
   panels beyond the plan.
 - **Auto-sync loops.** Use a fingerprint and suppress the handler during
   preflight and export. Test add/delete/rename explicitly.
+- **Filter and registry drift.** `export_source` filters the persistent target
+  registry; it must never delete entries or flags. Mode-switch smoke tests cover
+  `All`, `Included`, `Active` and `Top-Level`.
+- **Outliner feedback loop.** Sync writes `active_target_index` while the
+  property callback writes the Outliner. Suppress the callback during sync and
+  keep the target-list and Outliner smoke checks.
 - **Overrides drift from globals.** One resolver, used by preflight, job and UI.
   No second copy of the precedence rules.
 - **Overrides lost on rename.** Documented: rename is remove + add.
@@ -717,12 +814,15 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ---
 
-## 14. First working day
+## 14. Next working day
 
-1. Confirm the branch and the clean tree.
-2. Run unit and smoke in 5.2.3, then smoke in 5.3.
-3. Create the reference export.
-4. Start U1: tooltip pass, no layout redesign.
-5. Run the checks and commit U1.
-6. Continue with U2 and U3; do not start overrides before the list updates
-   automatically, because O4 builds on it.
+Stage U is complete and tagged through `v2.1.3`. The next work is stage O:
+
+1. Confirm the clean tree, `v2.1.3` and the 2.1.3 zip.
+2. Run the unit and smoke suites once more in Blender 5.3.
+3. Start O1: add the framing and resolution override fields to
+   `BTS_TargetItem`.
+4. Keep the target filter, Outliner linkage and compact output lists intact;
+   O4 builds on the selected target row.
+5. Commit one O task at a time and tag each release version. Do not push unless
+   asked.

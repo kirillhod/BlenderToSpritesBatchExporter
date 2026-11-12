@@ -4,7 +4,8 @@ Date: 2026-11-11
 Baseline version: 2.0.4
 Base branch: `main` (the repository has no `master` branch)
 Work branch: `feature/improvements-v3`
-Status: in progress. Stage U is implemented and released as 2.1.0; its UI follow-up fixes are 2.1.1, 2.1.2 and 2.1.3.
+Status: in progress. Stage U is released as 2.1.0 and its review fixes as
+2.1.1, 2.1.2 and 2.1.3. Next: 2.2.0, per-collection overrides.
 
 This plan replaces the previous 3.x draft. The draft grew into a platform
 roadmap with atlas packing, CLI, pivots, metadata, a shared global canvas and a
@@ -25,14 +26,15 @@ Version 3 does five things:
 | 4 | Animation export: every action of a collection, its frame range and its name | 3.1.0 |
 | 5 | Blender 5.3 compatibility | 3.0.0 |
 
-Releases are incremental: **2.1.0**, **2.2.0**, **2.3.0**, **3.0.0** and
+Releases are incremental: **2.1.0-2.1.3**, **2.2.0**, **2.3.0**, **3.0.0** and
 **3.1.0**. There is no 3.2.
 
 Each stage ships a testable build instead of waiting for the final release. UI
-cleanup is 2.1.0, overrides are 2.2.0, multi-view and naming are 2.3.0, and
-Blender 5.3 plus the combined verification is 3.0.0. Animation is 3.1.0 because
-it reuses the naming and canvas rules introduced in 2.3.0. The 3.1.0 work is not
-optional polish; it is the animation feature.
+cleanup is 2.1.0 with review patches through 2.1.3, overrides are 2.2.0,
+multi-view and naming are 2.3.0, and Blender 5.3 plus the combined verification
+is 3.0.0. Animation is 3.1.0 because it reuses the naming and canvas rules
+introduced in 2.3.0. The 3.1.0 work is not optional polish; it is the animation
+feature.
 
 ### 1.1. Explicit non-goals
 
@@ -55,7 +57,7 @@ Reasons are in section 12.
 
 ---
 
-## 2. Current state at 2.0.4
+## 2. Baseline state at 2.0.4
 
 The 2.0.x line already provides the reliable core: target list, preflight,
 cancellable job, predictable paths, File Output support, presets, report and log.
@@ -73,6 +75,30 @@ The remaining friction is in daily use:
    needs several exports and manual renaming.
 6. **No animation.** Only the current frame is rendered.
 7. **Blender 5.3.** Released today; compatibility has to be verified.
+
+### 2.1. Current state after 2.1.3
+
+Stage U and its review fixes are complete:
+
+- static help labels moved to tooltips; Problems shows complete messages;
+- the target list follows collection creation, deletion and renaming;
+- `export_source` filters both the visible target list and the export;
+- the active Outliner collection and the active target row follow each other;
+- enabled flags and the full target registry survive export-mode switches;
+- the target list is a fixed two-column table with `Collection` and
+  `Canvas / status` headers;
+- Path Preview is a hideable, scrollable compact list; File Output node
+  information is one compact, scrollable list;
+- the Report tab is now `Log`, is always open, and contains only `Copy Log` and
+  `Open Log`;
+- built-in preset explanations live in the preset menu tooltips;
+- the manifest, package contract and changelog are at 2.1.3.
+
+Verification at 2.1.3: 73 unit tests pass, the Blender 5.3 smoke suite passes,
+and the zip installs and registers. Blender 5.2.3 was not installed in the test
+environment, so the 5.2 side of the matrix remains open until C1.
+
+Next work starts at stage O: per-collection framing and resolution overrides.
 
 ---
 
@@ -97,7 +123,7 @@ These rules apply to every task:
 
 ---
 
-## 4. Feature 1: interface cleanup
+## 4. Feature 1: interface cleanup (released 2.1.0-2.1.3)
 
 ### 4.1. Hints become tooltips
 
@@ -112,70 +138,93 @@ screen.
 | `Details are in the Problems panel.` | removed |
 | `Run Analyze to validate settings.` | removed; the Problems panel already reports it |
 | Node layout explanations | `node_naming` and related property descriptions |
-| `Light collections are included automatically...` | `keep_lights` description; keep only the risky-collection warning |
+| `Light collections are included automatically...` | `keep_lights` description; no inline warning |
 | `Warnings do not block export; errors do.` | `bts.analyze` operator description |
 | `Multi-view presets arrive with 2.1.` | removed |
-| Preset descriptions | one compact line per preset; full details in the README |
+| Preset descriptions | per-preset tooltips in the built-in preset menu |
 
-Blender does not support tooltips on plain labels or UIList rows, and a shared
-`bts.apply_preset` operator cannot show a different tooltip per built-in preset.
-Text that cannot become a tooltip is either removed, turned into a
-self-explanatory value, or moved to the README. Property descriptions become
-full sentences with examples and defaults.
+Blender does not support tooltips on plain labels or UIList rows. A shared
+`bts.apply_preset` operator also cannot show a different tooltip per button. The
+final solution uses an `EnumProperty` preset menu whose items carry the
+descriptions as menu tooltips. Text that cannot become a tooltip is either
+removed, turned into a self-explanatory value, or moved to the README. Property
+descriptions become full sentences with examples and defaults.
 
 ### 4.2. Density
 
 - Remove full-width separators between closely related rows and use
   `separator(factor=0.5)` where a visual break is still useful.
 - Use one warning box per issue group instead of nested boxes.
-- Keep `use_property_split` and `use_property_decorate = False`.
-- Use `scale_y` 0.85-0.9 for secondary rows instead of extra labels.
-- Keep Presets and Report closed by default.
-- Target list height 8 rows, Always Include 3 rows.
+- Keep `use_property_split = True` and `use_property_decorate = False` for
+  property rows. UIList wrappers set `use_property_split = False`, otherwise
+  rows are laid out as property values and appear centred.
+- Use `scale_y` 0.85-0.9 only for secondary text such as problem entries.
+- Keep Presets closed by default. `Log` is always open and contains only its
+  two buttons.
+- Target list 8 rows, Always Include 3 rows, Path Preview 4 rows, File Output
+  nodes 3 rows. All lists scroll.
+- Main action buttons use the standard row height; they are not enlarged.
 
-### 4.3. Collections update automatically
+### 4.3. Collections update automatically and follow the Outliner
 
 - A lightweight handler on `depsgraph_update_post` compares a cheap fingerprint
-  of the available source collections with the current target list and marks
-  the scene as pending. A debounced one-shot timer applies the sync outside the
-  depsgraph callback.
+  of the available source collections and the active Outliner collection with
+  the current target list and marks the scene as pending. A debounced one-shot
+  timer applies the sync outside the depsgraph callback.
 - `load_post` may sync directly.
 - The sync runs only when no preflight or job is active, and it is suppressed
   while the add-on itself changes visibility or excludes during export.
 - Enabled flags, overrides and the active index are preserved by collection
   name.
-- The manual `bts.refresh_targets` button stays as a fallback and becomes
-  non-destructive, so pressing it does not discard overrides.
+- `export_source` is a filter over a persistent target registry. It controls
+  both the visible list and the exported set, so `Active Collection` shows only
+  the active Outliner collection. Switching back to another mode restores the
+  previous registry and flags.
+- Selecting a collection in the Outliner selects its target row. Selecting a
+  target row selects that collection in the Outliner. The active-index update is
+  suppressed while sync writes the row, preventing a feedback loop.
+- `All` and `None` apply only to collections visible in the current export
+  mode.
+- The manual `bts.refresh_targets` button stays as a fallback and is
+  non-destructive.
 - Renaming a collection is treated as remove + add: the new name starts with
   defaults. This is documented.
 
 ### 4.4. Readable status
 
 The world-unit string is removed. After Analyze, each row shows the canvas it
-will produce:
+will produce. The list has `Collection` and `Canvas / status` headers:
 
 | Case | Row text |
 |---|---|
 | Single view, still | `512x304` |
 | Several views | `512x512, 4 views` |
 | Animation | `512x512, 12 frames` |
-| Skipped | the skip reason, for example `empty` |
+| Skipped | `skipped`; the row stays compact |
 | Before analysis | empty |
 
-The main panel summary shows `Targets 4/10 | Views 4 | Actions 6 | Tasks 96`.
-The strings carry their units and counts, so no legend is needed.
+The main panel summary shows the enabled and visible target counts for the
+current export mode, the view count and, after Analyze, the task count. The
+strings carry their units and counts, so no legend is needed. Long paths and
+long collection names are clipped by the panel width, but the lists scroll and
+the panel can be widened.
 
 ### 4.5. Panel map
 
 | Panel | Change |
 |---|---|
-| Main | target/view/action/task summary |
-| Collections | automatic list; overrides for the selected collection |
-| Camera & Framing | view toggles and presets move here; framing values |
-| Resolution | unchanged fields; shows global or overridden values |
-| Output & Naming | template, resolved preview, conflicts |
+| Main | enabled/visible target summary, views, task count after Analyze; compact action rows |
+| Collections | export-mode filter, target table, Outliner-linked selection, Always Include list |
+| Camera & Framing | framing values; view toggles and view presets arrive in 2.3 |
+| Resolution | unchanged fields; global values until overrides arrive in 2.2 |
+| Output & Naming | main or node output, compact Path Preview list, File Output node list |
+| Problems | every message, collection and fix hint in full |
+| Presets | one built-in preset menu with per-item tooltips; JSON save/load |
+| Log | always open; `Copy Log` and `Open Log` only |
 | Animation | new in 3.1 |
-| Problems, Presets, Report | compacted; no plan text |
+
+The former Report panel is now `Log`; its `BTS_PT_report` ID is preserved for
+compatibility.
 
 ---
 
@@ -399,14 +448,21 @@ them is not part of the user-visible goal and would add review risk.
 - canvas: one size across views, one size across frames, per-collection
   isolation;
 - action range: manual range, `frame_range`, step, reversed range;
-- status strings: still, views, frames, skipped.
+- status strings: still, views, frames, skipped;
+- UI helpers: target status labels, text wrapping, default search filtering;
+  target-mode filtering and output-list population are smoke checks.
 
 Unit tests stay Blender-free and use `tests/stub_bpy.py`. `animation.py` is
 tested with fake objects that expose `animation_data`, tracks and actions.
+At 2.1.3 the suite has 73 tests and all pass.
 
 ### 10.2. Smoke tests in Blender 5.2.3 and 5.3
 
 - UI draws in every panel and every mode;
+- target filters: `All`, `Included`, `Active` and `Top-Level` show and export
+  the expected subset, while the registry and enabled flags survive switches;
+- Outliner and target list follow each other in both directions;
+- Path Preview and File Output node lists are populated after Analyze;
 - two collections with different overrides produce different padding and scale;
 - 4- and 6-direction runs produce unique names and one canvas per collection;
 - animation with two actions and two views produces stable sizes, correct names
@@ -414,11 +470,19 @@ tested with fake objects that expose `animation_data`, tracks and actions.
 - cancel during a sequence restores the scene;
 - old scene and old preset load with unchanged output.
 
+At 2.1.3 the smoke suite passes in Blender 5.3. Blender 5.2.3 is not installed
+in the current environment, so that half of the matrix is still open for C1.
+
 ### 10.3. Manual checks
 
 - tooltips are readable and no static hint labels remain;
 - adding or deleting a collection updates the list without pressing anything;
-- the row status is understandable without a legend;
+- switching `Export` to `Active Collection` leaves only the Outliner collection
+  in the list;
+- selecting another Outliner collection updates the active target row;
+- the row status and the `Canvas / status` header are understandable without a
+  legend;
+- Path Preview hides with its checkbox and scrolls;
 - per-collection padding is visible in the rendered files;
 - 5.3 clean install runs a small export;
 - panel height stays reasonable with 50+ collections.
@@ -430,10 +494,16 @@ tested with fake objects that expose `animation_data`, tracks and actions.
 | Release | Scope | Estimate |
 |---|---|---|
 | **2.1.0** | UI cleanup | 3 days |
+| **2.1.1** (intermediate) | UI review fixes: Log, preset tooltips, compact actions | 1 day |
+| **2.1.2** | compact Path Preview and File Output node lists | 1 day |
+| **2.1.3** | target filter and Outliner link | 1 day |
 | **2.2.0** | per-collection overrides | 4 days |
 | **2.3.0** | multi-view, canvas and naming | 3 days |
 | **3.0.0** | Blender 5.3 and combined verification | 2 days |
 | **3.1.0** | animation export | 2 weeks |
+
+2.1.1 was an intermediate build; its changes are included in 2.1.2, so there is
+no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2` and `v2.1.3`.
 
 The 2.x releases do not change existing output unless the user enables a
 feature. 3.1.0 changes output only when `export_animations` is on.
@@ -466,6 +536,31 @@ feature. 3.1.0 changes output only when `export_animations` is on.
 - The collection list updates automatically and keeps enabled flags.
 - Row status shows canvas size, never world units.
 - README, CHANGELOG, manifest and package contract use 2.1.0.
+
+### 2.1.1 (intermediate, superseded by 2.1.2)
+
+- Problems lists every message, collection and fix hint in full.
+- Preset explanations are menu tooltips only.
+- Main action buttons use compact rows.
+- The Report tab is `Log`, stays open, and contains only `Copy Log` and
+  `Open Log`.
+- README, CHANGELOG, manifest and package contract use 2.1.1.
+
+### 2.1.2
+
+- The target list is a fixed table with `Collection` and `Canvas / status`
+  headers; rows share the same left edge.
+- Path Preview is a hideable, scrollable compact list.
+- File Output node information is one compact scrollable list.
+- README, CHANGELOG, manifest and package contract use 2.1.2.
+
+### 2.1.3
+
+- `export_source` filters both the visible list and the export.
+- `Active Collection` shows only the active Outliner collection.
+- The Outliner selection and the active target row follow each other.
+- The target registry and enabled flags survive export-mode switches.
+- README, CHANGELOG, manifest and package contract use 2.1.3.
 
 ### 2.2.0
 
@@ -503,7 +598,11 @@ feature. 3.1.0 changes output only when `export_animations` is on.
 ## 14. Summary
 
 The 2.x work made the exporter safe. Version 3 makes it comfortable and
-expressive without turning it into a platform:
+expressive without turning it into a platform. Releases 2.1.0-2.1.3 complete the
+first feature; the remaining stages are focused on overrides, views, animation
+and the final Blender compatibility pass.
+
+The remaining goals are:
 
 1. Remove interface noise and manual steps.
 2. Let each collection use the framing and resolution it needs.
