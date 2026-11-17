@@ -6,15 +6,43 @@ Blender To Sprites Batch Exporter is a GPL-3.0-or-later Blender add-on written
 in Python. It renders Blender collections as separate sprites with an
 auto-fitted orthographic camera.
 
-Project sources of truth:
+Sources of truth, by question:
 
 - `README.md` - user-facing behavior and installation.
-- `IMPROVEMENT_PLAN.md` - v3 scope, roadmap and definition of done.
-- `IMPLEMENTATION_SEQUENCE.md` - stage order, dependencies and release checks.
-- `CHANGELOG.md` - released changes and version history.
+- `IMPROVEMENT_PLAN.md` - v3 scope, decisions and definition of done.
+- `IMPLEMENTATION_SEQUENCE.md` - stage order, tasks and release checks.
+- `CHANGELOG.md` - released history.
+- `docs/agent/` - agent procedures: context map, Blender smoke, release.
 
-Keep those documents in sync when a release, command or workflow changes. Do not
-copy their full contents into this file.
+Do not copy those documents into this file. Stage IDs and section numbers are
+stable; cite them in commits and reports.
+
+## Current state
+
+Do not restate releases, counts or the next task here. Read them:
+
+```powershell
+python tools/doc.py plan 2.1
+python tools/doc.py sequence 14
+```
+
+## Context budget
+
+- This file is loaded automatically. Do not re-read it.
+- Read `docs/agent/context-map.md` before exploring code or planning docs.
+- Print one section instead of a whole file:
+  `python tools/doc.py sequence O1`, `python tools/doc.py plan 5`,
+  `python tools/doc.py --list`.
+- Grep a symbol and read about 200 lines around it. Do not sweep `core/`,
+  `tests/` or `reports/`.
+- Send "where/how" questions to the `explore` subagent; keep the main context
+  for edits.
+- Do not read end to end: `CHANGELOG.md`, `reports/`, `core/job.py`,
+  `core/output.py`, `tests/smoke_blender.py`, `tests/test_logic_unit.py`.
+- Keep this file and `docs/agent/context-map.md` under 9000 characters;
+  `tests/test_docs.py` enforces the budget.
+- One fact has one home. Link to the owning document instead of restating it,
+  and update that document in the same change when the fact changes.
 
 ## Environment
 
@@ -27,7 +55,7 @@ copy their full contents into this file.
 - Before a smoke test, use `$env:BLENDER_EXE` when it is set. If it is not set,
   ask the user for the Blender executable path.
 - Do not claim a Blender version was tested unless that executable actually ran.
-- `tests/run_tests.ps1` respects the `BLENDER_EXE` environment variable.
+- See [docs/agent/smoke.md](docs/agent/smoke.md) for the full smoke procedure.
 
 ## Commands
 
@@ -48,8 +76,8 @@ Success criteria:
 - The zip is written to
   `dist/blender_to_sprites_batch_exporter-<version>.zip`.
 
-Verify the built zip by importing it from its path in Blender and checking that
-it registers and unregisters cleanly. `dist/` is gitignored; do not commit it.
+`dist/` is gitignored; do not commit it. Release steps, including zip
+verification and tagging, live in [docs/agent/release.md](docs/agent/release.md).
 
 ## Architecture
 
@@ -60,8 +88,10 @@ it registers and unregisters cleanly. `dist/` is gitignored; do not commit it.
 - `logic.py` - compatibility facade that re-exports `core.*`.
 - `core/` - Blender logic. It must not import `ui` or `operators`.
 - `tests/` - unit tests, `stub_bpy.py`, and the Blender smoke suite.
-- `tools/` - build and helper scripts.
-- `reports/` - historical stage reports. Do not rewrite old reports.
+- `tools/` - build and helper scripts, including `doc.py`.
+- `docs/agent/` - agent procedures.
+- `.opencode/skills/` - thin skill adapters that point at `docs/agent/`.
+- `reports/` - historical stage reports; start at `reports/README.md`.
 - `legacy/` - the old single-file add-on. Not part of the current build.
 
 ## Compatibility rules
@@ -111,7 +141,8 @@ callback does not write back to the Outliner and create a feedback loop.
 
 - Unit tests must remain Blender-free.
 - Add or update smoke coverage when changing target filtering, Outliner
-  linkage, output lists, preflight or rendering.
+  linkage, output lists, preflight or rendering. The coverage list is in
+  [docs/agent/smoke.md](docs/agent/smoke.md).
 - PNG file hashes are unstable across runs. Compare decoded pixels, not file
   hashes.
 - Do not claim a fix or release is complete without running the relevant
@@ -119,25 +150,14 @@ callback does not write back to the Outliner and create a feedback loop.
 - For visual UI changes, verify the result in Blender when possible; do not
   infer alignment from source alone.
 
-## Release workflow
-
-For a version release:
-
-1. Update the version in `bl_info`, `blender_manifest.toml`,
-   `tests/test_package_contract.py` and `CHANGELOG.md`.
-2. Run unit tests and smoke.
-3. Build the zip with `./tools/build_zip.ps1`.
-4. Verify the zip imports, registers and unregisters in Blender.
-5. Commit the release changes and create a tag `vX.Y.Z`.
-6. Do not push unless explicitly asked.
-
-Intermediate builds that are not committed do not get a tag. Document the
-relationship in `CHANGELOG.md` and the planning documents.
-
 ## Git and scope
 
 - Do not push unless explicitly asked.
 - Do not rewrite history, move tags or force-push without explicit permission.
+- Tag every version commit `vX.Y.Z`. An intermediate build that is not
+  committed gets no tag.
+- Commit subjects are plain imperative English; add a body for non-trivial
+  changes. Do not use conventional prefixes such as `feat:` or `fix:`.
 - Keep changes within the requested task. Do not add atlas packing, a CLI,
   metadata manifests, pivots, localization or a module split; these are
   explicit non-goals.

@@ -94,9 +94,9 @@ Stage U and its review fixes are complete:
 - built-in preset explanations live in the preset menu tooltips;
 - the manifest, package contract and changelog are at 2.1.3.
 
-Verification at 2.1.3: 73 unit tests pass, the Blender 5.3 smoke suite passes,
-and the zip installs and registers. Blender 5.2.3 was not installed in the test
-environment, so the 5.2 side of the matrix remains open until C1.
+Verification at 2.1.3: the unit suite passes, the Blender 5.3 smoke suite
+passes, and the zip installs and registers. Blender 5.2.3 was not installed in
+the test environment, so the 5.2 side of the matrix remains open until C1.
 
 Next work starts at stage O: per-collection framing and resolution overrides.
 
@@ -454,7 +454,8 @@ them is not part of the user-visible goal and would add review risk.
 
 Unit tests stay Blender-free and use `tests/stub_bpy.py`. `animation.py` is
 tested with fake objects that expose `animation_data`, tracks and actions.
-At 2.1.3 the suite has 73 tests and all pass.
+The suite must stay green; the exact count is reported by the runner and is
+not pinned here, because it grows with every stage.
 
 ### 10.2. Smoke tests in Blender 5.2.3 and 5.3
 

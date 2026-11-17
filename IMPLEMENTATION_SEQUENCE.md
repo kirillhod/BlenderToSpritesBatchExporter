@@ -156,7 +156,7 @@ readable row status.
 **Status:** complete. 2.1.0 shipped the stage; review fixes shipped as 2.1.1,
 2.1.2 and 2.1.3. Tags: `v2.1.0`, `v2.1.2`, `v2.1.3`. The 2.1.1 build was an
 intermediate uncommitted build; its changes are included in 2.1.2. Current
-verification: 73 unit tests and the Blender 5.3 smoke suite pass.
+verification: the unit suite and the Blender 5.3 smoke suite pass.
 
 ### U1. Tooltip pass
 - **Depends:** S0.
@@ -299,11 +299,11 @@ verification: 73 unit tests and the Blender 5.3 smoke suite pass.
      Outliner and the active target row follow each other; the target registry
      and flags survive mode switches; `All`/`None` affect visible targets only.
   4. Add smoke coverage for target filtering, Outliner linkage, output-list
-     population and compact UI draw. Keep the 73 unit tests green.
+     population and compact UI draw. Keep the unit suite green.
   5. Bump `bl_info`, manifest and package contract for each patch; rebuild the
      zip; tag `v2.1.0`, `v2.1.2` and `v2.1.3`. The 2.1.1 build was an
      intermediate uncommitted build and is included in 2.1.2.
-- **Check:** 73 unit tests pass; smoke passes in Blender 5.3; the 2.1.3 zip
+- **Check:** the unit suite passes; smoke passes in Blender 5.3; the 2.1.3 zip
   registers, unregisters and applies the target filter correctly.
 - **Done:** Stage U and all review fixes are released. Next is O1.
 
@@ -674,9 +674,9 @@ stable canvas.
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
 | Manual | tooltips, auto-sync, target filter, status, per-collection output, clean install | before each tag |
 
-Current U results: 73 unit tests pass; smoke passes in Blender 5.3. The 5.2.3
-run is still pending because that Blender version is not installed in the test
-environment.
+Current U results: the unit suite passes; smoke passes in Blender 5.3. The
+5.2.3 run is still pending because that Blender version is not installed in
+the test environment.
 
 Minimal local check:
 
