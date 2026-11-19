@@ -285,11 +285,14 @@ def analysis_token(context, settings, targets=None, nodes=None):
     node_state = tuple(
         (key, _node_token(node)) for key, node in sorted(nodes.items(), key=lambda item: item[0])
     )
+    target_state = target_override_state(
+        settings, tuple(target.name for target in targets)
+    )
     rd = scene.render
     return (
         scene.as_pointer(),
         settings_state,
-        tuple(target.name for target in targets),
+        target_state,
         node_state,
         getattr(rd, "engine", ""),
         getattr(rd, "use_compositing", None),

@@ -317,7 +317,7 @@ properties it belongs to.
 
 ### O1. Properties
 - **Depends:** U7.
-- **Files:** `properties.py`.
+- **Files:** `properties.py`, `core/targets.py`, `core/job.py`, `tests/`.
 - **Actions:**
   1. Add to `BTS_TargetItem`:
      - `override_framing`, `camera_margin`, `padding_mode`, `padding_pixels`,
@@ -327,14 +327,18 @@ properties it belongs to.
   2. The View override (`override_view` and six booleans) is added in V1
      together with the global view properties.
   3. Add hidden `override_*_seeded` flags.
-  4. Update callbacks: when a group is turned on and not seeded, copy the
+  4. Add `apply_override_toggle` in `core/targets.py` and call it from the
+     group callbacks: when a group is turned on and not seeded, copy the
      current global values and set seeded; when it is turned off, clear seeded.
      This prevents a file load from overwriting stored overrides.
-  5. Extend the target state in `analysis_token` with all override fields and
-     group flags.
+  5. Add `TARGET_OVERRIDE_ATTRS` and `target_override_state`, and extend the
+     target state in `analysis_token` with all override fields and group flags.
+  6. Pin the target-item property names in the package contract and add unit
+     and smoke coverage for seeding, cache invalidation and .blend persistence.
 - **Check:** toggling on copies globals; toggling off restores inheritance;
   saving and loading a .blend keeps the values.
 - **Done:** the data model is stable.
+- **Status:** implemented and smoke-verified in Blender 5.3.0.
 
 ### O2. Resolver
 - **Depends:** O1.

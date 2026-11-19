@@ -59,7 +59,7 @@ re-exports `core.*`; `core.*` never imports `ui` or `operators`.
 
 | Module | Owns |
 | --- | --- |
-| `core/targets.py` | target registry, sync, filter, Outliner link, status, output lists |
+| `core/targets.py` | target registry, sync, filter, Outliner link, override seeds, status, output lists |
 | `core/scene.py` | bounds, source gathering, isolation and render-state restore |
 | `core/framing.py` | axis math, padding and camera configuration |
 | `core/job.py` | problems, analysis token, preflight, `BatchJob`, report |

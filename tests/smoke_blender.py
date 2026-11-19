@@ -586,6 +586,93 @@ def run_target_list_test():
     os.rmdir(out_dir)
 
 
+def run_override_property_test():
+    """Override toggles copy globals once and survive a .blend round trip."""
+    from blender_to_sprites_batch_exporter import logic
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    add_cube(body, "BodyCube")
+
+    out_dir = tempfile.mkdtemp(prefix="bts_overrides_")
+    settings = scene.bts_settings
+    settings.output_dir = out_dir
+    settings.export_source = "ALL"
+    settings.skip_empty = True
+    settings.camera_margin = 30.0
+    settings.padding_mode = "UNITS"
+    settings.padding_pixels = 7
+    settings.padding_units = 0.25
+    settings.pixels_per_unit = 64.0
+    settings.resolution_multiple = 8
+    settings.square_output = True
+    settings.min_resolution = 16
+    settings.max_resolution = 512
+
+    logic.rebuild_target_items(bpy.context, settings)
+    item = next((row for row in settings.target_items if row.name == "Body"), None)
+    check(item is not None, "Override test has no Body target")
+
+    item.override_framing = True
+    check(item.camera_margin == 30.0, "Framing margin was not copied")
+    check(item.padding_mode == "UNITS", "Framing padding mode was not copied")
+    check(item.padding_pixels == 7, "Framing pixel padding was not copied")
+    check(item.padding_units == 0.25, "Framing unit padding was not copied")
+    check(item.override_framing_seeded, "Framing override was not seeded")
+
+    settings.camera_margin = 99.0
+    check(
+        item.camera_margin == 30.0,
+        "Seeded framing override was overwritten by a global change",
+    )
+
+    item.override_framing = False
+    check(not item.override_framing_seeded, "Framing seed was not cleared")
+    item.override_framing = True
+    check(
+        item.camera_margin == 99.0,
+        "Re-enabling Framing did not copy the current global values",
+    )
+
+    item.override_resolution = True
+    check(item.pixels_per_unit == 64.0, "Resolution PPU was not copied")
+    check(item.resolution_multiple == 8, "Resolution multiple was not copied")
+    check(item.square_output, "Square output was not copied")
+    check(item.min_resolution == 16, "Minimum resolution was not copied")
+    check(item.max_resolution == 512, "Maximum resolution was not copied")
+    check(item.override_resolution_seeded, "Resolution override was not seeded")
+
+    before = logic.analysis_token(bpy.context, settings)
+    item.padding_pixels = 9
+    after = logic.analysis_token(bpy.context, settings)
+    check(before != after, "Analysis token ignores target overrides")
+
+    blend_path = os.path.join(out_dir, "overrides.blend")
+    bpy.ops.wm.save_as_mainfile(filepath=blend_path, check_existing=False)
+    item.padding_pixels = 100
+    item.override_resolution = False
+    bpy.ops.wm.open_mainfile(filepath=blend_path, load_ui=False)
+
+    scene = bpy.context.scene
+    settings = scene.bts_settings
+    item = next((row for row in settings.target_items if row.name == "Body"), None)
+    check(item is not None, "Body target was lost after reload")
+    check(item.override_framing, "Framing toggle was not saved")
+    check(item.override_framing_seeded, "Framing seed was not saved")
+    check(item.camera_margin == 99.0, "Framing value was not saved")
+    check(item.override_resolution, "Resolution toggle was not saved")
+    check(item.override_resolution_seeded, "Resolution seed was not saved")
+    check(item.pixels_per_unit == 64.0, "Resolution PPU was not saved")
+    check(item.padding_pixels == 9, "Framing padding was not saved")
+
+    for name in os.listdir(out_dir):
+        os.remove(os.path.join(out_dir, name))
+    os.rmdir(out_dir)
+
+
 def run_collision_test():
     """Collections that sanitize to the same name must not overwrite each other."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -1007,6 +1094,7 @@ def run_test():
 
     run_collision_test()
     run_target_list_test()
+    run_override_property_test()
     run_target_sync_test()
     run_target_filter_test()
     run_analysis_and_cancel_test()

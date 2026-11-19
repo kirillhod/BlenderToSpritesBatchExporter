@@ -741,6 +741,95 @@ class NodeOutputPlanTest(unittest.TestCase):
             self.assertFalse(plans[0].skipped)
 
 
+class TargetOverrideTest(unittest.TestCase):
+    def make_item(self, **overrides):
+        values = {
+            "name": "Body",
+            "override_framing": False,
+            "override_framing_seeded": False,
+            "camera_margin": 10.0,
+            "padding_mode": "PIXELS",
+            "padding_pixels": 16,
+            "padding_units": 0.1,
+            "override_resolution": False,
+            "override_resolution_seeded": False,
+            "pixels_per_unit": 100.0,
+            "resolution_multiple": 1,
+            "square_output": False,
+            "min_resolution": 1,
+            "max_resolution": 0,
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
+
+    def test_enabling_framing_copies_globals_once(self):
+        settings = make_settings(
+            camera_margin=25.0,
+            padding_mode="UNITS",
+            padding_pixels=4,
+            padding_units=0.5,
+        )
+        item = self.make_item()
+        self.assertTrue(logic.apply_override_toggle(settings, item, "framing", True))
+        self.assertEqual(item.camera_margin, 25.0)
+        self.assertEqual(item.padding_mode, "UNITS")
+        self.assertEqual(item.padding_pixels, 4)
+        self.assertEqual(item.padding_units, 0.5)
+        self.assertTrue(item.override_framing_seeded)
+
+        settings.camera_margin = 99.0
+        self.assertFalse(logic.apply_override_toggle(settings, item, "framing", True))
+        self.assertEqual(item.camera_margin, 25.0)
+
+    def test_disabling_clears_seed_and_enabling_reseeds(self):
+        settings = make_settings(camera_margin=25.0)
+        item = self.make_item()
+        logic.apply_override_toggle(settings, item, "framing", True)
+        item.camera_margin = 3.0
+        logic.apply_override_toggle(settings, item, "framing", False)
+        self.assertFalse(item.override_framing_seeded)
+
+        settings.camera_margin = 40.0
+        self.assertTrue(logic.apply_override_toggle(settings, item, "framing", True))
+        self.assertEqual(item.camera_margin, 40.0)
+
+    def test_resolution_group_is_independent(self):
+        settings = make_settings(
+            pixels_per_unit=64.0,
+            resolution_multiple=8,
+            square_output=True,
+            min_resolution=16,
+            max_resolution=512,
+        )
+        item = self.make_item()
+        self.assertTrue(
+            logic.apply_override_toggle(settings, item, "resolution", True)
+        )
+        self.assertEqual(item.pixels_per_unit, 64.0)
+        self.assertEqual(item.resolution_multiple, 8)
+        self.assertTrue(item.square_output)
+        self.assertEqual(item.min_resolution, 16)
+        self.assertEqual(item.max_resolution, 512)
+        self.assertTrue(item.override_resolution_seeded)
+        self.assertFalse(item.override_framing_seeded)
+
+    def test_unknown_group_fails(self):
+        with self.assertRaises(ValueError):
+            logic.apply_override_toggle(
+                make_settings(), self.make_item(), "view", True
+            )
+
+    def test_target_override_state_keeps_order_and_fields(self):
+        item = self.make_item(override_framing=True, camera_margin=25.0)
+        settings = make_settings(target_items=[item])
+        state = logic.target_override_state(settings, ["Body", "Missing"])
+        self.assertEqual(state[0][0], "Body")
+        values = dict(zip(logic.TARGET_OVERRIDE_ATTRS, state[0][1]))
+        self.assertTrue(values["override_framing"])
+        self.assertEqual(values["camera_margin"], 25.0)
+        self.assertEqual(state[1], ("Missing", ()))
+
+
 class TargetStatusTest(unittest.TestCase):
     def test_single_still(self):
         self.assertEqual(logic.format_target_status(512, 304), "512x304")

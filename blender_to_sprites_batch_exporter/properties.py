@@ -15,6 +15,8 @@ from bpy.props import (
 )
 from bpy.types import PropertyGroup
 
+from .core.targets import apply_override_toggle
+
 
 def _invalidate_analysis(_self, context):
     try:
@@ -54,12 +56,154 @@ def _export_source_changed(_self, context):
         pass
 
 
+def _target_settings(item):
+    """Return the owning BTS_Settings for a target item, if available."""
+    data = getattr(item, "id_data", None)
+    settings = getattr(data, "bts_settings", None)
+    if settings is not None:
+        return settings
+    if hasattr(data, "target_items"):
+        return data
+    return None
+
+
+def _override_group_changed(item, context, group):
+    try:
+        settings = _target_settings(item)
+        if settings is None:
+            return
+        apply_override_toggle(settings, item, group)
+    except Exception:
+        return
+    _invalidate_analysis(item, context)
+
+
+def _override_framing_changed(self, context):
+    _override_group_changed(self, context, "framing")
+
+
+def _override_resolution_changed(self, context):
+    _override_group_changed(self, context, "resolution")
+
+
 class BTS_TargetItem(PropertyGroup):
     """One collection selected for export."""
 
     name: StringProperty(name="Collection")
     enabled: BoolProperty(name="Export", default=True, update=_invalidate_analysis)
     size_status: StringProperty(name="Status", default="")
+
+    override_framing: BoolProperty(
+        name="Override Framing",
+        description=(
+            "Use collection-specific framing instead of the global Camera & "
+            "Framing settings"
+        ),
+        default=False,
+        update=_override_framing_changed,
+    )
+    override_framing_seeded: BoolProperty(default=False, options={'HIDDEN'})
+    camera_margin: FloatProperty(
+        name="Camera Distance Margin",
+        description=(
+            "Collection camera distance margin. Used only when Framing override "
+            "is on. Default: 10"
+        ),
+        default=10.0,
+        min=0.01,
+        soft_max=1000.0,
+    )
+    padding_mode: EnumProperty(
+        name="Padding Mode",
+        description=(
+            "Collection padding measurement. Used only when Framing override "
+            "is on"
+        ),
+        items=[
+            ('PIXELS', "Pixels", "Padding is a number of output pixels"),
+            ('UNITS', "Units", "Padding is a distance in Blender units"),
+        ],
+        default='PIXELS',
+    )
+    padding_pixels: IntProperty(
+        name="Padding",
+        description=(
+            "Collection padding in output pixels. Used only when Framing "
+            "override is on. Default: 16"
+        ),
+        default=16,
+        min=0,
+        soft_max=512,
+    )
+    padding_units: FloatProperty(
+        name="Padding",
+        description=(
+            "Collection padding in Blender units. Used only when Framing "
+            "override is on. Default: 0.1"
+        ),
+        default=0.1,
+        min=0.0,
+        soft_max=100.0,
+    )
+
+    override_resolution: BoolProperty(
+        name="Override Resolution",
+        description=(
+            "Use collection-specific resolution instead of the global "
+            "Resolution settings"
+        ),
+        default=False,
+        update=_override_resolution_changed,
+    )
+    override_resolution_seeded: BoolProperty(default=False, options={'HIDDEN'})
+    pixels_per_unit: FloatProperty(
+        name="Pixels / Unit",
+        description=(
+            "Collection output pixels per Blender unit. Used only when "
+            "Resolution override is on. Default: 100"
+        ),
+        default=100.0,
+        min=0.001,
+        soft_max=2048.0,
+    )
+    resolution_multiple: IntProperty(
+        name="Round To Multiple Of",
+        description=(
+            "Round the collection canvas up to this multiple. Used only when "
+            "Resolution override is on. 1 disables rounding. Default: 1"
+        ),
+        default=1,
+        min=1,
+        soft_max=64,
+    )
+    square_output: BoolProperty(
+        name="Square Output",
+        description=(
+            "Force the collection canvas to a square. Used only when "
+            "Resolution override is on"
+        ),
+        default=False,
+    )
+    min_resolution: IntProperty(
+        name="Min Res",
+        description=(
+            "Minimum collection canvas size in pixels. Used only when "
+            "Resolution override is on. Default: 1"
+        ),
+        default=1,
+        min=1,
+        soft_max=8192,
+    )
+    max_resolution: IntProperty(
+        name="Max Res",
+        description=(
+            "Maximum collection canvas size in pixels. Used only when "
+            "Resolution override is on. 0 means unlimited. Default: 0"
+        ),
+        default=0,
+        min=0,
+        soft_max=16384,
+    )
 
 
 class BTS_CollectionRef(PropertyGroup):

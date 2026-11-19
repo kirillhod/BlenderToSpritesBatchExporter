@@ -133,6 +133,29 @@ class RegistrationContractTest(unittest.TestCase):
         }
         self.assertEqual(set(properties.BTS_Settings.__annotations__), expected)
 
+    def test_target_item_properties(self):
+        expected = {
+            "name",
+            "enabled",
+            "size_status",
+            "override_framing",
+            "override_framing_seeded",
+            "camera_margin",
+            "padding_mode",
+            "padding_pixels",
+            "padding_units",
+            "override_resolution",
+            "override_resolution_seeded",
+            "pixels_per_unit",
+            "resolution_multiple",
+            "square_output",
+            "min_resolution",
+            "max_resolution",
+        }
+        self.assertEqual(
+            set(properties.BTS_TargetItem.__annotations__), expected
+        )
+
     def test_logic_is_ui_free(self):
         sources = [Path(logic.__file__)]
         sources.extend(

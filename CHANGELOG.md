@@ -2,6 +2,14 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [Unreleased]
+
+### Added
+- Per-collection framing and resolution override properties on targets. A group
+  toggle copies the current global values on first enable, keeps the stored
+  values across a `.blend` round trip and invalidates the analysis cache when
+  it changes.
+
 ## [2.1.3] - 2026-11-11
 
 ### Fixed

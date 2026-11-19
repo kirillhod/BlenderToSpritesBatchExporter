@@ -346,6 +346,75 @@ def get_target_item(settings, name):
     return None
 
 
+OVERRIDE_FRAMING_FIELDS = (
+    "camera_margin",
+    "padding_mode",
+    "padding_pixels",
+    "padding_units",
+)
+OVERRIDE_RESOLUTION_FIELDS = (
+    "pixels_per_unit",
+    "resolution_multiple",
+    "square_output",
+    "min_resolution",
+    "max_resolution",
+)
+OVERRIDE_GROUP_FIELDS = {
+    "framing": OVERRIDE_FRAMING_FIELDS,
+    "resolution": OVERRIDE_RESOLUTION_FIELDS,
+}
+TARGET_OVERRIDE_ATTRS = (
+    "override_framing",
+    *OVERRIDE_FRAMING_FIELDS,
+    "override_resolution",
+    *OVERRIDE_RESOLUTION_FIELDS,
+)
+
+
+def apply_override_toggle(settings, item, group, enabled=None):
+    """Copy global values on first enable and clear the seed when disabled.
+
+    Returns True when the group values were copied. The seeded flag keeps a
+    loaded .blend from replacing stored overrides with the current globals.
+    """
+    try:
+        fields = OVERRIDE_GROUP_FIELDS[group]
+    except KeyError:
+        raise ValueError("Unknown override group: %s" % group)
+    toggle = "override_" + group
+    seeded = toggle + "_seeded"
+    if enabled is None:
+        enabled = bool(getattr(item, toggle, False))
+    if not enabled:
+        setattr(item, seeded, False)
+        return False
+    if bool(getattr(item, seeded, False)):
+        return False
+    for field in fields:
+        setattr(item, field, getattr(settings, field))
+    setattr(item, seeded, True)
+    return True
+
+
+def target_override_state(settings, names):
+    """Return the override inputs for each target name, in export order."""
+    items = {
+        getattr(item, "name", ""): item
+        for item in getattr(settings, "target_items", ())
+    }
+    state = []
+    for name in names:
+        item = items.get(name)
+        if item is None:
+            state.append((name, ()))
+            continue
+        state.append((
+            name,
+            tuple(getattr(item, attr, None) for attr in TARGET_OVERRIDE_ATTRS),
+        ))
+    return tuple(state)
+
+
 def add_always_include(settings, name):
     _include_add(settings, str(name))
 
