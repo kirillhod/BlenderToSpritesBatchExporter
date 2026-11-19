@@ -20,6 +20,7 @@ from blender_to_sprites_batch_exporter import logic  # noqa: E402
 def make_settings(**overrides):
     values = {
         "camera_axis": "TOP",
+        "camera_margin": 10.0,
         "pixels_per_unit": 10.0,
         "padding_mode": "PIXELS",
         "padding_pixels": 0,
@@ -28,6 +29,27 @@ def make_settings(**overrides):
         "min_resolution": 1,
         "max_resolution": 0,
         "resolution_multiple": 1,
+    }
+    values.update(overrides)
+    return SimpleNamespace(**values)
+
+
+def make_target_item(**overrides):
+    values = {
+        "name": "Body",
+        "override_framing": False,
+        "override_framing_seeded": False,
+        "camera_margin": 10.0,
+        "padding_mode": "PIXELS",
+        "padding_pixels": 16,
+        "padding_units": 0.1,
+        "override_resolution": False,
+        "override_resolution_seeded": False,
+        "pixels_per_unit": 100.0,
+        "resolution_multiple": 1,
+        "square_output": False,
+        "min_resolution": 1,
+        "max_resolution": 0,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -743,24 +765,7 @@ class NodeOutputPlanTest(unittest.TestCase):
 
 class TargetOverrideTest(unittest.TestCase):
     def make_item(self, **overrides):
-        values = {
-            "name": "Body",
-            "override_framing": False,
-            "override_framing_seeded": False,
-            "camera_margin": 10.0,
-            "padding_mode": "PIXELS",
-            "padding_pixels": 16,
-            "padding_units": 0.1,
-            "override_resolution": False,
-            "override_resolution_seeded": False,
-            "pixels_per_unit": 100.0,
-            "resolution_multiple": 1,
-            "square_output": False,
-            "min_resolution": 1,
-            "max_resolution": 0,
-        }
-        values.update(overrides)
-        return SimpleNamespace(**values)
+        return make_target_item(**overrides)
 
     def test_enabling_framing_copies_globals_once(self):
         settings = make_settings(
@@ -828,6 +833,145 @@ class TargetOverrideTest(unittest.TestCase):
         self.assertTrue(values["override_framing"])
         self.assertEqual(values["camera_margin"], 25.0)
         self.assertEqual(state[1], ("Missing", ()))
+
+
+class TargetResolverTest(unittest.TestCase):
+    def test_no_overrides_uses_globals(self):
+        settings = make_settings(
+            camera_axis="FRONT",
+            camera_margin=25.0,
+            padding_mode="UNITS",
+            padding_pixels=4,
+            padding_units=0.5,
+            pixels_per_unit=64.0,
+            resolution_multiple=8,
+            square_output=True,
+            min_resolution=16,
+            max_resolution=512,
+        )
+        item = make_target_item()
+        resolved = logic.resolve_target_settings(settings, item)
+        self.assertEqual(resolved.camera_axis, "FRONT")
+        self.assertEqual(resolved.camera_margin, 25.0)
+        self.assertEqual(resolved.padding_mode, "UNITS")
+        self.assertEqual(resolved.padding_pixels, 4)
+        self.assertEqual(resolved.padding_units, 0.5)
+        self.assertEqual(resolved.pixels_per_unit, 64.0)
+        self.assertEqual(resolved.resolution_multiple, 8)
+        self.assertTrue(resolved.square_output)
+        self.assertEqual(resolved.min_resolution, 16)
+        self.assertEqual(resolved.max_resolution, 512)
+        self.assertFalse(item.override_framing_seeded)
+
+    def test_framing_override_only(self):
+        settings = make_settings(
+            camera_margin=25.0,
+            padding_mode="UNITS",
+            padding_pixels=4,
+            pixels_per_unit=64.0,
+            resolution_multiple=8,
+        )
+        item = make_target_item(
+            override_framing=True,
+            override_framing_seeded=True,
+            camera_margin=3.0,
+            padding_mode="PIXELS",
+            padding_pixels=2,
+            padding_units=9.0,
+        )
+        resolved = logic.resolve_target_settings(settings, item)
+        self.assertEqual(resolved.camera_margin, 3.0)
+        self.assertEqual(resolved.padding_mode, "PIXELS")
+        self.assertEqual(resolved.padding_pixels, 2)
+        self.assertEqual(resolved.padding_units, 9.0)
+        self.assertEqual(resolved.pixels_per_unit, 64.0)
+        self.assertEqual(resolved.resolution_multiple, 8)
+
+    def test_resolution_override_only(self):
+        settings = make_settings(
+            camera_margin=25.0,
+            padding_mode="UNITS",
+            padding_pixels=4,
+            padding_units=0.5,
+            pixels_per_unit=64.0,
+        )
+        item = make_target_item(
+            override_resolution=True,
+            override_resolution_seeded=True,
+            pixels_per_unit=32.0,
+            resolution_multiple=4,
+            square_output=True,
+            min_resolution=8,
+            max_resolution=256,
+        )
+        resolved = logic.resolve_target_settings(settings, item)
+        self.assertEqual(resolved.camera_margin, 25.0)
+        self.assertEqual(resolved.padding_mode, "UNITS")
+        self.assertEqual(resolved.padding_pixels, 4)
+        self.assertEqual(resolved.padding_units, 0.5)
+        self.assertEqual(resolved.pixels_per_unit, 32.0)
+        self.assertEqual(resolved.resolution_multiple, 4)
+        self.assertTrue(resolved.square_output)
+        self.assertEqual(resolved.min_resolution, 8)
+        self.assertEqual(resolved.max_resolution, 256)
+
+    def test_both_groups_are_independent(self):
+        settings = make_settings(
+            camera_margin=25.0,
+            padding_pixels=4,
+            pixels_per_unit=64.0,
+            min_resolution=1,
+        )
+        item = make_target_item(
+            override_framing=True,
+            override_framing_seeded=True,
+            camera_margin=3.0,
+            padding_pixels=2,
+            override_resolution=True,
+            override_resolution_seeded=True,
+            pixels_per_unit=32.0,
+            min_resolution=8,
+        )
+        resolved = logic.resolve_target_settings(settings, item)
+        self.assertEqual(resolved.camera_margin, 3.0)
+        self.assertEqual(resolved.padding_pixels, 2)
+        self.assertEqual(resolved.pixels_per_unit, 32.0)
+        self.assertEqual(resolved.min_resolution, 8)
+
+    def test_enabled_unseeded_group_is_seeded(self):
+        settings = make_settings(camera_margin=25.0, padding_pixels=5)
+        item = make_target_item(
+            override_framing=True,
+            override_framing_seeded=False,
+        )
+        resolved = logic.resolve_target_settings(settings, item)
+        self.assertEqual(resolved.camera_margin, 25.0)
+        self.assertEqual(resolved.padding_pixels, 5)
+        self.assertEqual(item.camera_margin, 25.0)
+        self.assertEqual(item.padding_pixels, 5)
+        self.assertTrue(item.override_framing_seeded)
+
+    def test_invalid_values_pass_through(self):
+        settings = make_settings()
+        item = make_target_item(
+            override_resolution=True,
+            override_resolution_seeded=True,
+            pixels_per_unit=0.0,
+            resolution_multiple=0,
+            min_resolution=-5,
+            max_resolution=-1,
+        )
+        resolved = logic.resolve_target_settings(settings, item)
+        self.assertEqual(resolved.pixels_per_unit, 0.0)
+        self.assertEqual(resolved.resolution_multiple, 0)
+        self.assertEqual(resolved.min_resolution, -5)
+        self.assertEqual(resolved.max_resolution, -1)
+
+    def test_none_item_uses_globals(self):
+        resolved = logic.resolve_target_settings(
+            make_settings(camera_margin=7.0), None
+        )
+        self.assertEqual(resolved.camera_margin, 7.0)
 
 
 class TargetStatusTest(unittest.TestCase):

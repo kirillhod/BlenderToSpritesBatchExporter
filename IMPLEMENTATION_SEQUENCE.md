@@ -342,18 +342,20 @@ properties it belongs to.
 
 ### O2. Resolver
 - **Depends:** O1.
-- **Files:** `core/overrides.py` (new), `logic.py`.
+- **Files:** `core/overrides.py` (new), `logic.py`, `tests/test_logic_unit.py`.
 - **Actions:**
   1. Add a small `TargetSettings` container with the framing and resolution
      fields used by `compute_frame`, `padding_in_units` and
      `configure_camera`, including `camera_axis` until V2 passes the axis
      explicitly.
   2. `resolve_target_settings(settings, item)` returns globals or the group
-     values for each group independently.
+     values for each group independently. An enabled but unseeded group is
+     seeded from the globals first.
   3. Add the module to `logic.py`.
 - **Check:** unit tests for all combinations: no overrides, one group, both
   groups, invalid values.
 - **Done:** one resolver is the only source of effective values.
+- **Status:** implemented and unit-tested.
 
 ### O3. Preflight and job integration
 - **Depends:** O2.

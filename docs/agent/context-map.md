@@ -28,6 +28,7 @@ do not re-read it. Read only the row you need.
 | --- | --- | --- | --- |
 | Panels, tooltips, density, target table | `ui.py` | plan §4; sequence U1-U5 | contract test + smoke |
 | Target registry, export filter, Outliner link, status text | `core/targets.py`, `core/scene.py` | plan §4.3-§4.4; sequence U3-U4 | unit suite + smoke |
+| Per-collection overrides | `core/overrides.py`, `properties.py` | plan §5; sequence O1-O5 | `test_logic_unit.py` |
 | Preflight, analysis cache, job loop, restore | `core/job.py` | plan §5, §8; sequence O3, C1 | smoke |
 | Framing, padding, camera fit | `core/framing.py` | plan §5-§6 | `test_logic_unit.py` |
 | Output paths, collisions, File Output nodes | `core/output.py` | plan §6.4; sequence V3-V4 | `test_logic_unit.py` |
@@ -62,6 +63,7 @@ re-exports `core.*`; `core.*` never imports `ui` or `operators`.
 | `core/targets.py` | target registry, sync, filter, Outliner link, override seeds, status, output lists |
 | `core/scene.py` | bounds, source gathering, isolation and render-state restore |
 | `core/framing.py` | axis math, padding and camera configuration |
+| `core/overrides.py` | resolve globals and per-collection framing/resolution overrides |
 | `core/job.py` | problems, analysis token, preflight, `BatchJob`, report |
 | `core/output.py` | main-render paths, collisions, File Output node plans |
 | `core/presets.py` | built-in and JSON presets |
