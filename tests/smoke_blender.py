@@ -785,6 +785,63 @@ def run_override_export_test():
     os.rmdir(out_dir)
 
 
+def run_override_ui_test():
+    """The override box follows the visible active target row."""
+    from blender_to_sprites_batch_exporter import logic, ui
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    weapon = make_collection("Weapon")
+    add_cube(body, "BodyCube")
+    add_cube(weapon, "WeaponCube", location=(4.0, 0.0, 0.0), size=0.5)
+
+    settings = scene.bts_settings
+    settings.export_source = "ALL"
+    settings.skip_empty = True
+    logic.rebuild_target_items(bpy.context, settings)
+    items = list(settings.target_items)
+    body_index = next(i for i, item in enumerate(items) if item.name == "Body")
+    weapon_index = next(i for i, item in enumerate(items) if item.name == "Weapon")
+
+    settings.active_target_index = body_index
+    item = ui._active_target_item(bpy.context, settings)
+    check(item is not None and item.name == "Body", "Override box active row")
+    ui._draw_overrides(_DrawHost().layout, item)
+
+    settings.active_target_index = weapon_index
+    item = ui._active_target_item(bpy.context, settings)
+    check(item is not None and item.name == "Weapon", "Override box row change")
+
+    settings.target_search = "Body"
+    check(
+        ui._active_target_item(bpy.context, settings) is None,
+        "Override box ignored the target search",
+    )
+    settings.target_search = ""
+
+    body_layer = logic.find_layer_collection(bpy.context.view_layer, "Body")
+    bpy.context.view_layer.active_layer_collection = body_layer
+    logic.set_active_target_index(settings, weapon_index)
+    settings.export_source = "ACTIVE"
+    active = ui._active_target_item(bpy.context, settings)
+    check(
+        active is None,
+        "Override box ignored the export-mode filter: item=%r sources=%r"
+        % (
+            getattr(active, "name", None),
+            [
+                collection.name
+                for collection in logic.gather_source_collections(
+                    bpy.context, settings
+                )
+            ],
+        ),
+    )
+
+
 def run_collision_test():
     """Collections that sanitize to the same name must not overwrite each other."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -1208,6 +1265,7 @@ def run_test():
     run_target_list_test()
     run_override_property_test()
     run_override_export_test()
+    run_override_ui_test()
     run_target_sync_test()
     run_target_filter_test()
     run_analysis_and_cancel_test()

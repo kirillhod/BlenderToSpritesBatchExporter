@@ -56,6 +56,7 @@ The entry point is `run_test()` in `tests/smoke_blender.py`. It calls:
 | `run_target_list_test` | target rows, enabled flags, All/None |
 | `run_override_property_test` | override seeding, analysis token, .blend persistence |
 | `run_override_export_test` | per-collection padding/PPU, report, no-override fallback |
+| `run_override_ui_test` | active override row, search filter, export-mode filter, draw path |
 | `run_collision_test` | name collisions and temporary camera |
 | `run_target_sync_test` | automatic sync and Outliner linkage |
 | `run_target_filter_test` | `export_source` filter and registry persistence |

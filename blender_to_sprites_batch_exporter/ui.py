@@ -72,6 +72,74 @@ def _target_counts(context, settings):
     return sum(1 for item in items if item.enabled), len(items)
 
 
+def _active_target_item(context, settings):
+    """Selected target row, or None when it is not visible right now."""
+    try:
+        items = settings.target_items
+        index = int(getattr(settings, "active_target_index", 0) or 0)
+        if not 0 <= index < len(items):
+            return None
+        item = items[index]
+        names = {
+            collection.name
+            for collection in gather_source_collections(context, settings)
+        }
+        if item.name not in names:
+            return None
+        search = str(getattr(settings, "target_search", "") or "").strip().casefold()
+        if search and search not in item.name.casefold():
+            return None
+        return item
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _using_global(layout):
+    row = layout.row()
+    row.use_property_split = False
+    row.active = False
+    row.label(text="Using global")
+
+
+def _draw_framing_override(box, item):
+    _left_checkbox(box, item, "override_framing", text="Framing")
+    if not item.override_framing:
+        _using_global(box)
+        return
+    col = box.column(align=True)
+    col.prop(item, "camera_margin")
+    col.prop(item, "padding_mode", expand=True)
+    col.prop(
+        item,
+        "padding_pixels" if item.padding_mode == 'PIXELS' else "padding_units",
+    )
+
+
+def _draw_resolution_override(box, item):
+    _left_checkbox(box, item, "override_resolution", text="Resolution")
+    if not item.override_resolution:
+        _using_global(box)
+        return
+    col = box.column(align=True)
+    col.prop(item, "pixels_per_unit")
+    col.prop(item, "resolution_multiple")
+    col.prop(item, "square_output")
+    col.prop(item, "min_resolution")
+    col.prop(item, "max_resolution")
+
+
+def _draw_overrides(layout, item):
+    box = layout.box()
+    if item is None:
+        box.active = False
+        box.label(text="Overrides")
+        box.label(text="No target selected.")
+        return
+    box.label(text=f"Overrides: {item.name}", icon='OUTLINER_COLLECTION')
+    _draw_framing_override(box, item)
+    _draw_resolution_override(box, item)
+
+
 class BTS_UL_Targets(UIList):
     bl_idname = "BTS_UL_Targets"
 
@@ -235,6 +303,9 @@ class BTS_PT_Source(Panel):
         row.operator("bts.targets_active", text="Active")
         row.operator("bts.activate_target", text="Make Active", icon='RESTRICT_SELECT_OFF')
         _left_checkbox(layout, settings, "skip_empty")
+
+        layout.separator(factor=0.5)
+        _draw_overrides(layout, _active_target_item(context, settings))
 
         layout.separator(factor=0.5)
         layout.label(text="Always Include", icon='OUTLINER_COLLECTION')

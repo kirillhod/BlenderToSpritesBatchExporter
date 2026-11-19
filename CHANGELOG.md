@@ -9,6 +9,9 @@ All notable changes to the project. Versions follow semantic versioning.
   toggle copies the current global values on first enable, keeps the stored
   values across a `.blend` round trip and invalidates the analysis cache when
   it changes.
+- The Collections panel shows an Overrides box for the selected target with
+  separate Framing and Resolution groups. A disabled group shows one muted
+  `Using global` row; the box is disabled when no visible target is selected.
 
 ### Changed
 - Preflight and the render loop use the resolved per-collection framing and

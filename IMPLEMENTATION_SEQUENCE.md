@@ -378,9 +378,10 @@ properties it belongs to.
 
 ### O4. UI
 - **Depends:** O3.
-- **Files:** `ui.py`.
+- **Files:** `ui.py`, `tests/smoke_blender.py`.
 - **Actions:**
-  1. Below the target list, draw a box for the selected collection.
+  1. Below the target list, draw a box for the selected collection. Hide the
+     box when the active row is filtered out by the search or export mode.
   2. Two group checkboxes in this stage: Framing and Resolution. The View group
      is added in V5 when the view properties exist.
   3. When a group is off, show one muted `Using global` row.
@@ -389,6 +390,7 @@ properties it belongs to.
   6. Do not add operators; `Clear` is achieved by turning the group off.
 - **Check:** UI draw smoke; switching selection updates the box; values persist.
 - **Done:** framing and resolution overrides are discoverable.
+- **Status:** implemented and smoke-verified in Blender 5.3.0.
 
 ### O5. Tests and documentation
 - **Depends:** O1-O4.
