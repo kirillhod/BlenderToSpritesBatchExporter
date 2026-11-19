@@ -415,6 +415,17 @@ def target_override_state(settings, names):
     return tuple(state)
 
 
+def active_override_groups(item):
+    """Return the enabled override group names for one target item."""
+    if item is None:
+        return ()
+    return tuple(
+        group
+        for group in OVERRIDE_GROUP_FIELDS
+        if bool(getattr(item, "override_" + group, False))
+    )
+
+
 def add_always_include(settings, name):
     _include_add(settings, str(name))
 

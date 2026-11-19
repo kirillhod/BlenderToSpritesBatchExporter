@@ -673,6 +673,118 @@ def run_override_property_test():
     os.rmdir(out_dir)
 
 
+def image_size(path):
+    image = bpy.data.images.load(path, check_existing=False)
+    try:
+        return tuple(image.size)
+    finally:
+        bpy.data.images.remove(image)
+
+
+def run_override_export_test():
+    """Per-collection framing and resolution reach the render loop."""
+    from blender_to_sprites_batch_exporter import logic
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    weapon = make_collection("Weapon")
+    add_cube(body, "BodyCube")
+    add_cube(weapon, "WeaponCube")
+
+    out_dir = tempfile.mkdtemp(prefix="bts_override_export_")
+    settings = scene.bts_settings
+    settings.output_dir = out_dir
+    settings.file_format = "PNG"
+    settings.color_mode = "RGBA"
+    settings.color_depth = "8"
+    settings.use_compositor_nodes = False
+    settings.export_source = "ALL"
+    settings.isolation_mode = "EXCLUDE"
+    settings.keep_lights = False
+    settings.skip_empty = True
+    settings.overwrite_policy = "OVERWRITE"
+    settings.camera_axis = "TOP"
+    settings.camera_margin = 10.0
+    settings.padding_mode = "PIXELS"
+    settings.padding_pixels = 0
+    settings.padding_units = 0.0
+    settings.pixels_per_unit = 16.0
+    settings.resolution_multiple = 1
+    settings.square_output = False
+    settings.min_resolution = 1
+    settings.max_resolution = 0
+
+    logic.rebuild_target_items(bpy.context, settings)
+    body_item = next(item for item in settings.target_items if item.name == "Body")
+    weapon_item = next(
+        item for item in settings.target_items if item.name == "Weapon"
+    )
+    body_item.override_framing = True
+    body_item.padding_pixels = 8
+    body_item.override_resolution = True
+    body_item.pixels_per_unit = 32.0
+
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(not analysis.errors, "Override analysis: %r" % (analysis.problems,))
+    body_target = next(target for target in analysis.targets if target.name == "Body")
+    weapon_target = next(
+        target for target in analysis.targets if target.name == "Weapon"
+    )
+    check(
+        body_target.override_groups == ("framing", "resolution"),
+        "Active override groups: %r" % (body_target.override_groups,),
+    )
+    check(
+        body_target.frame.res_x == 48 and body_target.frame.res_y == 48,
+        "Body override frame: %r" % (body_target.frame,),
+    )
+    check(
+        weapon_target.frame.res_x == 16 and weapon_target.frame.res_y == 16,
+        "Weapon global frame: %r" % (weapon_target.frame,),
+    )
+
+    result = bpy.ops.bts.batch_export()
+    check(result == {"FINISHED"}, "Override export: %r" % (result,))
+    body_path = analysis.main_plan_by_name["Body"].path
+    weapon_path = analysis.main_plan_by_name["Weapon"].path
+    check(image_size(body_path) == (48, 48), "Body output size: %r" % (image_size(body_path),))
+    check(
+        image_size(weapon_path) == (16, 16),
+        "Weapon output size: %r" % (image_size(weapon_path),),
+    )
+    check(
+        "Body: overrides framing, resolution" in settings.last_report,
+        "Override report is missing: %r" % (settings.last_report,),
+    )
+
+    body_item.override_framing = False
+    body_item.override_resolution = False
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    body_target = next(target for target in analysis.targets if target.name == "Body")
+    check(
+        body_target.override_groups == (),
+        "Disabled override groups: %r" % (body_target.override_groups,),
+    )
+    check(
+        body_target.frame.res_x == 16 and body_target.frame.res_y == 16,
+        "No-override frame: %r" % (body_target.frame,),
+    )
+
+    result = bpy.ops.bts.batch_export()
+    check(result == {"FINISHED"}, "No-override export: %r" % (result,))
+    check(
+        image_size(body_path) == (16, 16),
+        "No-override output size: %r" % (image_size(body_path),),
+    )
+
+    for name in os.listdir(out_dir):
+        os.remove(os.path.join(out_dir, name))
+    os.rmdir(out_dir)
+
+
 def run_collision_test():
     """Collections that sanitize to the same name must not overwrite each other."""
     bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -1095,6 +1207,7 @@ def run_test():
     run_collision_test()
     run_target_list_test()
     run_override_property_test()
+    run_override_export_test()
     run_target_sync_test()
     run_target_filter_test()
     run_analysis_and_cancel_test()

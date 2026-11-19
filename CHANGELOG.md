@@ -10,6 +10,10 @@ All notable changes to the project. Versions follow semantic versioning.
   values across a `.blend` round trip and invalidates the analysis cache when
   it changes.
 
+### Changed
+- Preflight and the render loop use the resolved per-collection framing and
+  resolution values. The export report lists collections with active overrides.
+
 ## [2.1.3] - 2026-11-11
 
 ### Fixed

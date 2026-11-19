@@ -13,6 +13,7 @@ from .output import *  # noqa: F401,F403
 from .scene import *  # noqa: F401,F403
 from .framing import *  # noqa: F401,F403
 from .targets import *  # noqa: F401,F403
+from .overrides import resolve_target_settings
 
 
 SEVERITY_ORDER = {"ERROR": 0, "WARNING": 1, "INFO": 2}
@@ -173,6 +174,8 @@ class Target:
     output_plan: object = None
     node_plans: list = field(default_factory=list)
     skip_reason: str = ""
+    target_settings: object = None
+    override_groups: tuple = ()
 
     @property
     def name(self):
@@ -397,6 +400,16 @@ def _run_preflight(context, settings, allow_existing=False):
         if using_nodes
         else ""
     )
+    target_items = {
+        collection.name: get_target_item(settings, collection.name)
+        for collection in targets
+    }
+    target_settings_by_name = {
+        collection.name: resolve_target_settings(
+            settings, target_items.get(collection.name)
+        )
+        for collection in targets
+    }
 
     token = analysis_token(context, settings, targets=targets, nodes=all_file_outputs)
 
@@ -654,18 +667,25 @@ def _run_preflight(context, settings, allow_existing=False):
     built_targets = []
     for collection, bounds in measured:
         collection_name = collection.name
+        target_settings = target_settings_by_name[collection_name]
+        target_item = target_items.get(collection_name)
         bounds_value = (
             Bounds(minimum=bounds[0], maximum=bounds[1])
             if bounds is not None
             else None
         )
-        target = Target(collection=collection, bounds=bounds_value)
+        target = Target(
+            collection=collection,
+            bounds=bounds_value,
+            target_settings=target_settings,
+            override_groups=active_override_groups(target_item),
+        )
         plan = main_plan_by_name.get(collection_name)
         target.output_plan = plan
         target.node_plans = list(node_plans_by_collection.get(collection_name, []))
         if bounds_value is not None:
             frame = compute_frame(
-                bounds_value.minimum, bounds_value.maximum, settings
+                bounds_value.minimum, bounds_value.maximum, target_settings
             )
             target.frame = FrameSpec(
                 res_x=frame["res_x"],
@@ -964,7 +984,12 @@ class BatchJob:
             return
 
         bmin, bmax = bounds.minimum, bounds.maximum
-        frame = configure_camera(self._cam_obj, bmin, bmax, settings)
+        target_settings = target.target_settings
+        if target_settings is None:
+            target_settings = resolve_target_settings(
+                settings, get_target_item(settings, collection.name)
+            )
+        frame = configure_camera(self._cam_obj, bmin, bmax, target_settings)
         target.frame = FrameSpec(
             res_x=frame["res_x"],
             res_y=frame["res_y"],
@@ -1258,6 +1283,17 @@ def format_job_report(result, analysis=None):
     ]
     if analysis is not None:
         lines.append(f"Node layout: {analysis.resolved_layout or 'main render'}")
+        overridden = [
+            target
+            for target in analysis.targets
+            if getattr(target, "override_groups", ())
+        ]
+        if overridden:
+            lines.append("Overrides:")
+            lines.extend(
+                f"  {target.name}: overrides {', '.join(target.override_groups)}"
+                for target in overridden
+            )
     lines.append("")
     lines.append("Files:")
     if result.files:

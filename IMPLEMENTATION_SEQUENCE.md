@@ -359,20 +359,22 @@ properties it belongs to.
 
 ### O3. Preflight and job integration
 - **Depends:** O2.
-- **Files:** `core/job.py`, `core/framing.py`, `core/scene.py`.
+- **Files:** `core/job.py`, `core/targets.py`, `tests/`.
 - **Actions:**
   1. In `_run_preflight`, resolve settings per target and compute its frame with
      the resolved values.
-  2. Store the resolved object or the effective values on `Target`.
+  2. Store the resolved object and active override groups on `Target`.
   3. In `BatchJob`, use the resolved values for `configure_camera` and any
      framing/resolution step. Global render preparation stays once per job.
   4. Set the collection's canvas from its resolved frame.
   5. Add override information to the report, for example
      `Body: overrides framing, resolution`.
-  6. Include target override state in `analysis_token`.
+  6. Compute the analysis token after seeding, so an enabled but unseeded group
+     does not invalidate the cache on every run.
 - **Check:** two collections with different padding and PPU produce visibly
   different files; with no overrides the reference export matches.
 - **Done:** overrides work end to end.
+- **Status:** implemented and smoke-verified in Blender 5.3.0.
 
 ### O4. UI
 - **Depends:** O3.

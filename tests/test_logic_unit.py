@@ -834,6 +834,15 @@ class TargetOverrideTest(unittest.TestCase):
         self.assertEqual(values["camera_margin"], 25.0)
         self.assertEqual(state[1], ("Missing", ()))
 
+    def test_active_override_groups(self):
+        item = self.make_item(override_framing=True)
+        self.assertEqual(logic.active_override_groups(item), ("framing",))
+        item.override_resolution = True
+        self.assertEqual(
+            logic.active_override_groups(item), ("framing", "resolution")
+        )
+        self.assertEqual(logic.active_override_groups(None), ())
+
 
 class TargetResolverTest(unittest.TestCase):
     def test_no_overrides_uses_globals(self):
@@ -972,6 +981,33 @@ class TargetResolverTest(unittest.TestCase):
             make_settings(camera_margin=7.0), None
         )
         self.assertEqual(resolved.camera_margin, 7.0)
+
+
+class JobReportTest(unittest.TestCase):
+    def test_reports_only_active_override_groups(self):
+        result = logic.JobResult(files=["Body.png"])
+        analysis = SimpleNamespace(
+            resolved_layout="",
+            targets=[
+                SimpleNamespace(
+                    name="Body",
+                    override_groups=("framing", "resolution"),
+                ),
+                SimpleNamespace(name="Weapon", override_groups=()),
+            ],
+        )
+        text = logic.format_job_report(result, analysis)
+        self.assertIn("Body: overrides framing, resolution", text)
+        self.assertNotIn("Weapon: overrides", text)
+
+    def test_report_without_overrides_has_no_section(self):
+        result = logic.JobResult()
+        analysis = SimpleNamespace(
+            resolved_layout="",
+            targets=[SimpleNamespace(name="Body", override_groups=())],
+        )
+        text = logic.format_job_report(result, analysis)
+        self.assertNotIn("Overrides:", text)
 
 
 class TargetStatusTest(unittest.TestCase):
