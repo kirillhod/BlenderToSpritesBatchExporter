@@ -4,8 +4,8 @@ Date: 2026-11-11
 Baseline version: 2.0.4
 Base branch: `main` (the repository has no `master` branch)
 Work branch: `feature/improvements-v3`
-Status: in progress. Stage U is released as 2.1.0 and its review fixes as
-2.1.1, 2.1.2 and 2.1.3. Next: 2.2.0, per-collection overrides.
+Status: in progress. Stage U is released as 2.1.0-2.1.3 and Stage O as 2.2.0.
+Next: 2.3.0, multi-view and naming.
 
 This plan replaces the previous 3.x draft. The draft grew into a platform
 roadmap with atlas packing, CLI, pivots, metadata, a shared global canvas and a
@@ -21,7 +21,7 @@ Version 3 does five things:
 | # | Feature | Release |
 |---|---|---|
 | 1 | UI cleanup: tooltips, density, automatic collection sync, readable status | 2.1.0 |
-| 2 | Per-collection overrides for view, framing and resolution | 2.2.0 |
+| 2 | Per-collection overrides for framing and resolution (view joins in 2.3.0) | 2.2.0 |
 | 3 | Multi-view export with 4- and 6-direction presets and one naming policy | 2.3.0 |
 | 4 | Animation export: every action of a collection, its frame range and its name | 3.1.0 |
 | 5 | Blender 5.3 compatibility | 3.0.0 |
@@ -76,7 +76,7 @@ The remaining friction is in daily use:
 6. **No animation.** Only the current frame is rendered.
 7. **Blender 5.3.** Released today; compatibility has to be verified.
 
-### 2.1. Current state after 2.1.3
+### 2.1. Current state after 2.2.0
 
 Stage U and its review fixes are complete:
 
@@ -91,14 +91,21 @@ Stage U and its review fixes are complete:
   information is one compact, scrollable list;
 - the Report tab is now `Log`, is always open, and contains only `Copy Log` and
   `Open Log`;
-- built-in preset explanations live in the preset menu tooltips;
-- the manifest, package contract and changelog are at 2.1.3.
+- built-in preset explanations live in the preset menu tooltips.
 
-Verification at 2.1.3: the unit suite passes, the Blender 5.3 smoke suite
-passes, and the zip installs and registers. Blender 5.2.3 was not installed in
-the test environment, so the 5.2 side of the matrix remains open until C1.
+Stage O added per-collection overrides:
 
-Next work starts at stage O: per-collection framing and resolution overrides.
+- Framing and Resolution can be overridden independently for each target;
+- a group seeds from the globals on first enable and survives a `.blend` reload;
+- preflight, the render loop and the export report use the same resolved values;
+- the Collections panel shows an Overrides box for the visible active row.
+
+Verification at 2.2.0: the unit suite passes, the Blender 5.3 smoke suite
+passes, and the 2.2.0 zip imports, registers and unregisters. Blender 5.2.3 was
+not installed in the test environment, so the 5.2 side of the matrix remains
+open until C1.
+
+Next work starts at stage V: multi-view, one canvas per collection and naming.
 
 ---
 
@@ -230,8 +237,9 @@ compatibility.
 
 ## 5. Feature 2: per-collection overrides
 
-Overrides cover only the two categories that need per-asset values, split into
-three groups:
+Overrides cover only the categories that need per-asset values, split into
+three groups. Framing and Resolution ship in 2.2.0; View is added together
+with the view controls in 2.3.0.
 
 | Group | Fields |
 |---|---|
@@ -264,9 +272,10 @@ collection deletes its entry and its overrides. The View group is wired together
 with the view controls in feature 3; Framing and Resolution are independent of
 it.
 
-UI: below the target list, a box for the selected collection shows the three
-group checkboxes. When a group is off, a single muted row says `Using global`.
-When on, the controls appear in place.
+UI: below the target list, a box for the selected collection shows the group
+checkboxes. 2.2.0 shows Framing and Resolution; V5 adds View. When a group is
+off, a single muted row says `Using global`. When on, the controls appear in
+place.
 
 Compatibility: all toggles default to off, so existing scenes and presets
 produce exactly the 2.0.4 result.
@@ -504,7 +513,8 @@ in the current environment, so that half of the matrix is still open for C1.
 | **3.1.0** | animation export | 2 weeks |
 
 2.1.1 was an intermediate build; its changes are included in 2.1.2, so there is
-no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2` and `v2.1.3`.
+no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2`, `v2.1.3` and
+`v2.2.0`. Stage O was released on 2026-11-19.
 
 The 2.x releases do not change existing output unless the user enables a
 feature. 3.1.0 changes output only when `export_animations` is on.
@@ -566,7 +576,8 @@ feature. 3.1.0 changes output only when `export_animations` is on.
 ### 2.2.0
 
 - A collection can override framing and resolution.
-- Turning all overrides off reproduces 2.0.4 output exactly.
+- Turning all overrides off keeps the global values and output; the exact
+  2.0.4 reference comparison runs in 3.0.0.
 - README, CHANGELOG, manifest and package contract use 2.2.0.
 
 ### 2.3.0

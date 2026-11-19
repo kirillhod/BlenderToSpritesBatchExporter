@@ -2,7 +2,7 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
-## [Unreleased]
+## [2.2.0] - 2026-11-19
 
 ### Added
 - Per-collection framing and resolution override properties on targets. A group

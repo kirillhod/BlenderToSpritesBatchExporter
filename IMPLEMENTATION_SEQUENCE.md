@@ -7,7 +7,8 @@ Target releases: 2.1.0, 2.1.1, 2.1.2, 2.1.3, 2.2.0, 2.3.0, 3.0.0, 3.1.0
 
 The repository uses `main` as its default branch. `feature/improvements-v3`
 was created from `origin/main` at `1710a0e`. Stage U is implemented and
-released as 2.1.0; its UI follow-up fixes are 2.1.1, 2.1.2 and 2.1.3.
+released as 2.1.0; its UI follow-up fixes are 2.1.1, 2.1.2 and 2.1.3. Stage O
+is implemented and released as 2.2.0.
 
 This sequence covers only the five features in the plan. It is intentionally
 smaller than the previous draft: no module splits, no atlas, no CLI, no pivots,
@@ -305,7 +306,7 @@ verification: the unit suite and the Blender 5.3 smoke suite pass.
      intermediate uncommitted build and is included in 2.1.2.
 - **Check:** the unit suite passes; smoke passes in Blender 5.3; the 2.1.3 zip
   registers, unregisters and applies the target filter correctly.
-- **Done:** Stage U and all review fixes are released. Next is O1.
+- **Done:** Stage U and all review fixes are released.
 
 ---
 
@@ -314,6 +315,11 @@ verification: the unit suite and the Blender 5.3 smoke suite pass.
 **Result:** a collection can override framing and resolution without touching
 the globals. The View override is added in stage V, together with the view
 properties it belongs to.
+
+**Status:** complete and released as 2.2.0. Verification: the unit suite passes,
+smoke passes in Blender 5.3.0, and the 2.2.0 zip imports, registers and
+unregisters. Blender 5.2.3 was not installed, so the 5.2 side remains open until
+C1.
 
 ### O1. Properties
 - **Depends:** U7.
@@ -397,8 +403,10 @@ properties it belongs to.
 - **Actions:** unit tests, smoke with two collections that use different padding
   and PPU, README section, CHANGELOG. Set 2.2.0 in all four places and build
   the zip.
-- **Check:** turning every override off reproduces the 2.0.4 output.
+- **Check:** turning every override off uses the global values and restores the
+  global canvas; the exact 2.0.4 comparison runs in C1.
 - **Done:** 2.2.0 is released and stage O is complete.
+- **Status:** released as 2.2.0; tag `v2.2.0`.
 
 ---
 
@@ -677,16 +685,16 @@ stable canvas.
 | Smoke basic | export, names, sizes, restore | every stage |
 | Smoke UI | all panels, tooltip strings, 50 collections, target table, output lists, override box | U and O |
 | Smoke targets | export-mode filtering, registry persistence, Outliner ↔ target row | U follow-up |
-| Smoke overrides | two collections with different padding/PPU, legacy match | O |
+| Smoke overrides | two collections with different padding/PPU, global fallback | O |
 | Smoke views | 1, 4 and 6 axes, unique names, one canvas | V |
 | Smoke naming | tokens, padding, unknown token, auto suffix, collisions | V |
 | Smoke 5.3 | install, render, nodes, action slots, NLA | C1 and A8 |
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
 | Manual | tooltips, auto-sync, target filter, status, per-collection output, clean install | before each tag |
 
-Current U results: the unit suite passes; smoke passes in Blender 5.3. The
-5.2.3 run is still pending because that Blender version is not installed in
-the test environment.
+Current results at 2.2.0: the unit suite passes; smoke passes in Blender 5.3;
+the 2.2.0 zip imports, registers and unregisters. The 5.2.3 run is still
+pending because that Blender version is not installed in the test environment.
 
 Minimal local check:
 
@@ -709,7 +717,7 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 | M1a | UI review fixes (intermediate, included in 2.1.2) | 2.1.1 |
 | M1b | compact Path Preview and node lists | 2.1.2 |
 | M1c | target filter and Outliner link | 2.1.3 |
-| M2 | per-collection overrides | 2.2.0 |
+| M2 | per-collection overrides, released | 2.2.0 |
 | M3 | multi-view, canvas and naming | 2.3.0 |
 | M4 | 5.3 verified, 3.0.0 released | 3.0.0 |
 | M5 | animation | 3.1.0-dev |
@@ -755,10 +763,13 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ### 2.2.0
 
-- [ ] Turning an override group on copies the global values.
-- [ ] Two collections with different padding and PPU render differently.
-- [ ] Turning all overrides off reproduces the 2.0.4 output.
-- [ ] The 2.2.0 zip installs and enables in 5.2 and 5.3.
+- [x] Turning an override group on copies the global values.
+- [x] Two collections with different padding and PPU render differently.
+- [x] Turning all overrides off uses the global values and restores the global
+      canvas.
+- [x] README, CHANGELOG, manifest and package contract use 2.2.0.
+- [x] The 2.2.0 zip imports, registers and unregisters in 5.3.
+- [ ] The 2.2.0 zip installs and enables in 5.2.3; that version is not installed.
 
 ### 2.3.0
 
@@ -772,6 +783,7 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 ### 3.0.0
 
 - [ ] The add-on enables and disables cleanly in 5.2 and 5.3.
+- [ ] A no-override export matches the 2.0.4 reference pixels.
 - [ ] Preset save/load works on Windows; old presets load.
 - [ ] Cancel during a real export restores camera, excludes and render state.
 - [ ] The release zip installs on clean 5.2 and 5.3 profiles.
@@ -826,13 +838,12 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ## 14. Next working day
 
-Stage U is complete and tagged through `v2.1.3`. The next work is stage O:
+Stage O is complete and released as 2.2.0. The next work is stage V:
 
-1. Confirm the clean tree, `v2.1.3` and the 2.1.3 zip.
+1. Confirm the clean tree, `v2.2.0` and the 2.2.0 zip.
 2. Run the unit and smoke suites once more in Blender 5.3.
-3. Start O1: add the framing and resolution override fields to
-   `BTS_TargetItem`.
-4. Keep the target filter, Outliner linkage and compact output lists intact;
-   O4 builds on the selected target row.
-5. Commit one O task at a time and tag each release version. Do not push unless
+3. Start V1: add the six view booleans and migrate `camera_axis`.
+4. Keep the target filter, Outliner linkage, override box and compact output
+   lists intact.
+5. Commit one V task at a time and tag each release version. Do not push unless
    asked.

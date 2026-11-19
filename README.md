@@ -18,6 +18,7 @@ Blender terms in this guide link to the
   [collection](https://docs.blender.org/manual/en/5.2/scene_layout/collections/index.html),
   framed automatically.
 - Checkbox list of collections with All, None and Active buttons.
+- Per-collection framing and resolution overrides for different asset scales.
 - Separate **Always Include** list for lights, props or shared parts.
 - Transparent background, padding, pixel scale and square output.
 - PNG, JPEG, WebP, EXR and other
@@ -87,6 +88,23 @@ After **Analyze**, each row shows the canvas that will be produced, for example
 `512x304`. The row is empty before an analysis and after any setting change
 that invalidates it. World-unit bounds are not shown.
 
+### Per-collection overrides
+
+Select a target row to open its **Overrides** box below the list.
+
+- **Framing** overrides Camera Distance Margin, Padding Mode and Padding.
+- **Resolution** overrides Pixels / Unit, Round To Multiple Of, Square Output,
+  Min Res and Max Res.
+- A group that is off uses the global value and shows `Using global`.
+- Turning a group on copies the current global values once. Later changes to
+  the global settings do not affect that collection.
+- Turning the group off and on again copies the current global values again.
+- Output directory, format, naming, overwrite policy, isolation, Always Include
+  and node settings stay global.
+
+Overrides belong to the target. Renaming a collection is treated as delete plus
+add, so the new name starts with defaults.
+
 ## Pixel art
 
 - [Filter Size](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html):
@@ -101,7 +119,8 @@ that invalidates it. World-unit bounds are not shown.
 ## Presets
 
 Built-in presets change the global framing and resolution settings. They do not
-touch the output directory, naming or file format.
+touch the output directory, naming or file format. Collections with an active
+override keep their override values.
 
 | Preset | Settings | Best for |
 |---|---|---|
