@@ -37,7 +37,7 @@ DOCS = {
 }
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*?)\s*$")
-KEY_RE = re.compile(r"^\[?(\d+(?:\.\d+)*|[A-Za-z]\d+(?:\.\d+)?)\]?(?:[.):\s]|$)")
+KEY_RE = re.compile(r"^\[?(\d+(?:\.\d+)*|[A-Za-z]\d+[a-z]?(?:\.\d+)?)\]?(?:[.):\s]|$)")
 
 
 @dataclass(frozen=True)

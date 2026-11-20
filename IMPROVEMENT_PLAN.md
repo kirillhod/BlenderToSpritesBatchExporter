@@ -105,7 +105,8 @@ passes, and the 2.2.0 zip imports, registers and unregisters. Blender 5.2.3 was
 not installed in the test environment, so the 5.2 side of the matrix remains
 open until C1.
 
-Next work starts at stage V: multi-view, one canvas per collection and naming.
+Next work starts at stage V: multi-view, one canvas per collection, naming and
+list density.
 
 ---
 
@@ -276,10 +277,11 @@ collection deletes its entry and its overrides. The View group is wired together
 with the view controls in feature 3; Framing and Resolution are independent of
 it.
 
-UI: below the target list, a box for the selected collection shows the group
-checkboxes. 2.2.0 shows Framing and Resolution; V5 adds View. When a group is
-off, a single muted row says `Using global`. When on, the controls appear in
-place.
+UI: below the target list, the selected collection shows three full-width
+collapsible groups. The group checkbox sits in the section header; the fields
+appear only when the group is on. 2.2.0 ships Framing and Resolution; V5 adds
+View. An off group shows only its header, with no separate `Using global` row.
+The block must not grow when the View group is off.
 
 Compatibility: all toggles default to off, so existing scenes and presets
 produce exactly the 2.0.4 result.
@@ -291,10 +293,11 @@ produce exactly the 2.0.4 result.
 ### 6.1. Controls
 
 - Six booleans: `view_top`, `view_bottom`, `view_front`, `view_back`,
-  `view_right`, `view_left`, shown as toggle buttons in **Camera & Framing**.
-- `camera_axis` is kept as the legacy value. When exactly one view is selected,
-  it mirrors that view so old presets and scripts keep working. With several
-  views it is ignored.
+  `view_right`, `view_left`, shown as a 3x2 grid of toggle buttons with short
+  labels and tooltips in **Camera & Framing**.
+- `camera_axis` is kept as the legacy value but hidden from the panel. When
+  exactly one view is selected, it mirrors that view so old presets and scripts
+  keep working. With several views it is ignored.
 - `views_migrated` maps the old `camera_axis` to the matching boolean once.
 - A collection with `override_view` uses its own six booleans.
 - At least one view must be selected per target; an empty set is a preflight
@@ -512,7 +515,7 @@ in the current environment, so that half of the matrix is still open for C1.
 | **2.1.2** | compact Path Preview and File Output node lists | 1 day |
 | **2.1.3** | target filter and Outliner link | 1 day |
 | **2.2.0** | per-collection overrides | 4 days |
-| **2.3.0** | multi-view, canvas and naming | 3 days |
+| **2.3.0** | multi-view, canvas, naming and list density | 4 days |
 | **3.0.0** | Blender 5.3 and combined verification | 2 days |
 | **3.1.0** | animation export | 2 weeks |
 
@@ -589,7 +592,12 @@ feature. 3.1.0 changes output only when `export_animations` is on.
 - 4- and 6-direction runs produce correctly named files with one canvas per
   collection.
 - Unknown naming tokens and name collisions are caught before rendering.
+- Views are selected with a 3x2 toggle grid; the legacy axis control is hidden.
+- The three override groups are collapsible; the View group is off by default
+  and adds one header row when off.
+- Lists shrink to their content and empty lists show one row.
 - Row status adds the view count when it applies.
+- `docs/agent/ui.md` matches the new panel state.
 - README, CHANGELOG, manifest and package contract use 2.3.0.
 
 ### 3.0.0

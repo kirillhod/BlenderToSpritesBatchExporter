@@ -37,6 +37,7 @@ class DocToolTest(unittest.TestCase):
         cases = (
             ("plan", "5", "per-collection overrides"),
             ("sequence", "O1", "O1. Properties"),
+            ("sequence", "V5b", "V5b. List density"),
             ("changelog", "2.1.3", "[2.1.3]"),
             ("readme", "Collections", "## Collections"),
             ("context", "Task map", "## Task map"),
@@ -52,7 +53,7 @@ class DocToolTest(unittest.TestCase):
     def test_section_list_covers_stage_ids(self):
         headings = self.tool.parse_headings(self.tool.read_lines("sequence"))
         keys = {heading.key for heading in headings}
-        for key in ("5", "o1", "o2", "c1", "a8"):
+        for key in ("5", "o1", "o2", "c1", "a8", "v5b"):
             self.assertIn(key, keys)
 
 

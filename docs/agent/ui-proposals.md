@@ -1,8 +1,8 @@
 # UI improvement proposals
 
-Status: proposals, not rules. Nothing here is approved or implemented. The
-current rules and current state are in [ui.md](ui.md); read that before
-changing `ui.py`.
+Status: proposals and decisions. P1.1, P1.2 and P1.7 are planned for 2.3.0
+(V5b and V5); the rest is not approved. The current rules and current state are
+in [ui.md](ui.md); read that before changing `ui.py`.
 
 Recorded after 2.2.0 during the UI density review.
 
@@ -10,6 +10,10 @@ Recorded after 2.2.0 during the UI density review.
 
 Reduce the default open state from about 55-80 rows to about 30-35 without
 hiding daily controls, changing the target model or adding operator IDs.
+
+The full P1 target is 30-35 rows. The adopted 2.3.0 subset (P1.1, P1.2 and
+P1.7) is expected to land around 40-50 rows; it removes the largest empty rows
+without touching Main, Output or Always Include.
 
 Constraints:
 
@@ -33,18 +37,25 @@ Constraints:
 | ID | Proposal | Where | Saving | Risk |
 |---|---|---|---:|---|
 | P1.1 | Dynamic list heights | all lists | 5-12 rows | low |
-| P1.2 | Collapsible Overrides groups | Collections | 1-3 rows, up to 9 when collapsed | low |
+| P1.2 | Collapsible Overrides groups | Collections | 4 rows off, 1 on; up to 14 collapsed | low |
 | P1.3 | Collapse Always Include and isolation | Collections | 4-6 rows | low |
 | P1.4 | Sections in Node Output | Output | 5-10 rows | low |
 | P1.5 | Path Preview as a section | Output | 0 rows, consistency | low |
 | P1.6 | Compress Main actions and status | Main | 3-4 rows | low |
-| P1.7 | Pair short fields | Resolution, Output | 1-2 rows | low |
+| P1.7 | Pair short fields | Resolution, Output | 0-1 vs 2.2.0; avoids +5 | low |
 | P1.8 | Icon-only secondary actions | all panels | 1-3 rows | low |
 | P1.9 | Override marker in target rows | Collections | 0 rows | low |
 | P1.10 | Remove or relocate `filter_size` | Output | 1 row | medium |
 | P1.11 | Remove duplicated Analyze or Copy | Main, Problems, Log | 0-1 row | low |
 
-### P1.1. Dynamic list heights
+Status after the 2.3.0 decision:
+
+- P1.1 is adopted as V5b.
+- P1.2 and P1.7 are adopted in V5.
+- P1.3-P1.6 and P1.8-P1.11 are not scheduled.
+- P2 and P3 are not scheduled; do not put P2 into 3.0.0.
+
+### P1.1. Dynamic list heights (adopted as V5b)
 
 `template_list(rows=...)` is the actual height, not a maximum. Compute it from
 the visible count:
@@ -68,7 +79,7 @@ the count changes is acceptable.
 Do not use `template_list(type='COMPACT')` for the target list: it disables
 `filter_items`, so search and export-mode filtering stop working.
 
-### P1.2. Collapsible Overrides groups
+### P1.2. Collapsible Overrides groups (adopted in V5)
 
 Replace the always-open `layout.box()` with two full-width sections. Put the
 group checkbox in the header:
@@ -93,8 +104,10 @@ the override.
 `layout.panel` only works at full panel width; remove the box and call it from
 the panel body, not from a row or column.
 
-Estimate: both groups off 5 rows to 2; both on 11 rows to 10. A collapsed
-group hides its fields, so the saving can reach 9 rows when both are closed.
+Estimate: with two groups in 2.2.0, 5 rows off to 2 and 11 on to 10. If V5
+added View to the old box, three groups would be 7 rows off and 17 on. With
+collapsible groups they are 3 and 16. A closed group hides its fields, so the
+saving can reach 14 rows when all are closed.
 
 ### P1.3. Collapse Always Include and isolation
 
@@ -154,11 +167,14 @@ while a job runs; do not hide it in a menu. Use `layout.progress(factor=...,
 type='BAR')` for the job instead of the two-row status box. Keep the summary
 label and the analysis warning row.
 
-### P1.7. Pair short fields
+### P1.7. Pair short fields (adopted in V5)
 
 - Min and Max resolution in one row with short labels.
 - Use `grid_flow(columns=2)` for adjacent short checkboxes in the same panel.
 - In V5, six view toggles in a 3x2 grid instead of six checkboxes.
+
+The Min/Max pair saves one row. The view grid does not save rows against
+`camera_axis`; it avoids the five extra rows that six checkboxes would add.
 
 Do not pair long labels or enums with more than four options.
 
@@ -261,22 +277,26 @@ height; it only speeds up repeat use. A keymap entry is required.
 
 | Variant | Contents | Estimated default rows | Risk |
 |---|---|---:|---|
-| A. Packing | P1 | 30-35 | low |
+| A0. Adopted in 2.3.0 | P1.1 + P1.2 + P1.7 | 40-50 typical | low |
+| A. Full packing | P1 | 30-35 | low |
 | B. Structural | P1 + P2.1-P2.3 | 25-30 per tab | medium |
 | C. Workflow | B + P3 | 20-25 | high |
 
-Recommended: **A** first. Measure the real rows in Blender after A. Adopt B for
-3.0.0 only if the sidebar still needs scrolling. Adopt C only on request,
-because it changes muscle memory and primary actions.
+A0 is adopted for 2.3.0. Measure the real rows after it ships, then decide
+whether the rest of A is needed. Do not put B into 3.0.0; treat it as a separate
+decision after that release. Adopt C only on request, because it changes muscle
+memory and primary actions.
 
 ## Suggested order
 
 1. Finish V1-V4 without UI changes.
-2. In V5, use the 3x2 view grid and build Overrides with collapsible sections.
-3. Add P1.1, P1.3-P1.11 as one or two UI commits.
-4. Run the unit suite, smoke, and a visual check at 100% and 150% scale.
-5. Update the Current state section of `ui.md` with the measured result.
-6. Decide on P2 for 3.0.0; leave P3 open unless requested.
+2. In V5, use the 3x2 view grid and build Overrides with three collapsible
+   sections (P1.2, P1.7).
+3. In V5b, use content-sized list heights (P1.1).
+4. In V6, run the unit suite, smoke, and visual checks at 100% and 150% scale.
+5. Update `ui.md` and mark P1.1, P1.2 and P1.7 implemented.
+6. After 2.3.0, measure and decide on the rest of P1. Do not add P2 to 3.0.0;
+   leave P3 open unless requested.
 
 ## Implementation notes
 
@@ -298,4 +318,5 @@ because it changes muscle memory and primary actions.
 - Should Shift+click open an export dialog, or is one-click export sacred?
 - Is `filter_size` in scope for removal, or is it a pixel-art convenience?
 - Should Problems stay open by default when errors exist?
-- Which variant, A, B or C, is approved?
+- Which remaining P1 items should be scheduled after 2.3.0?
+- Is the 30-35 row target still the goal after the measured A0 result?

@@ -50,7 +50,7 @@ for the visible active target row.
 
 ## Current state
 
-Recorded at 2.2.0, before stage V. Row counts are approximate and assume two
+Recorded at 2.2.0, before stage V. V6 updates this section after V5 and V5b. Row counts are approximate and assume two
 targets, one Always Include collection and no problems.
 
 | Panel | Open rows | Current contents |
@@ -158,8 +158,8 @@ Restore each have a full row.
 - Current heights: target list 8 rows, Always Include 3, Path Preview 4,
   File Output nodes 3. All lists scroll. Do not change these numbers without
   updating this section.
-- A dynamic height such as `rows = max(3, min(8, visible))` is a possible
-  refinement, but it changes the density contract and needs the same update.
+- V5b of 2.3.0 is planned to use content-sized rows (`rows = max(3, min(8,
+  visible))`); that change updates this section and the Current state table.
 - `template_list(type='COMPACT')` disables `filter_items`. The target list must
   stay `DEFAULT`, because search and export-mode filtering depend on it.
 
@@ -197,7 +197,8 @@ Restore each have a full row.
   row. A new setting goes into a collapsed section unless it is used daily.
 - Density target: the default open state fits roughly one sidebar screen at
   1080p, about 30-35 rows at 100% UI scale. Use it when deciding whether a row
-  belongs in the open state.
+  belongs in the open state. The 2.3.0 subset (P1.1, P1.2 and P1.7) is a
+  partial step; the rest of P1 is unscheduled.
 - Prefer icon buttons with tooltips for secondary actions: refresh, open
   folder, make active, copy, cancel. Keep text on primary actions.
 - Pair short numeric fields such as Min and Max in one row. Use `grid_flow`
@@ -259,10 +260,9 @@ Do not claim a UI change is complete from the draw probe alone.
 
 ## Improvement proposals
 
-Proposals are not approved and are not rules. The detailed catalog, estimates
-and variants are in [ui-proposals.md](ui-proposals.md). The first candidate
-set is P1: dynamic list heights, collapsible Overrides and Always Include,
-sections in Node Output, compressed Main actions and paired short fields.
+Proposals are not all approved. P1.1, P1.2 and P1.7 are planned for 2.3.0 as
+V5b and V5. The detailed catalog, estimates and variants are in
+[ui-proposals.md](ui-proposals.md); the rest is unscheduled.
 
 ## Related documents
 

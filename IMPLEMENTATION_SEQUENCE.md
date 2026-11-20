@@ -40,7 +40,7 @@ no shared global canvas.
 | Preflight and job | `core/job.py` | task loop, overrides, animation sampling |
 | Paths | `core/output.py` | per-task names |
 | Node output | `core/output.py` | per-task stems for File Output nodes |
-| UI | `ui.py` | tooltips, density, target table, output lists, override box, views, animation |
+| UI | `ui.py` | tooltips, target table, output lists, collapsible overrides, views, dynamic lists, animation |
 | Presets | `core/presets.py` | view fields, 4/6 direction presets |
 | Registration | `__init__.py` | load/depsgraph handlers, version |
 | Facade | `logic.py` | re-export new modules |
@@ -100,7 +100,7 @@ S0 baseline
  |
  +-- O1-O5  per-collection overrides (2.2.0)
  |
- +-- V1-V6  multi-view, canvas, naming (2.3.0)
+ +-- V1-V6  multi-view, canvas, naming and list density (2.3.0)
  |      |
  |      +-- C1  Blender 5.3 verification
  |             |
@@ -111,15 +111,15 @@ S0 baseline
 
 Safe parallelism:
 
-- Stage U is complete; start O1 next. O touches `properties.py` and `ui.py`,
-  so land it before V.
+- Stage O is complete; start V1 next. V5 and V5b touch `ui.py`, so land V1-V4
+  first.
 - V4 (naming) is pure Python and can start as soon as V1 defines the axis list.
 - The 5.3 baseline in S0 ran before the first change.
 
 Critical path:
 
 ```
-S0 -> U3 -> U4 -> U7 -> O1 -> O2 -> O3 -> V1 -> V2 -> V3 -> V4 -> V5 -> C1 -> C2
+S0 -> U3 -> U4 -> U7 -> O1 -> O2 -> O3 -> V1 -> V2 -> V3 -> V4 -> V5 -> V5b -> V6 -> C1 -> C2
 ```
 
 ---
@@ -396,7 +396,8 @@ C1.
   6. Do not add operators; `Clear` is achieved by turning the group off.
 - **Check:** UI draw smoke; switching selection updates the box; values persist.
 - **Done:** framing and resolution overrides are discoverable.
-- **Status:** implemented and smoke-verified in Blender 5.3.0.
+- **Status:** implemented and smoke-verified in Blender 5.3.0. V5 replaces the
+  box with collapsible groups and removes the `Using global` row.
 
 ### O5. Tests and documentation
 - **Depends:** O1-O4.
@@ -410,10 +411,10 @@ C1.
 
 ---
 
-## 7. Stage V. Multi-view, canvas and naming (2.3.0)
+## 7. Stage V. Multi-view, canvas, naming and list density (2.3.0)
 
-**Result:** several directions in one run, one canvas per collection and
-predictable names.
+**Result:** several directions in one run, one canvas per collection,
+predictable names and content-sized lists.
 
 ### V1. View properties and migration
 - **Depends:** O5.
@@ -502,9 +503,10 @@ predictable names.
 
 ### V5. Views UI and presets
 - **Depends:** V1-V4, O4.
-- **Files:** `ui.py`, `core/presets.py`.
+- **Files:** `ui.py`, `core/presets.py`, `tests/smoke_blender.py`.
 - **Actions:**
-  1. Put six toggle buttons in Camera & Framing, for example two rows of three.
+  1. Draw the six view toggles as a 3x2 grid with short labels and tooltips;
+     use `grid_flow(row_major=True, columns=3, ...)`.
   2. Hide the legacy `camera_axis` control from the panel; keep the property.
   3. Add built-in presets `4 Directions` (front, back, right, left) and
      `6 Directions` (all six). Both set `{collection}_{axis}`.
@@ -512,19 +514,48 @@ predictable names.
      first active view for old readers.
   5. In `apply_preset`, if a preset has `camera_axis` and no view fields, enable
      the matching view. This loads old presets correctly.
-  6. Add the third group checkbox (View) to the per-collection override box and
-     mirror the six view toggles there.
-  7. Remove the old multi-view note if it still exists.
+  6. Replace the Overrides `layout.box()` with three full-width
+     `layout.panel` sections. Put the group checkbox in the header and draw the
+     body only when the group is on. The View group starts off.
+  7. Remove the separate `Using global` rows; an off group shows only its
+     header.
+  8. Update `_FakeLayout` in `tests/smoke_blender.py` so `panel` and
+     `panel_prop` return `(self, self)`.
+  9. Remove the old multi-view note if it still exists.
 - **Check:** presets apply only their fields; old presets load; override and
-  global toggles do not interfere.
+  global toggles do not interfere; the 3x2 grid and three groups draw at 100%
+  and 150% scale; the View group off adds one header row.
 - **Done:** multi-view is one click away.
 
+### V5b. List density
+- **Depends:** V5.
+- **Files:** `ui.py`, `tests/smoke_blender.py`, `docs/agent/ui.md`.
+- **Actions:**
+  1. Compute the target list height as `max(3, min(8, visible))`.
+  2. Do the same for Always Include (1-3), Path Preview (1-4) and File Output
+     nodes (1-3).
+  3. Draw one info row instead of an empty `template_list`.
+  4. Keep `filter_items` and the export-mode filter intact; do not use
+     `template_list(type='COMPACT')`.
+  5. Update the Current state and Layout rules sections of `docs/agent/ui.md`.
+- **Check:** 0, 2 and 50 collections; 0 and 4 preview files; empty Always
+  Include and no File Output nodes. Lists shrink with content, the
+  50-collection scene still scrolls, and search and export-mode filtering still
+  work.
+- **Done:** lists no longer reserve empty rows.
+
 ### V6. Tests and documentation
-- **Depends:** V1-V5.
-- **Actions:** unit tests, smoke with 1/4/6 axes and a collection that
-  overrides its views, README views and naming sections, CHANGELOG. Set 2.3.0
-  in all four places and build the zip.
-- **Check:** the reference scene still matches with new toggles off.
+- **Depends:** V1-V5b.
+- **Files:** `tests/`, `README.md`, `CHANGELOG.md`, `docs/agent/ui.md`,
+  `docs/agent/ui-proposals.md`, `docs/agent/smoke.md`.
+- **Actions:** unit tests; smoke with 1/4/6 axes, a collection that overrides
+  its views, three collapsible override groups and dynamic list heights; README
+  views and naming sections; CHANGELOG; update `docs/agent/ui.md` Current state
+  and panel map; mark P1.1, P1.2 and P1.7 as implemented in
+  `docs/agent/ui-proposals.md`; update the coverage table in
+  `docs/agent/smoke.md`; set 2.3.0 in all four places and build the zip.
+- **Check:** the reference scene still matches with new toggles off; the 100%
+  and 150% visual check passes.
 - **Done:** 2.3.0 is released and stage V is complete.
 
 ---
@@ -683,14 +714,15 @@ stable canvas.
 |---|---|---|
 | Unit | templates, overrides, view migration, tasks, canvas, action ranges, status, UI helpers | after every pure module |
 | Smoke basic | export, names, sizes, restore | every stage |
-| Smoke UI | all panels, tooltip strings, 50 collections, target table, output lists, override box | U and O |
+| Smoke UI | all panels, tooltip strings, 50 collections, target table, output lists, three override groups, view grid | U, O and V5 |
 | Smoke targets | export-mode filtering, registry persistence, Outliner ↔ target row | U follow-up |
 | Smoke overrides | two collections with different padding/PPU, global fallback | O |
-| Smoke views | 1, 4 and 6 axes, unique names, one canvas | V |
+| Smoke views | 1, 4 and 6 axes, a collection that overrides its views, unique names, one canvas | V and V5 |
+| Smoke density | dynamic list heights, empty lists, filter still works | V5b |
 | Smoke naming | tokens, padding, unknown token, auto suffix, collisions | V |
 | Smoke 5.3 | install, render, nodes, action slots, NLA | C1 and A8 |
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
-| Manual | tooltips, auto-sync, target filter, status, per-collection output, clean install | before each tag |
+| Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, clean install | before each tag |
 
 Current results at 2.2.0: the unit suite passes; smoke passes in Blender 5.3;
 the 2.2.0 zip imports, registers and unregisters. The 5.2.3 run is still
@@ -718,7 +750,7 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 | M1b | compact Path Preview and node lists | 2.1.2 |
 | M1c | target filter and Outliner link | 2.1.3 |
 | M2 | per-collection overrides, released | 2.2.0 |
-| M3 | multi-view, canvas and naming | 2.3.0 |
+| M3 | multi-view, canvas, naming and list density | 2.3.0 |
 | M4 | 5.3 verified, 3.0.0 released | 3.0.0 |
 | M5 | animation | 3.1.0-dev |
 | M6 | 3.1.0 released | 3.1.0 |
@@ -778,6 +810,10 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 - [ ] The path preview matches the written files.
 - [ ] Row status shows the view count when it applies.
 - [ ] A 2.0.4 scene opens with the legacy view selected.
+- [ ] The 3x2 view grid fits and the legacy axis control is hidden.
+- [ ] The three override groups collapse; an off View group adds one row.
+- [ ] Lists shrink with content; 50 collections still scroll.
+- [ ] The UI passes a visual check at 100% and 150% scale.
 - [ ] The 2.3.0 zip installs and enables in 5.2 and 5.3.
 
 ### 3.0.0
@@ -843,7 +879,9 @@ Stage O is complete and released as 2.2.0. The next work is stage V:
 1. Confirm the clean tree, `v2.2.0` and the 2.2.0 zip.
 2. Run the unit and smoke suites once more in Blender 5.3.
 3. Start V1: add the six view booleans and migrate `camera_axis`.
-4. Keep the target filter, Outliner linkage, override box and compact output
+4. In V5, draw the 3x2 view grid and replace the override box with three
+   collapsible groups. In V5b, make list heights follow their content.
+5. Keep the target filter, Outliner linkage, override values and compact output
    lists intact.
-5. Commit one V task at a time and tag each release version. Do not push unless
+6. Commit one V task at a time and tag each release version. Do not push unless
    asked.

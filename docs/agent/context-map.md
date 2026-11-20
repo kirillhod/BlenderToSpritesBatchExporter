@@ -28,7 +28,7 @@ do not re-read it. Read only the row you need.
 
 | Task | Start here | Docs | Focused check |
 | --- | --- | --- | --- |
-| Panels, tooltips, density, target table, overrides UI, view UI | `ui.py` | `docs/agent/ui.md`, `docs/agent/ui-proposals.md`; plan §4-§6; sequence U1-U5, O4, V5 | contract test + smoke |
+| Panels, tooltips, density, target table, overrides UI, view UI | `ui.py` | `docs/agent/ui.md`, `docs/agent/ui-proposals.md`; plan §4-§6; sequence U1-U5, O4, V5, V5b | contract test + smoke |
 | Target registry, export filter, Outliner link, status text | `core/targets.py`, `core/scene.py` | plan §4.3-§4.4; sequence U3-U4 | unit suite + smoke |
 | Per-collection overrides | `core/overrides.py`, `properties.py` | plan §5; sequence O1-O5 | `test_logic_unit.py` |
 | Preflight, analysis cache, job loop, restore | `core/job.py` | plan §5, §8; sequence O3, C1 | smoke |
