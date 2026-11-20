@@ -13,6 +13,8 @@ REQUIRED_DOCS = (
     "docs/agent/context-map.md",
     "docs/agent/smoke.md",
     "docs/agent/release.md",
+    "docs/agent/ui.md",
+    "docs/agent/ui-proposals.md",
     "reports/README.md",
 )
 
@@ -104,6 +106,8 @@ class AgentDocsTest(unittest.TestCase):
         limits = (
             ("AGENTS.md", 9000),
             ("docs/agent/context-map.md", 9000),
+            ("docs/agent/ui.md", 15000),
+            ("docs/agent/ui-proposals.md", 15000),
         )
         for relative, limit in limits:
             size = len((ROOT / relative).read_text(encoding="utf-8"))

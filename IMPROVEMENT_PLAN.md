@@ -172,6 +172,9 @@ descriptions become full sentences with examples and defaults.
   nodes 3 rows. All lists scroll.
 - Main action buttons use the standard row height; they are not enlarged.
 
+Current density rules and list heights are owned by
+[docs/agent/ui.md](docs/agent/ui.md); this section records the 2.1.0 pass.
+
 ### 4.3. Collections update automatically and follow the Outliner
 
 - A lightweight handler on `depsgraph_update_post` compares a cheap fingerprint
@@ -231,7 +234,8 @@ the panel can be widened.
 | Animation | new in 3.1 |
 
 The former Report panel is now `Log`; its `BTS_PT_report` ID is preserved for
-compatibility.
+compatibility. The current panel map and its rules are owned by
+[docs/agent/ui.md](docs/agent/ui.md).
 
 ---
 

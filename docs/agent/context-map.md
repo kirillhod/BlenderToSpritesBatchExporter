@@ -17,6 +17,8 @@ do not re-read it. Read only the row you need.
 | `tests/smoke_blender.py` | 10.0k | grep the `run_*` function; coverage is in `docs/agent/smoke.md` |
 | `tests/test_logic_unit.py` | 8.5k | grep the test class |
 | `ui.py` | 5.0k | grep the panel class; the target table is in `BTS_PT_Source` |
+| `docs/agent/ui.md` | 3.2k | current state or the rule section you need |
+| `docs/agent/ui-proposals.md` | 2.8k | the chosen proposal ID or variant |
 | `tests/test_package_contract.py` | 2.5k | read it whole before changing IDs, versions or properties |
 
 `python tools/doc.py --list` prints every heading with its line and size.
@@ -26,7 +28,7 @@ do not re-read it. Read only the row you need.
 
 | Task | Start here | Docs | Focused check |
 | --- | --- | --- | --- |
-| Panels, tooltips, density, target table | `ui.py` | plan §4; sequence U1-U5 | contract test + smoke |
+| Panels, tooltips, density, target table, overrides UI, view UI | `ui.py` | `docs/agent/ui.md`, `docs/agent/ui-proposals.md`; plan §4-§6; sequence U1-U5, O4, V5 | contract test + smoke |
 | Target registry, export filter, Outliner link, status text | `core/targets.py`, `core/scene.py` | plan §4.3-§4.4; sequence U3-U4 | unit suite + smoke |
 | Per-collection overrides | `core/overrides.py`, `properties.py` | plan §5; sequence O1-O5 | `test_logic_unit.py` |
 | Preflight, analysis cache, job loop, restore | `core/job.py` | plan §5, §8; sequence O3, C1 | smoke |

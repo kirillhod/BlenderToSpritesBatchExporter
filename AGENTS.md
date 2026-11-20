@@ -125,17 +125,13 @@ callback does not write back to the Outliner and create a feedback loop.
 
 ## UI conventions
 
-- Keep interface text English, short and state-oriented.
-- Static help belongs in tooltips. Do not add persistent hint labels.
-- Wrap target, Path Preview and File Output `template_list` calls in a layout
-  with `use_property_split = False`; otherwise rows inherit property-split
-  layout and appear centred.
-- Target rows use the fixed `Collection` / `Canvas / status` table.
-- Path Preview and File Output node information use compact `template_list`
-  views, not boxes that grow with the data.
-- A skipped target shows the short `skipped` marker; keep the row compact.
-- Do not draw the full export report in the UI. `Log` exposes `Copy Log` and
-  `Open Log` only.
+- Interface text stays English, short and state-oriented.
+- Static help belongs in tooltips; persistent hint labels are not allowed.
+- Read [docs/agent/ui.md](docs/agent/ui.md) before changing `ui.py` or adding a
+  panel. It owns the current state, panel map, density budget, layout
+  primitives and anti-patterns. Improvement proposals are kept separately in
+  [docs/agent/ui-proposals.md](docs/agent/ui-proposals.md).
+- Preserve panel IDs and the `Log` label of `BTS_PT_report`.
 
 ## Testing and verification
 
