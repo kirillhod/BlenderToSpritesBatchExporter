@@ -116,8 +116,8 @@ and view state. The mode is not saved.
 Six view toggles are drawn as a 3x2 grid with short labels and tooltips. The
 legacy `camera_axis` control is hidden but the property remains for presets and
 scripts. Margin, auto cleanup and padding follow the grid. **Canvas Grid** draws
-adaptive canvas-pixel lines and a center cross in camera view; it follows the
-Preview canvas and does not render.
+adaptive canvas-pixel lines, a center cross and the current resolution at the
+border in camera view; it follows the Preview canvas and does not render.
 
 ### Output & Naming
 

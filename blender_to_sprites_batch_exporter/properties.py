@@ -582,9 +582,9 @@ class BTS_Settings(PropertyGroup):
     show_canvas_grid: BoolProperty(
         name="Canvas Grid",
         description=(
-            "Draw the orthographic camera canvas as a grid in camera view. "
-            "Cells follow the output resolution and the step adapts to the "
-            "viewport zoom"
+            "Draw the orthographic camera canvas as a grid in camera view, "
+            "with the canvas resolution at the border. Cells follow the output "
+            "resolution and the step adapts to the viewport zoom"
         ),
         default=False,
         update=_canvas_grid_changed,

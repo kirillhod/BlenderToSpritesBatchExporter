@@ -7,6 +7,7 @@ pixels and the step grows when the viewport is zoomed out.
 
 import math
 
+import blf
 import bpy
 import gpu
 from bpy_extras.view3d_utils import location_3d_to_region_2d
@@ -23,6 +24,8 @@ _CENTER_ARM = 10.0
 _GRID_COLOR = (0.55, 0.72, 1.0, 0.28)
 _FRAME_COLOR = (0.55, 0.72, 1.0, 0.7)
 _CENTER_COLOR = (1.0, 0.7, 0.25, 0.85)
+_LABEL_BG = (0.02, 0.03, 0.05, 0.72)
+_LABEL_TEXT = (0.92, 0.95, 1.0, 0.95)
 
 
 def register_canvas_grid():
@@ -128,6 +131,9 @@ def _draw_overlay():
         _draw_lines(shader, grid, _GRID_COLOR)
         _draw_lines(shader, frame_lines, _FRAME_COLOR)
         _draw_lines(shader, center, _CENTER_COLOR)
+        _draw_resolution(
+            shader, region, res_x, res_y, right, bottom, top
+        )
     finally:
         gpu.state.line_width_set(line_width)
         gpu.state.blend_set(blend)
@@ -254,3 +260,32 @@ def _draw_lines(shader, coords, color):
     shader.bind()
     shader.uniform_float("color", color)
     batch.draw(shader)
+
+
+def _draw_rect(shader, x, y, width, height, color):
+    coords = (
+        x, y, x + width, y, x + width, y + height,
+        x, y, x + width, y + height, x, y + height,
+    )
+    batch = batch_for_shader(shader, 'TRIS', {"pos": coords})
+    shader.bind()
+    shader.uniform_float("color", color)
+    batch.draw(shader)
+
+
+def _draw_resolution(shader, region, res_x, res_y, right, bottom, top):
+    """Draw the canvas resolution inside the frame at its top-right."""
+    text = "%dx%d" % (int(res_x), int(res_y))
+    blf.size(0, 11)
+    text_w, text_h = blf.dimensions(0, text)
+    pad = 4.0
+    box_w = float(text_w) + pad * 2.0
+    box_h = float(text_h) + pad * 2.0
+    x = right - box_w - 6.0
+    y = top - box_h - 6.0
+    x = max(2.0, min(x, float(region.width) - box_w - 2.0))
+    y = max(bottom + 2.0, min(y, float(region.height) - box_h - 2.0))
+    _draw_rect(shader, x, y, box_w, box_h, _LABEL_BG)
+    blf.color(0, *_LABEL_TEXT)
+    blf.position(0, x + pad, y + pad, 0)
+    blf.draw(0, text)
