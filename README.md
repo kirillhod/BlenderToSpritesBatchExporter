@@ -1,7 +1,5 @@
 <h1 align="center">Blender To Sprites Batch Exporter</h1>
 
-<p align="center">Turn Blender collections into individual sprite images with an auto-fitted orthographic camera.</p>
-
 <p align="center"><a href="https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/kirillhod/BlenderToSpritesBatchExporter?sort=semver&label=release"></a> <a href="https://docs.blender.org/manual/en/5.2/"><img alt="Blender 5.2 or newer" src="https://img.shields.io/badge/Blender-5.2%2B-orange"></a> <a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue"></a></p>
 
 <p align="center"><a href="#features">Features</a> · <a href="#requirements">Requirements</a> · <a href="#installation">Installation</a> · <a href="#quick-start">Quick start</a> · <a href="#collections">Collections</a> · <a href="#preview">Preview</a> · <a href="#canvas-grid">Canvas Grid</a> · <a href="#presets">Presets</a> · <a href="#license">License</a></p>
@@ -15,35 +13,24 @@ with an
 renders it alone and saves it as a separate file. It is made for 2D games,
 pixel art, isometric assets and any workflow that needs many clean renders.
 
-Blender terms in this guide link to the
-[official Blender 5.2 Manual](https://docs.blender.org/manual/en/5.2/).
-
 ## Features
 
 | Feature | What it does |
 | --- | --- |
 | **One sprite per collection** | Frames each collection automatically and saves one file per selected view. |
-| **Multi-view** | Top, bottom, front, back, right and left views; all selected views share one canvas and one orthographic scale per collection. |
-| **Collections list** | Checkbox table with All, None, Active and Activate. It follows collection creation, deletion and renaming without a manual refresh. |
-| **Per-collection overrides** | View, Framing and Resolution can be overridden for one collection without touching the global settings. |
-| **Always Include** | A separate list for lights, props or shared parts that stay visible in every render. |
-| **Output control** | Transparent background, padding, pixel scale, square output, and min and max resolution. |
-| **Formats** | PNG, JPEG, WebP, EXR and other [main-render formats](https://docs.blender.org/manual/en/5.2/render/output/properties/format.html). |
-| **File Output nodes** | [Image](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) and [Multi-Layer EXR](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) nodes. |
-| **Naming** | `{collection}` and `{axis}` templates; File Output names add the socket, for example `Body_front_Normal.png`. |
-| **Viewport preview** | Fits the 3D View to the selected collection in camera view, without rendering. |
-| **Canvas grid** | Output-pixel grid with an adaptive step, a center cross and the canvas resolution. |
-| **Preflight and log** | Path preview, Problems panel, export report and log before and after rendering. |
-| **Presets** | Built-in 4 and 6 directions plus custom JSON presets with descriptions. |
+| **Multi-view** | Top, bottom, front, back, right and left; all selected views share one canvas and one orthographic scale per collection. |
+| **Collections list** | Checkbox table with All, None, Active and Activate; it follows collection creation, deletion and renaming without a manual refresh. |
+| **Always Include** | Keeps lights, props or shared parts visible in every render. |
+| **Per-collection overrides** | View, Framing and Resolution can be overridden for one collection without touching the globals. |
+| **Preview and canvas grid** | Camera-view preview of the selected collection and an output-pixel grid with the canvas resolution, both without rendering. |
+| **Output** | Transparent background, padding, pixel scale, square output, and PNG, JPEG, WebP, EXR and other main-render formats. |
+| **Naming and File Output** | `{collection}` and `{axis}` templates; Image and Multi-Layer EXR nodes add their socket name. |
+| **Presets and preflight** | 4 and 6 direction presets, JSON presets, path preview, Problems, report and log. |
 | **Overwrite policy** | Overwrite by default; Ask, Error, Skip and Add Suffix are also available. |
 
 ## Requirements
 
-| | |
-| --- | --- |
-| **Blender** | 5.2 or newer. Tested with 5.2.3 LTS and 5.3. |
-| **Add-on** | Install the latest zip from the [Releases page](https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases). |
-| **License** | GPL-3.0-or-later; free to use, including in commercial projects. |
+**Blender 5.2 or newer.** Tested with 5.2.3 LTS and 5.3.
 
 ## Installation
 
@@ -57,9 +44,6 @@ Blender terms in this guide link to the
 5. In the 3D View press <kbd>N</kbd> and open the **Batch Export** tab in the
    [Sidebar](https://docs.blender.org/manual/en/5.2/editors/3dview/sidebar.html).
 
-If an older version is already installed, remove it before installing the new
-one.
-
 ## Quick start
 
 1. Put each sprite in its own collection.
@@ -67,18 +51,17 @@ one.
    [**Collections**](https://docs.blender.org/manual/en/5.2/scene_layout/collections/index.html)
    and tick the collections you want.
 3. In **Camera & Framing**, choose one or more views.
-4. Choose an **Output Directory**.
-5. Set **Pixels / Unit**, **Padding** and **Filter Size**.
-6. Press **Analyze** to check paths and problems.
-7. Press **Batch Export**.
+4. Choose an **Output Directory** and set **Pixels / Unit**, **Padding** and
+   **Filter Size**.
+5. Press **Analyze** to check paths and problems.
+6. Press **Batch Export**.
 
 ## Collections
 
 The target list follows the scene automatically. New collections appear and
-deleted collections disappear without pressing anything. Renaming a collection
-is treated as a delete plus an add, so the new name starts with default values.
-Enabled flags and per-collection settings survive a sync. **Refresh Targets** is
-only a manual fallback.
+deleted collections disappear; renaming is treated as a delete plus an add.
+Enabled flags and per-collection settings survive a sync. **Refresh Targets**
+is only a manual fallback.
 
 The **Export** menu filters both the visible list and the actual export:
 
@@ -89,22 +72,21 @@ The **Export** menu filters both the visible list and the actual export:
 | **Active Collection** | The collection selected in the Outliner. |
 | **Top-Level Only** | Collections directly under the scene collection. |
 
-The full target registry and its enabled flags are kept when the mode changes,
-so switching back restores the previous selection. Selecting a collection in
-the Outliner also selects its target row, and selecting a target row selects
-that collection in the Outliner.
+The full target registry and its enabled flags are kept when the mode changes.
+Selecting a collection in the Outliner also selects its target row, and
+selecting a target row selects that collection in the Outliner.
 
 After **Analyze**, each row shows the canvas that will be produced, for example
 `512x304` or `512x512, 4 views`. The row is empty before an analysis and after
-any setting change that invalidates it. World-unit bounds are not shown.
+any setting change that invalidates it.
 
 ### Views
 
 **Camera & Framing** shows six toggle buttons in a 3x2 grid: Top, Bottom,
-Front, Back, Right and Left. Select any combination. All selected views of one
-collection share the largest canvas and the same orthographic scale, so a wide
-side view does not produce a smaller sprite. The legacy **View Axis** value is
-kept for old presets and scripts but is no longer shown.
+Front, Back, Right and Left. All selected views of one collection share the
+largest canvas and the same orthographic scale, so a wide side view does not
+produce a smaller sprite. The legacy **View Axis** value is kept for old
+presets and scripts but is no longer shown.
 
 At least one view is required for every target. An empty set blocks the export
 in preflight.
@@ -112,37 +94,32 @@ in preflight.
 ### Preview
 
 Select a collection and click **Preview** in **Collections** to switch the 3D
-View to camera view for that collection. The preview uses the same canvas,
-camera and overrides as the export, and it updates when you select another
-target row, toggle a view or change a framing or resolution value. Changes apply
-immediately. The Outliner stays on the previewed collection. A target that is
-hidden in the Outliner is shown while it is previewed; its hide state returns on
-exit.
+View to camera view for that collection. It uses the same canvas, camera and
+overrides as the export and updates when you select another target row, toggle
+a view or change framing or resolution values. The Outliner stays on the
+previewed collection; a target hidden in the Outliner is shown while previewed
+and returns to its hide state on exit.
 
 > **Preview is a viewport mode, not a render.** It uses the current viewport
-> shading and writes no files. Switch the viewport to **Material Preview** or
-> **Rendered** to see materials.
+> shading and writes no files. Switch to **Material Preview** or **Rendered**
+> to see materials.
 
-When a collection has several views, Preview shows the first active view in the
-Top, Bottom, Front, Back, Right, Left order. Click **Exit Preview** or leave
-camera view to restore the scene camera, resolution and visibility. Starting an
-export exits Preview first, so the preview camera and hidden collections do not
-reach the rendered frames.
+Preview shows the first active view in Top, Bottom, Front, Back, Right, Left
+order. **Exit Preview** or leaving camera view restores the camera, resolution
+and visibility. Starting an export exits Preview first.
 
 ### Canvas Grid
 
-Turn on **Canvas Grid** next to **Preview** in **Collections** to draw the
-orthographic camera canvas as a grid in camera view. The outer frame is the
-output canvas, its resolution is shown in a badge above the top-left corner of
-the frame, lines snap to output pixels and the step grows as you zoom out. In
-Preview it follows the active collection's canvas and overrides. It is a
-viewport guide and is not rendered.
+Turn on **Canvas Grid** next to **Preview** to draw the orthographic camera
+canvas in camera view. The frame is the output canvas; its resolution is shown
+in a badge above the top-left corner, lines snap to output pixels and the step
+grows as you zoom out. In Preview it follows the active collection's canvas and
+overrides. It is a viewport guide and is not rendered.
 
 ### Per-collection overrides
 
 Select a target row to open its **View**, **Framing** and **Resolution**
-override groups below the list. Each group is a checkbox row; turning it on
-opens a collapsible section with the checkbox in the header.
+groups. Each is a checkbox row that opens a collapsible section when on.
 
 | Group | Overrides |
 | --- | --- |
@@ -153,15 +130,10 @@ opens a collapsible section with the checkbox in the header.
 <details>
 <summary><strong>Override rules</strong></summary>
 
-- A target with any active override shows the override marker in the list.
-- A group that is off uses the global value and draws no fields.
-- Turning a group on copies the current global values once. Later changes to
-  the global settings do not affect that collection.
-- Turning the group off and on again copies the current global values again.
+- A group that is off uses the global value and draws no fields. Turning it on
+  copies the global values once; turning it off and on copies them again.
 - Output directory, format, naming, overwrite policy, isolation, Always Include
   and node settings stay global.
-- Overrides belong to the target. Renaming a collection is treated as delete
-  plus add, so the new name starts with defaults.
 
 </details>
 
@@ -172,14 +144,12 @@ opens a collapsible section with the checkbox in the header.
 | [Filter Size](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html) | Use `0.01-0.1` for crisp pixels. Blender's default `1.5` softens small details. |
 | [Transparent Film](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html) | Keep it on when sprites need alpha. |
 | **Pixels / Unit** | Controls the final sprite size. |
-| **Padding** | Keeps sprites away from the image edge. |
 | **Round To Multiple Of** | Helps keep sprite sizes consistent. |
 
 ## Presets
 
-Built-in presets change global settings. The framing presets do not touch the
-output directory, naming or file format. Collections with an active override
-keep their override values.
+Built-in presets change global settings but not the output directory, naming or
+file format. Collections with an active override keep their override values.
 
 | Preset | Settings | Best for |
 | --- | --- | --- |
@@ -191,25 +161,22 @@ keep their override values.
 
 ## Output names
 
-Normal renders use the **Name Template**. It supports `{collection}` and
-`{axis}`:
+Normal renders use the **Name Template** with `{collection}` and `{axis}`:
 
 ```text
 One view:      {collection}           -> Body.png
 Several views: {collection}_{axis}    -> Body_front.png
 ```
 
-If several views are selected and the template has no `{axis}`, the add-on
-appends `_{axis}` and reports it in Problems. Axis words are lowercase:
-`top`, `bottom`, `front`, `back`, `right`, `left`. When only one view is
-active, `{axis}` is omitted with its separator, so `{collection}_{axis}`
-writes `Body.png` for a single-view run.
+Without `{axis}` in a multi-view run, the add-on appends `_{axis}` and reports
+it in Problems. Axis words are lowercase: `top`, `bottom`, `front`, `back`,
+`right`, `left`. With one active view, `{axis}` and its separator are omitted,
+so `{collection}_{axis}` writes `Body.png`.
 
 Unknown tokens, padding on string tokens, empty names and two targets that
 resolve to the same file block the export before rendering.
 
-[File Output nodes](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
-use the same resolved stem and the node's socket name:
+File Output nodes use the resolved stem and the socket name:
 
 ```text
 Body, socket Normal        -> Body_Normal.png
@@ -217,15 +184,14 @@ Body_front, socket Normal  -> Body_front_Normal.png
 Body, empty socket         -> Body.png
 ```
 
-Node names and labels are not used. If a node has several sockets, each socket
-gets its own file.
+Node names and labels are not used. Each socket of a node gets its own file.
 
 ## Output modes
 
 | Mode | Writes |
 | --- | --- |
-| **Main render** | One file per collection and selected view in the chosen format. |
-| [**File Output nodes**](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) | The compositor writes the files. Set the node's Media Type to **Image** for PNG or JPEG, or to **Multi-Layer EXR** for layered files. Enable **Also Save Main Render** to write both. |
+| **Main render** | One file per collection and view in the chosen format. |
+| [**File Output nodes**](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) | The compositor writes Image or Multi-Layer EXR files through the node. Enable **Also Save Main Render** to write both. |
 
 ## Notes
 
@@ -245,13 +211,5 @@ The add-on code is in `blender_to_sprites_batch_exporter/`.
 
 ## License
 
-This add-on is licensed under the
-[GNU General Public License v3.0 or later](https://www.gnu.org/licenses/gpl-3.0.html).
+Licensed under [GPL-3.0-or-later](https://www.gnu.org/licenses/gpl-3.0.html).
 See [LICENSE](LICENSE) for the full text.
-
-You can use it for free, including in commercial projects. If you share a
-modified version, it must stay under the same license.
-
----
-
-<p align="center"><a href="https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases/latest"><strong>Download the latest release</strong></a></p>
