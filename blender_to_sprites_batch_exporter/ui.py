@@ -363,12 +363,15 @@ class BTS_PT_Source(Panel):
         _left_checkbox(layout, settings, "skip_empty")
 
         active_preview = preview_active(context.scene)
-        op = layout.operator(
+        preview_row = layout.row(align=True)
+        preview_split = preview_row.split(factor=0.55, align=True)
+        op = preview_split.operator(
             "bts.preview_camera",
             text="Exit Preview" if active_preview else "Preview",
             icon='VIEW_CAMERA',
         )
         op.preview = True
+        _left_checkbox(preview_split, settings, "show_canvas_grid")
         if active_preview:
             message = preview_message(context.scene)
             if message:
@@ -414,13 +417,7 @@ class BTS_PT_Camera(Panel):
         settings = context.scene.bts_settings
         _draw_view_grid(layout, settings)
         layout.prop(settings, "camera_margin", text="Margin")
-        toggles = layout.grid_flow(
-            row_major=True, columns=2, even_columns=True, align=True
-        )
-        toggles.use_property_split = False
-        toggles.use_property_decorate = False
-        toggles.prop(settings, "auto_cleanup_camera", text="Remove Camera")
-        toggles.prop(settings, "show_canvas_grid", text="Canvas Grid")
+        layout.prop(settings, "auto_cleanup_camera", text="Remove Camera")
         layout.separator(factor=0.5)
         layout.prop(settings, "padding_mode", expand=True)
         layout.prop(

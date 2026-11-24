@@ -2,6 +2,12 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.2.2] - 2026-11-24
+
+### Changed
+- Canvas Grid moved next to Preview in Collections. Camera & Framing keeps
+  only the framing controls.
+
 ## [3.2.1] - 2026-11-24
 
 ### Added

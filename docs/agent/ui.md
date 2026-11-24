@@ -38,8 +38,8 @@ All panels use `bl_space_type = 'VIEW_3D'`, `bl_region_type = 'UI'` and
 | Panel | ID | Purpose |
 |---|---|---|
 | Main | `BTS_PT_main` | target summary, export and analyze actions, job status, warnings |
-| Collections | `BTS_PT_source` | export mode, target table, target actions, three Override groups, Always Include, isolation |
-| Camera & Framing | `BTS_PT_camera` | six view toggles, margin, padding, cleanup, canvas grid |
+| Collections | `BTS_PT_source` | export mode, target table, target actions, Preview and canvas grid, three Override groups, Always Include, isolation |
+| Camera & Framing | `BTS_PT_camera` | six view toggles, margin, padding, cleanup |
 | Resolution | `BTS_PT_resolution` | pixels per unit, multiple, square output, min and max size |
 | Output & Naming | `BTS_PT_output` | main and node output, format, Path Preview, conflicts |
 | Problems | `BTS_PT_problems` | every problem, collection and fix hint in full |
@@ -51,14 +51,14 @@ for the visible active target row.
 
 ## Current state
 
-Recorded after 3.2.1. Row counts are approximate and assume two targets, one
+Recorded after 3.2.2. Row counts are approximate and assume two targets, one
 Always Include collection and no problems.
 
 | Panel | Open rows | Current contents |
 |---|---:|---|
 | Main | 5-9 | target summary; Export; Analyze and Cancel; Preview Camera and Cleanup; Restore Collections; optional job-status box; optional warnings |
-| Collections | 23-29 | export mode; refresh and search; table header; 3-8 target rows; All, None, Active and Activate; Skip Empty; Preview; three collapsible Overrides groups; Always Include; isolation; keep lights |
-| Camera & Framing | 6 | six view toggles in a 3x2 grid; margin; auto cleanup and canvas grid; padding mode; padding value |
+| Collections | 23-29 | export mode; refresh and search; table header; 3-8 target rows; All, None, Active and Activate; Skip Empty; Preview and canvas grid; three collapsible Overrides groups; Always Include; isolation; keep lights |
+| Camera & Framing | 6 | six view toggles in a 3x2 grid; margin; auto cleanup; padding mode; padding value |
 | Resolution | 5 | pixels per unit; multiple; square output; min; max |
 | Output & Naming | 14-26 | main or node output; format; overwrite; Path Preview; conflicts |
 | Problems | 1-20 | grouped full messages, collection and fix hint; Analyze and Copy |
@@ -109,15 +109,15 @@ target, override or depsgraph changes and shows the first active
 view. A row change switches it; hiding collections resets the Outliner
 selection, so the row is read first and the Outliner is put back. Exit,
 leaving camera view, saving or unloading restores camera, resolution, visibility
-and view state. The mode is not saved.
+and view state. The mode is not saved. The **Canvas Grid** checkbox next to
+Preview draws adaptive canvas-pixel lines, a center cross and the current
+resolution at the border; it follows the Preview canvas and does not render.
 
 ### Camera & Framing
 
 Six view toggles are drawn as a 3x2 grid with short labels and tooltips. The
 legacy `camera_axis` control is hidden but the property remains for presets and
-scripts. Margin, auto cleanup and padding follow the grid. **Canvas Grid** draws
-adaptive canvas-pixel lines, a center cross and the current resolution at the
-border in camera view; it follows the Preview canvas and does not render.
+scripts. Margin, auto cleanup and padding follow the grid.
 
 ### Output & Naming
 
