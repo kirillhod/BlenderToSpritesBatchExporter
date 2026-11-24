@@ -606,14 +606,18 @@ def _update_output_lists(settings, analysis):
     _clear_collection(getattr(settings, "node_items", None))
     if analysis is None:
         return
-    for target in analysis.targets:
-        if target.skipped:
+    for task in getattr(analysis, "tasks", ()) or ():
+        if task.skip_reason or task.collection is None:
             continue
-        plan = target.output_plan
+        axes = getattr(getattr(task, "target", None), "axes", ()) or ()
+        label = task.collection.name
+        if task.axis and len(axes) > 1:
+            label = f"{label} [{task.axis}]"
+        plan = task.output_plan
         if plan is not None:
-            _add_preview_item(settings, target.name, plan)
-        for plan in target.node_plans:
-            _add_preview_item(settings, target.name, plan)
+            _add_preview_item(settings, label, plan)
+        for plan in task.node_plans:
+            _add_preview_item(settings, label, plan)
     node_items = getattr(settings, "node_items", None)
     if node_items is None:
         return

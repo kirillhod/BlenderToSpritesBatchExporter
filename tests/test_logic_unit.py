@@ -297,6 +297,13 @@ class TaskExpansionTest(unittest.TestCase):
         self.assertTrue(all(task.node_plans == ("node",) for task in tasks))
         self.assertTrue(all(task.action is None for task in tasks))
         self.assertTrue(all(task.frame is None for task in tasks))
+        self.assertTrue(all(task.target is body for task in tasks))
+
+    def test_task_output_name_uses_axis_only_for_several_views(self):
+        self.assertEqual(logic.task_output_name("Body", "TOP", 1), "Body")
+        self.assertEqual(logic.task_output_name("Body", "", 0), "Body")
+        self.assertEqual(logic.task_output_name("Body", "FRONT", 2), "Body_front")
+        self.assertEqual(logic.task_output_name("Body", "LEFT", 6), "Body_left")
 
     def test_target_without_axes_keeps_one_skipped_task(self):
         weapon = SimpleNamespace(

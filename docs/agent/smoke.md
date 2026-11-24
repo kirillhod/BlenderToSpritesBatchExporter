@@ -55,6 +55,8 @@ The entry point is `run_test()` in `tests/smoke_blender.py`. It calls:
 | `run_analysis_and_cancel_test` | analysis cache, cancellation, restore |
 | `run_target_list_test` | target rows, enabled flags, All/None |
 | `run_override_property_test` | override seeding, analysis token, .blend persistence |
+| `run_view_property_test` | view migration, View override, empty-view preflight |
+| `run_multi_view_export_test` | four axes, shared canvas, axis names, node suffix |
 | `run_override_export_test` | per-collection padding/PPU, report, no-override fallback |
 | `run_override_ui_test` | active override row, search filter, export-mode filter, draw path |
 | `run_collision_test` | name collisions and temporary camera |

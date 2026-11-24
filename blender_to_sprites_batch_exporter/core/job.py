@@ -4,6 +4,7 @@ import os
 import tempfile
 import time
 from dataclasses import dataclass, field
+from itertools import groupby
 
 import bpy
 import mathutils
@@ -14,6 +15,7 @@ from .scene import *  # noqa: F401,F403
 from .framing import *  # noqa: F401,F403
 from .targets import *  # noqa: F401,F403
 from .overrides import resolve_target_settings, view_axes_for
+from .tasks import expand_tasks, task_output_name
 
 
 SEVERITY_ORDER = {"ERROR": 0, "WARNING": 1, "INFO": 2}
@@ -176,12 +178,13 @@ class FrameSpec:
 class Target:
     collection: object
     bounds: object = None
-    frame: dict | None = None
+    frame: FrameSpec | None = None
     output_plan: object = None
     node_plans: list = field(default_factory=list)
     skip_reason: str = ""
     target_settings: object = None
     override_groups: tuple = ()
+    axes: tuple = ()
 
     @property
     def name(self):
@@ -209,6 +212,7 @@ class JobResult:
     cancelled: bool = False
     duration: float = 0.0
     files: list = field(default_factory=list)
+    task_files: list = field(default_factory=list)
     problems: list = field(default_factory=list)
 
     @property
@@ -232,6 +236,7 @@ class AnalysisResult:
     conflicts: list
     skipped: int
     token: tuple = ()
+    tasks: list = field(default_factory=list)
 
     @property
     def errors(self):
@@ -408,6 +413,12 @@ def _run_preflight(context, settings, allow_existing=False):
     )
     target_items = {
         collection.name: get_target_item(settings, collection.name)
+        for collection in targets
+    }
+    axes_by_name = {
+        collection.name: tuple(
+            view_axes_for(settings, target_items.get(collection.name))
+        )
         for collection in targets
     }
     target_settings_by_name = {
@@ -606,8 +617,19 @@ def _run_preflight(context, settings, allow_existing=False):
             view_layer.update()
 
     policy, headless = _policy_settings(settings)
+    task_names = []
+    for collection, _bounds in measured:
+        axes = axes_by_name.get(collection.name, ())
+        if axes:
+            task_names.extend(
+                task_output_name(collection.name, axis, len(axes))
+                for axis in axes
+            )
+        else:
+            task_names.append(collection.name)
+
     safe_names, name_errors, name_skipped = resolve_node_safe_names(
-        [collection.name for collection in targets], "OVERWRITE"
+        task_names, "OVERWRITE"
     )
     for message in name_errors:
         problems.add("ERROR", "node_name_collision", message)
@@ -616,9 +638,7 @@ def _run_preflight(context, settings, allow_existing=False):
     main_plan_by_name = {}
     conflicts = []
     if not node_only:
-        main_plans = plan_output_paths(
-            [collection.name for collection in targets], settings
-        )
+        main_plans = plan_output_paths(task_names, settings)
         main_plans, policy_errors, main_conflicts, policy_notes = apply_overwrite_policy(
             main_plans,
             policy,
@@ -634,7 +654,7 @@ def _run_preflight(context, settings, allow_existing=False):
         main_plan_by_name = {plan.collection: plan for plan in main_plans}
 
     node_plans = []
-    node_plans_by_collection = {collection.name: [] for collection in targets}
+    node_plans_by_collection = {name: [] for name in task_names}
     if using_nodes:
         (
             node_plans_by_collection,
@@ -644,7 +664,7 @@ def _run_preflight(context, settings, allow_existing=False):
             node_notes,
             node_skipped,
         ) = plan_node_outputs_by_collection(
-            [collection.name for collection in targets],
+            task_names,
             resolved_layout,
             settings,
             all_file_outputs,
@@ -682,46 +702,62 @@ def _run_preflight(context, settings, allow_existing=False):
             fix_hint="Change the overwrite policy or confirm the overwrite.",
         )
 
-    # Build targets and apply skip reasons from plans.
-    targets_by_name = {collection.name: collection for collection in targets}
+    # Build collection targets with one shared canvas per collection.
     built_targets = []
     for collection, bounds in measured:
         collection_name = collection.name
         target_settings = target_settings_by_name[collection_name]
         target_item = target_items.get(collection_name)
+        axes = tuple(axes_by_name.get(collection_name, ()))
         bounds_value = (
             Bounds(minimum=bounds[0], maximum=bounds[1])
             if bounds is not None
             else None
         )
+        frame = None
+        if bounds_value is not None and axes:
+            frame_data = compute_collection_frame(
+                bounds_value.minimum,
+                bounds_value.maximum,
+                axes,
+                target_settings,
+            )
+            if frame_data is not None:
+                frame = FrameSpec(
+                    res_x=frame_data["res_x"],
+                    res_y=frame_data["res_y"],
+                    ortho_scale=frame_data["ortho_scale"],
+                    width=frame_data["width"],
+                    height=frame_data["height"],
+                    center=frame_data["center"],
+                )
         target = Target(
             collection=collection,
             bounds=bounds_value,
+            frame=frame,
             target_settings=target_settings,
             override_groups=active_override_groups(target_item),
+            axes=axes,
         )
-        plan = main_plan_by_name.get(collection_name)
-        target.output_plan = plan
-        target.node_plans = list(node_plans_by_collection.get(collection_name, []))
-        if bounds_value is not None:
-            frame = compute_frame(
-                bounds_value.minimum, bounds_value.maximum, target_settings
-            )
-            target.frame = FrameSpec(
-                res_x=frame["res_x"],
-                res_y=frame["res_y"],
-                ortho_scale=frame["ortho_scale"],
-                width=frame["width"],
-                height=frame["height"],
-                center=frame["center"],
-            )
         if bounds is None and getattr(settings, "skip_empty", True):
             target.skip_reason = "no renderable geometry"
-        elif plan is not None and plan.skipped:
-            target.skip_reason = plan.skip_reason
-        elif collection_name in (node_skipped if using_nodes else set()):
-            target.skip_reason = "node output skipped"
+        elif not axes:
+            target.skip_reason = "no views"
         built_targets.append(target)
+
+    tasks = expand_tasks(built_targets)
+    for task, plan in zip(tasks, main_plans):
+        task.output_plan = plan
+    for task in tasks:
+        axis_count = len(getattr(task.target, "axes", ()) or ())
+        output_name = task_output_name(
+            task.collection.name, task.axis, axis_count
+        )
+        task.node_plans = list(node_plans_by_collection.get(output_name, []))
+        if task.output_plan is not None and task.output_plan.skipped:
+            task.skip_reason = task.output_plan.skip_reason
+        elif using_nodes and output_name in node_skipped:
+            task.skip_reason = "node output skipped"
 
     node_snapshots = [
         snapshot_node(node, key)
@@ -729,9 +765,7 @@ def _run_preflight(context, settings, allow_existing=False):
         if not snapshot_node_is_linked(node)
     ]
 
-    # Count skipped targets. The earlier loop already counts empty collections,
-    # so rebuild the count from the final targets to avoid double counting.
-    skipped = sum(1 for target in built_targets if target.skipped)
+    skipped = sum(1 for task in tasks if task.skip_reason)
 
     analysis = AnalysisResult(
         targets=built_targets,
@@ -748,6 +782,7 @@ def _run_preflight(context, settings, allow_existing=False):
         conflicts=conflicts,
         skipped=skipped,
         token=token,
+        tasks=tasks,
     )
     update_target_status(settings, analysis)
     return analysis
@@ -816,10 +851,19 @@ class BatchJob:
         self._started = False
         self._finished = False
         self._index = 0
-        self._measured = [
-            target for target in analysis.targets if target.bounds is not None
-        ]
-        self._total = len(self._measured)
+        self._group_index = 0
+        self._groups = []
+        all_tasks = list(getattr(analysis, "tasks", ()) or ())
+        for _key, group in groupby(
+            all_tasks, key=lambda task: id(getattr(task, "collection", None))
+        ):
+            items = list(group)
+            if items and items[0].canvas is not None:
+                self._groups.append((items[0].collection, items))
+        self._total = sum(len(items) for _collection, items in self._groups)
+        self.result.skipped = sum(
+            1 for task in all_tasks if task.canvas is None
+        )
         self._problems = ProblemCollector()
         self._reported = set()
         self._node_snapshots = list(analysis.node_snapshots)
@@ -881,12 +925,7 @@ class BatchJob:
             failed=0,
         )
         self._problems.extend(self.analysis.problems)
-        # Targets without bounds are never put into _measured. Targets skipped
-        # by an overwrite policy still pass through step() and are counted there.
-        self.result.skipped = sum(
-            1 for target in self.analysis.targets if target.bounds is None
-        )
-
+        # Tasks without a canvas were counted as skipped in __init__.
         if self._total == 0:
             return False
 
@@ -959,7 +998,7 @@ class BatchJob:
 
     # --------------------------------------------------------
     def step(self):
-        """Render the next target. Returns False when the job is done."""
+        """Render the next collection group. Returns False when the job is done."""
         if self._finished:
             return False
         if self.cancel_requested:
@@ -967,12 +1006,15 @@ class BatchJob:
             return False
         if self._index >= self._total:
             return False
+        if self._group_index >= len(self._groups):
+            return False
 
-        target = self._measured[self._index]
+        collection, tasks = self._groups[self._group_index]
+        self._group_index += 1
         index = self._index
-        self._index += 1
+        self._index += len(tasks)
         _set_job_status(
-            text=f"Rendering {target.name}...",
+            text=f"Rendering {collection.name}...",
             current=index,
             total=self._total,
             rendered=self.result.rendered,
@@ -980,65 +1022,65 @@ class BatchJob:
             failed=self.result.failed,
         )
         try:
-            self.context.window_manager.progress_update(index)
-            if target.skip_reason:
-                self.result.skipped += 1
+            if not self._prepare_collection(collection, tasks):
+                self.result.skipped += len(tasks)
+                self.context.window_manager.progress_update(self._index)
                 return self._index < self._total
-
-            self._render_target(target)
         except Exception as exc:  # noqa: BLE001
-            self.result.failed += 1
-            self._report("WARNING", f"Render failed for '{target.name}': {exc}")
+            self.result.failed += len(tasks)
+            self._report(
+                "WARNING", f"Render failed for '{collection.name}': {exc}"
+            )
+            self.context.window_manager.progress_update(self._index)
+            return self._index < self._total
+
+        for task in tasks:
+            if self.cancel_requested:
+                self.result.cancelled = True
+                break
+            if task.skip_reason:
+                self.result.skipped += 1
+                continue
+            try:
+                self._render_task(task, collection)
+            except Exception as exc:  # noqa: BLE001
+                self.result.failed += 1
+                axis = f" {task.axis}" if task.axis else ""
+                self._report(
+                    "WARNING",
+                    f"Render failed for '{collection.name}{axis}': {exc}",
+                )
+        self.context.window_manager.progress_update(self._index)
         return self._index < self._total
 
     # --------------------------------------------------------
-    def _render_target(self, target):
+    def _prepare_collection(self, collection, tasks):
+        """Apply isolation once for every axis of one collection."""
         scene = self.scene
         view_layer = self.context.view_layer
         settings = self.settings
         rd = scene.render
-        collection = target.collection
-        bounds = target.bounds
-        if bounds is None:
-            self.result.skipped += 1
-            return
-
-        bmin, bmax = bounds.minimum, bounds.maximum
-        target_settings = target.target_settings
-        if target_settings is None:
-            target_settings = resolve_target_settings(
-                settings, get_target_item(settings, collection.name)
-            )
-        frame = configure_camera(self._cam_obj, bmin, bmax, target_settings)
-        target.frame = FrameSpec(
-            res_x=frame["res_x"],
-            res_y=frame["res_y"],
-            ortho_scale=frame["ortho_scale"],
-            width=frame["width"],
-            height=frame["height"],
-            center=frame["center"],
-        )
+        canvas = tasks[0].canvas
+        if canvas is None:
+            return False
+        rd.resolution_x = canvas.res_x
+        rd.resolution_y = canvas.res_y
+        target = getattr(tasks[0], "target", None)
         item = get_target_item(settings, collection.name)
         if item is not None:
-            target_views = len(getattr(target, "axes", ()) or ()) or target_view_count(
-                settings
-            )
             item.size_status = format_target_status(
-                target.frame.res_x,
-                target.frame.res_y,
-                view_count=target_views,
+                canvas.res_x,
+                canvas.res_y,
+                view_count=len(tasks),
                 frame_count=int(getattr(target, "frame_count", 0) or 0),
             )
-        rd.resolution_x = target.frame.res_x
-        rd.resolution_y = target.frame.res_y
 
         hide_failures = []
         if getattr(settings, "isolation_mode", "EXCLUDE") == "EXCLUDE":
             if not isolate_collection_by_exclude(
                 view_layer, collection, self._keep_collections
             ):
-                self.result.skipped += 1
-                return
+                return False
             hide_root_objects(
                 scene,
                 collection,
@@ -1063,6 +1105,39 @@ class BatchJob:
                 collection=collection.name,
             )
         view_layer.update()
+        return True
+
+    # --------------------------------------------------------
+    def _render_task(self, task, collection):
+        scene = self.scene
+        settings = self.settings
+        rd = scene.render
+        target = getattr(task, "target", None)
+        canvas = task.canvas
+        if target is None or target.bounds is None or canvas is None:
+            self.result.skipped += 1
+            return
+
+        bmin, bmax = target.bounds.minimum, target.bounds.maximum
+        target_settings = target.target_settings
+        if target_settings is None:
+            target_settings = resolve_target_settings(
+                settings, get_target_item(settings, collection.name)
+            )
+        axis = task.axis or target_settings.camera_axis
+        frame = {
+            "res_x": canvas.res_x,
+            "res_y": canvas.res_y,
+            "ortho_scale": canvas.ortho_scale,
+            "width": canvas.width,
+            "height": canvas.height,
+            "center": canvas.center,
+        }
+        configure_camera_for_axis(
+            self._cam_obj, bmin, bmax, axis, frame, target_settings
+        )
+        rd.resolution_x = canvas.res_x
+        rd.resolution_y = canvas.res_y
 
         node_failed = False
 
@@ -1073,7 +1148,7 @@ class BatchJob:
                     getattr(settings, "nodes_connected_only", True)
                 ),
             )
-            for plan in target.node_plans:
+            for plan in task.node_plans:
                 node = live_nodes.get(plan.node_key)
                 if node is None:
                     node_failed = True
@@ -1105,13 +1180,17 @@ class BatchJob:
             if self.analysis.using_nodes
             else True
         )
-        plan = target.output_plan
+        plan = task.output_plan
         if write_still:
             if plan is not None and not plan.skipped:
                 rd.filepath = plan.base_path
             else:
+                axis_count = len(getattr(target, "axes", ()) or ())
+                fallback = task_output_name(
+                    collection.name, task.axis, axis_count
+                )
                 rd.filepath = safe_join(
-                    settings.output_dir, sanitize_path_component(collection.name)
+                    settings.output_dir, sanitize_path_component(fallback)
                 )
 
         try:
@@ -1119,14 +1198,24 @@ class BatchJob:
             self.result.rendered += 1
         except Exception as exc:  # noqa: BLE001
             self.result.failed += 1
-            self._report("WARNING", f"Render failed for '{collection.name}': {exc}")
+            axis_label = f" {task.axis}" if task.axis else ""
+            self._report(
+                "WARNING",
+                f"Render failed for '{collection.name}{axis_label}': {exc}",
+            )
             return
 
         if plan is not None and not plan.skipped:
             self.result.files.append(plan.path)
-        for node_plan in target.node_plans:
+            self.result.task_files.append(
+                (collection.name, task.axis, plan.path)
+            )
+        for node_plan in task.node_plans:
             if not node_plan.skipped:
                 self.result.files.append(node_plan.path)
+                self.result.task_files.append(
+                    (collection.name, task.axis, node_plan.path)
+                )
 
     def _render_extensions(self):
         extensions = {EXT_BY_FORMAT.get(getattr(self.settings, "file_format", ""), "").lower()}
@@ -1316,7 +1405,12 @@ def format_job_report(result, analysis=None):
             )
     lines.append("")
     lines.append("Files:")
-    if result.files:
+    if result.task_files:
+        lines.extend(
+            f"  {name} [{axis}]: {path}" if axis else f"  {name}: {path}"
+            for name, axis, path in result.task_files
+        )
+    elif result.files:
         lines.extend(f"  {path}" for path in result.files)
     else:
         lines.append("  (none)")

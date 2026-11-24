@@ -224,7 +224,9 @@ class BTS_PT_MainPanel(Panel):
             f"Views: {target_view_count(settings)}"
         )
         if analysis is not None:
-            tasks = sum(1 for target in analysis.targets if not target.skipped)
+            tasks = sum(
+                1 for task in getattr(analysis, "tasks", ()) if not task.skip_reason
+            )
             summary += f"   Tasks: {tasks}"
         layout.label(text=summary, icon='OUTLINER_COLLECTION')
         status = get_job_status()

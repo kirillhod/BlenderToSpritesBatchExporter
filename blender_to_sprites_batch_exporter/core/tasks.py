@@ -19,6 +19,14 @@ class RenderTask:
     output_plan: object | None = None
     node_plans: tuple = ()
     skip_reason: str = ""
+    target: object | None = None
+
+
+def task_output_name(collection_name, axis, axis_count):
+    """Temporary axis suffix until the naming module lands in V4."""
+    if not axis or int(axis_count) <= 1:
+        return str(collection_name)
+    return f"{collection_name}_{str(axis).lower()}"
 
 
 def expand_tasks(targets):
@@ -44,6 +52,7 @@ def expand_tasks(targets):
                     output_plan=output_plan,
                     node_plans=node_plans,
                     skip_reason=skip_reason or "no views",
+                    target=target,
                 )
             )
             continue
@@ -56,6 +65,7 @@ def expand_tasks(targets):
                     output_plan=output_plan,
                     node_plans=node_plans,
                     skip_reason=skip_reason,
+                    target=target,
                 )
             )
     return tasks

@@ -11,6 +11,7 @@ Optional environment variables:
 
 import os
 import re
+import shutil
 import sys
 import tempfile
 import traceback
@@ -758,6 +759,137 @@ def run_view_property_test():
     os.rmdir(out_dir)
 
 
+def run_multi_view_export_test():
+    """Four axes share one canvas and write four files, main and node mode."""
+    from blender_to_sprites_batch_exporter import logic
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    cube = add_cube(body, "BodyCube")
+    cube.scale = (1.0, 2.0, 3.0)
+
+    out_dir = tempfile.mkdtemp(prefix="bts_views_export_")
+    settings = scene.bts_settings
+    settings.output_dir = out_dir
+    settings.file_format = "PNG"
+    settings.color_mode = "RGBA"
+    settings.color_depth = "8"
+    settings.use_transparent = True
+    settings.use_compositor_nodes = False
+    settings.export_source = "ALL"
+    settings.isolation_mode = "EXCLUDE"
+    settings.keep_lights = False
+    settings.keep_collections = ""
+    settings.skip_empty = True
+    settings.overwrite_policy = "OVERWRITE"
+    settings.camera_axis = "TOP"
+    settings.camera_margin = 10.0
+    settings.padding_mode = "PIXELS"
+    settings.padding_pixels = 0
+    settings.padding_units = 0.0
+    settings.pixels_per_unit = 16.0
+    settings.resolution_multiple = 1
+    settings.square_output = False
+    settings.min_resolution = 1
+    settings.max_resolution = 0
+    settings.views_migrated = True
+    settings.view_top = False
+    settings.view_bottom = False
+    settings.view_front = True
+    settings.view_back = True
+    settings.view_right = True
+    settings.view_left = True
+
+    logic.rebuild_target_items(bpy.context, settings)
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(not analysis.errors, "Multi-view analysis: %r" % (analysis.problems,))
+
+    target = next(item for item in analysis.targets if item.name == "Body")
+    check(
+        target.axes == ("FRONT", "BACK", "RIGHT", "LEFT"),
+        "Multi-view axes: %r" % (target.axes,),
+    )
+    check(
+        target.frame.res_x == 32 and target.frame.res_y == 48,
+        "Multi-view shared canvas: %r" % (target.frame,),
+    )
+    body_item = next(
+        item for item in settings.target_items if item.name == "Body"
+    )
+    check(
+        body_item.size_status == "32x48, 4 views",
+        "Multi-view row status: %r" % (body_item.size_status,),
+    )
+    check(len(analysis.tasks) == 4, "Multi-view task count: %r" % (len(analysis.tasks),))
+    check(
+        all(task.canvas is target.frame for task in analysis.tasks),
+        "Multi-view tasks do not share the collection canvas",
+    )
+    expected = ["Body_front", "Body_back", "Body_right", "Body_left"]
+    check(
+        sorted(plan.collection for plan in analysis.main_plans) == sorted(expected),
+        "Multi-view plan names: %r"
+        % ([plan.collection for plan in analysis.main_plans],),
+    )
+
+    result = bpy.ops.bts.batch_export()
+    check(result == {"FINISHED"}, "Multi-view export: %r" % (result,))
+    for name in expected:
+        path = os.path.join(out_dir, name + ".png")
+        check(os.path.exists(path), "Missing multi-view file: %s" % path)
+        check(
+            image_size(path) == (32, 48),
+            "Multi-view size for %s: %r" % (name, image_size(path)),
+        )
+    check(
+        all("[" in line for line in settings.last_report.splitlines() if "Body" in line and ":" in line),
+        "Multi-view report does not show axes: %r" % (settings.last_report,),
+    )
+
+    # Node mode: every axis gets its own collection subfolder.
+    tree = bpy.data.node_groups.new("BTS Multi View", "CompositorNodeTree")
+    scene.compositing_node_group = tree
+    tree.interface.new_socket(
+        name="Image", in_out="OUTPUT", socket_type="NodeSocketColor"
+    )
+    render_layers = tree.nodes.new("CompositorNodeRLayers")
+    group_output = tree.nodes.new("NodeGroupOutput")
+    active = tree.nodes.new("CompositorNodeOutputFile")
+    active.name = "Active Output"
+    active.directory = out_dir
+    active.file_output_items.new("RGBA", "Sprite")
+    tree.links.new(render_layers.outputs["Image"], group_output.inputs["Image"])
+    tree.links.new(render_layers.outputs["Image"], active.inputs["Sprite"])
+
+    settings.use_compositor_nodes = True
+    settings.nodes_connected_only = True
+    settings.node_naming = "SUBFOLDER"
+    settings.node_override_base = True
+    settings.write_main_output = False
+
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(not analysis.errors, "Multi-view node analysis: %r" % (analysis.problems,))
+    node_names = sorted(
+        os.path.basename(os.path.dirname(plan.path))
+        for plan in analysis.node_plans
+    )
+    check(
+        node_names == sorted(expected),
+        "Multi-view node folders: %r" % (node_names,),
+    )
+
+    result = bpy.ops.bts.batch_export()
+    check(result == {"FINISHED"}, "Multi-view node export: %r" % (result,))
+    for name in expected:
+        path = os.path.join(out_dir, name, "Sprite.exr")
+        check(os.path.exists(path), "Missing node output: %s" % path)
+
+    shutil.rmtree(out_dir)
+
+
 def image_size(path):
     image = bpy.data.images.load(path, check_existing=False)
     try:
@@ -1350,6 +1482,7 @@ def run_test():
     run_target_list_test()
     run_override_property_test()
     run_view_property_test()
+    run_multi_view_export_test()
     run_override_export_test()
     run_override_ui_test()
     run_target_sync_test()

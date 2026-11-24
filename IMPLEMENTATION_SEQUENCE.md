@@ -482,6 +482,7 @@ predictable names and content-sized lists.
 - **Check:** a run with four axes writes four files per collection with one
   canvas size; node mode writes axis-suffixed files.
 - **Done:** multi-view works end to end.
+- **Status:** implemented and smoke-verified in Blender 5.3.0.
 
 ### V4. Naming module
 - **Depends:** V3.
