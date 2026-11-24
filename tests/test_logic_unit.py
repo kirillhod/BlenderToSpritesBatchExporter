@@ -299,12 +299,6 @@ class TaskExpansionTest(unittest.TestCase):
         self.assertTrue(all(task.frame is None for task in tasks))
         self.assertTrue(all(task.target is body for task in tasks))
 
-    def test_task_output_name_uses_axis_only_for_several_views(self):
-        self.assertEqual(logic.task_output_name("Body", "TOP", 1), "Body")
-        self.assertEqual(logic.task_output_name("Body", "", 0), "Body")
-        self.assertEqual(logic.task_output_name("Body", "FRONT", 2), "Body_front")
-        self.assertEqual(logic.task_output_name("Body", "LEFT", 6), "Body_left")
-
     def test_target_without_axes_keeps_one_skipped_task(self):
         weapon = SimpleNamespace(
             collection="Weapon",
@@ -342,6 +336,74 @@ class TaskExpansionTest(unittest.TestCase):
         )
         tasks = logic.expand_tasks([body])
         self.assertEqual([task.axis for task in tasks], ["FRONT"])
+
+
+class NameFormattingTest(unittest.TestCase):
+    def test_collection_only_for_one_view(self):
+        result = logic.format_task_name("Body", "TOP", 1, "{collection}")
+        self.assertEqual(result.text, "Body")
+        self.assertFalse(result.errors)
+
+    def test_axis_is_appended_for_several_views(self):
+        result = logic.format_task_name("Body", "FRONT", 4, "{collection}")
+        self.assertEqual(result.text, "Body_front")
+        self.assertTrue(result.notes)
+        self.assertIn("{axis}", result.notes[0])
+        self.assertFalse(result.errors)
+
+    def test_existing_axis_token_is_not_duplicated(self):
+        result = logic.format_task_name(
+            "Body", "FRONT", 4, "{collection}_{axis}"
+        )
+        self.assertEqual(result.text, "Body_front")
+        self.assertFalse(result.notes)
+        self.assertFalse(result.errors)
+
+    def test_axis_token_is_omitted_for_one_view(self):
+        result = logic.format_task_name(
+            "Body", "TOP", 1, "{collection}_{axis}"
+        )
+        self.assertEqual(result.text, "Body")
+        self.assertFalse(result.errors)
+
+    def test_all_six_axis_tokens_are_lowercase(self):
+        for axis in logic.VIEW_AXES:
+            with self.subTest(axis=axis):
+                result = logic.format_task_name(
+                    "Body", axis, 6, "{collection}_{axis}"
+                )
+                self.assertEqual(result.text, "Body_" + axis.lower())
+
+    def test_unknown_token_is_reported_by_name(self):
+        result = logic.format_task_name(
+            "Body", "TOP", 1, "{collection}_{action}"
+        )
+        self.assertTrue(any("action" in error for error in result.errors))
+
+    def test_frame_token_is_unknown_in_30(self):
+        result = logic.format_task_name("Body", "TOP", 1, "{frame:04d}")
+        self.assertTrue(any("frame" in error for error in result.errors))
+        self.assertFalse(any("Padding" in error for error in result.errors))
+
+    def test_padding_is_rejected_for_string_tokens(self):
+        result = logic.format_task_name(
+            "Body", "FRONT", 4, "{collection}_{axis:04d}"
+        )
+        self.assertTrue(any("Padding" in error for error in result.errors))
+
+    def test_template_that_resolves_to_empty_is_an_error(self):
+        result = logic.format_task_name("Body", "TOP", 1, "{axis}")
+        self.assertEqual(result.text, "")
+        self.assertTrue(any("empty" in error for error in result.errors))
+
+    def test_resolve_template_keeps_the_action_axis_frame_order(self):
+        resolved, notes = logic.resolve_template(
+            "{collection}", ("frame", "action", "axis")
+        )
+        self.assertEqual(
+            resolved, "{collection}_{action}_{axis}_{frame}"
+        )
+        self.assertTrue(notes)
 
 
 class OutputPlanningTest(unittest.TestCase):
@@ -382,6 +444,17 @@ class OutputPlanningTest(unittest.TestCase):
             plans = logic.plan_output_paths(["Body"], settings)
             self.assertTrue(plans[0].path.endswith("Body_sprite.png"))
             self.assertFalse(plans[0].skipped)
+
+    def test_formatted_names_skip_the_template(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            settings = self.make_output_settings(
+                tmp, name_template="{collection}_{axis}"
+            )
+            plans = logic.plan_output_paths(
+                ["Body_front"], settings, formatted=True
+            )
+            self.assertTrue(plans[0].path.endswith("Body_front.png"))
+            self.assertNotIn("{axis}", plans[0].path)
 
     def test_plan_detects_collisions(self):
         with tempfile.TemporaryDirectory() as tmp:

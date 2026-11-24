@@ -361,9 +361,10 @@ class BTS_Settings(PropertyGroup):
         name="Name Template",
         description=(
             "File name template for the main render. {collection} is replaced "
-            "by the collection name. Default: {collection}. Examples: "
-            "{collection} writes Body.png; {collection}_sprite writes "
-            "Body_sprite.png"
+            "by the collection name and {axis} by the view axis when several "
+            "views are active. Default: {collection}. Examples: "
+            "{collection} writes Body.png; {collection}_{axis} writes "
+            "Body_front.png for multi-view runs"
         ),
         default="{collection}",
         update=_invalidate_analysis,

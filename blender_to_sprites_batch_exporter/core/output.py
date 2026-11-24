@@ -126,20 +126,26 @@ def unique_output_path(base_path, extension, taken=None):
         index += 1
 
 
-def plan_output_paths(collection_names, settings, taken=None):
+def plan_output_paths(collection_names, settings, taken=None, formatted=False):
     """Plan output paths for all collections and detect collisions.
 
     The returned list follows ``collection_names`` order. Collisions are
     reported on the plan of the later collection through ``collision_with``.
+    ``formatted`` means the names are already resolved stems and the template
+    must not be applied again.
     """
     plans = []
     owners = {}
     taken = set(taken or ())
     extension = format_extension(settings.file_format)
 
-    template = str(getattr(settings, "name_template", "{collection}") or "{collection}")
-    if template.strip() == "{collection}":
-        template = None
+    template = None
+    if not formatted:
+        template = str(
+            getattr(settings, "name_template", "{collection}") or "{collection}"
+        )
+        if template.strip() == "{collection}":
+            template = None
     for name in collection_names:
         base_path, path = build_output_path(
             settings.output_dir, name, settings.file_format, template=template

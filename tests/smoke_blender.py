@@ -526,7 +526,11 @@ def run_target_list_test():
 
     settings.name_template = "{collection}_sprite"
     analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
-    plan = analysis.main_plan_by_name["Body"]
+    plan = next(
+        task.output_plan
+        for task in analysis.tasks
+        if task.collection.name == "Body" and not task.skip_reason
+    )
     check(
         plan.path.endswith("Body_sprite.png"),
         "Name template path: %r" % (plan.path,),
@@ -965,8 +969,16 @@ def run_override_export_test():
 
     result = bpy.ops.bts.batch_export()
     check(result == {"FINISHED"}, "Override export: %r" % (result,))
-    body_path = analysis.main_plan_by_name["Body"].path
-    weapon_path = analysis.main_plan_by_name["Weapon"].path
+    body_path = next(
+        task.output_plan.path
+        for task in analysis.tasks
+        if task.collection.name == "Body" and not task.skip_reason
+    )
+    weapon_path = next(
+        task.output_plan.path
+        for task in analysis.tasks
+        if task.collection.name == "Weapon" and not task.skip_reason
+    )
     check(image_size(body_path) == (48, 48), "Body output size: %r" % (image_size(body_path),))
     check(
         image_size(weapon_path) == (16, 16),
@@ -1060,7 +1072,9 @@ def run_override_ui_test():
 
 
 def run_collision_test():
-    """Collections that sanitize to the same name must not overwrite each other."""
+    """Collections that sanitize to the same name block the export."""
+    from blender_to_sprites_batch_exporter import logic
+
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon = load_addon()
     scene = bpy.context.scene
@@ -1094,12 +1108,29 @@ def run_collision_test():
     settings.max_resolution = 0
     settings.overwrite_policy = "SUFFIX"
 
-    result = bpy.ops.bts.batch_export()
-    check(result == {"FINISHED"}, "Collision export did not finish: %r" % (result,))
-    files = sorted(os.listdir(out_dir))
-    check(files == ["A_B.png", "A_B_2.png"], "Collision files: %r" % (files,))
-    for name in files:
-        os.remove(os.path.join(out_dir, name))
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(
+        any(problem.code == "name_collision" for problem in analysis.problems),
+        "Sanitized name collision was not reported: %r"
+        % (analysis.problems,),
+    )
+
+    try:
+        result = bpy.ops.bts.batch_export()
+    except RuntimeError as exc:
+        check(
+            "name_collision" in str(exc),
+            "Collision export raised an unexpected error: %s" % exc,
+        )
+    else:
+        check(
+            result == {"CANCELLED"},
+            "Collision export should be blocked: %r" % (result,),
+        )
+    check(
+        not os.listdir(out_dir),
+        "Collision export wrote files: %r" % (sorted(os.listdir(out_dir)),),
+    )
     os.rmdir(out_dir)
 
 

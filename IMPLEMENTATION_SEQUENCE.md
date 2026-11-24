@@ -504,6 +504,7 @@ predictable names and content-sized lists.
 - **Check:** unit tests for tokens, padding, unknown token, auto suffix, 1/4/6
   axes and collisions.
 - **Done:** names are predictable and validated.
+- **Status:** implemented and smoke-verified in Blender 5.3.0.
 
 ### V5. Views UI and presets
 - **Depends:** V1-V4, O4.

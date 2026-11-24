@@ -67,6 +67,7 @@ re-exports `core.*`; `core.*` never imports `ui` or `operators`.
 | `core/framing.py` | axis math, padding and camera configuration |
 | `core/overrides.py` | resolve globals and per-collection framing/resolution overrides |
 | `core/tasks.py` | expand collections and views into `RenderTask` objects |
+| `core/naming.py` | strict `{collection}` / `{axis}` templates and token errors |
 | `core/job.py` | problems, analysis token, preflight, `BatchJob`, report |
 | `core/output.py` | main-render paths, collisions, File Output node plans |
 | `core/presets.py` | built-in and JSON presets |

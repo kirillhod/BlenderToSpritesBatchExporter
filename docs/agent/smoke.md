@@ -59,7 +59,7 @@ The entry point is `run_test()` in `tests/smoke_blender.py`. It calls:
 | `run_multi_view_export_test` | four axes, shared canvas, axis names, node suffix |
 | `run_override_export_test` | per-collection padding/PPU, report, no-override fallback |
 | `run_override_ui_test` | active override row, search filter, export-mode filter, draw path |
-| `run_collision_test` | name collisions and temporary camera |
+| `run_collision_test` | sanitized name collisions block the export; temporary camera |
 | `run_target_sync_test` | automatic sync and Outliner linkage |
 | `run_target_filter_test` | `export_source` filter and registry persistence |
 | `run_ui_draw_probe` | every panel draws in every mode |

@@ -22,13 +22,6 @@ class RenderTask:
     target: object | None = None
 
 
-def task_output_name(collection_name, axis, axis_count):
-    """Temporary axis suffix until the naming module lands in V4."""
-    if not axis or int(axis_count) <= 1:
-        return str(collection_name)
-    return f"{collection_name}_{str(axis).lower()}"
-
-
 def expand_tasks(targets):
     """Return one task per target axis, or one skipped task without axes."""
     tasks = []

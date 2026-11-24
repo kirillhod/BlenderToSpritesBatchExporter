@@ -15,7 +15,8 @@ from .scene import *  # noqa: F401,F403
 from .framing import *  # noqa: F401,F403
 from .targets import *  # noqa: F401,F403
 from .overrides import resolve_target_settings, view_axes_for
-from .tasks import expand_tasks, task_output_name
+from .tasks import expand_tasks
+from .naming import format_task_name
 
 
 SEVERITY_ORDER = {"ERROR": 0, "WARNING": 1, "INFO": 2}
@@ -617,16 +618,43 @@ def _run_preflight(context, settings, allow_existing=False):
             view_layer.update()
 
     policy, headless = _policy_settings(settings)
+    name_template = str(
+        getattr(settings, "name_template", "{collection}") or "{collection}"
+    )
+    name_notes = set()
+    name_errors = set()
     task_names = []
     for collection, _bounds in measured:
         axes = axes_by_name.get(collection.name, ())
-        if axes:
-            task_names.extend(
-                task_output_name(collection.name, axis, len(axes))
-                for axis in axes
+        name_axes = axes or ("",)
+        for axis in name_axes:
+            result = format_task_name(
+                collection.name, axis, len(axes), name_template
             )
-        else:
-            task_names.append(collection.name)
+            task_names.append(result.text)
+            name_notes.update(result.notes)
+            for error in result.errors:
+                name_errors.add((collection.name, error))
+            if result.text:
+                safe_name = sanitize_path_component(result.text)
+                if (
+                    safe_name == "untitled"
+                    and result.text.strip().lower() != "untitled"
+                ):
+                    name_errors.add((
+                        collection.name,
+                        "The name '%s' sanitizes to 'untitled'." % result.text,
+                    ))
+    for note in sorted(name_notes):
+        problems.add("INFO", "name_template", note)
+    for collection_name, message in sorted(name_errors):
+        problems.add(
+            "ERROR",
+            "name_token",
+            message,
+            collection=collection_name,
+            fix_hint="Use {collection} and {axis} in the name template.",
+        )
 
     safe_names, name_errors, name_skipped = resolve_node_safe_names(
         task_names, "OVERWRITE"
@@ -638,7 +666,20 @@ def _run_preflight(context, settings, allow_existing=False):
     main_plan_by_name = {}
     conflicts = []
     if not node_only:
-        main_plans = plan_output_paths(task_names, settings)
+        main_plans = plan_output_paths(task_names, settings, formatted=True)
+        for plan in main_plans:
+            if plan.collision_with:
+                problems.add(
+                    "ERROR",
+                    "name_collision",
+                    "The name resolves to the same output file as '%s'."
+                    % plan.collision_with,
+                    collection=plan.collection,
+                    fix_hint=(
+                        "Rename the collection or change the name template "
+                        "so every target is unique."
+                    ),
+                )
         main_plans, policy_errors, main_conflicts, policy_notes = apply_overwrite_policy(
             main_plans,
             policy,
@@ -673,6 +714,19 @@ def _run_preflight(context, settings, allow_existing=False):
             headless=headless,
             allow_existing=allow_existing,
         )
+        for plan in node_plans:
+            if plan.collision_with:
+                problems.add(
+                    "ERROR",
+                    "name_collision",
+                    "The node output resolves to the same file as '%s'."
+                    % plan.collision_with,
+                    collection=plan.collection,
+                    fix_hint=(
+                        "Rename the collection or change the name template "
+                        "so every target is unique."
+                    ),
+                )
         for message in node_errors:
             problems.add("ERROR", "node_overwrite", message)
         for message in node_notes:
@@ -748,11 +802,7 @@ def _run_preflight(context, settings, allow_existing=False):
     tasks = expand_tasks(built_targets)
     for task, plan in zip(tasks, main_plans):
         task.output_plan = plan
-    for task in tasks:
-        axis_count = len(getattr(task.target, "axes", ()) or ())
-        output_name = task_output_name(
-            task.collection.name, task.axis, axis_count
-        )
+    for task, output_name in zip(tasks, task_names):
         task.node_plans = list(node_plans_by_collection.get(output_name, []))
         if task.output_plan is not None and task.output_plan.skipped:
             task.skip_reason = task.output_plan.skip_reason
@@ -1186,11 +1236,15 @@ class BatchJob:
                 rd.filepath = plan.base_path
             else:
                 axis_count = len(getattr(target, "axes", ()) or ())
-                fallback = task_output_name(
-                    collection.name, task.axis, axis_count
-                )
+                fallback = format_task_name(
+                    collection.name,
+                    task.axis,
+                    axis_count,
+                    getattr(settings, "name_template", "{collection}"),
+                ).text
                 rd.filepath = safe_join(
-                    settings.output_dir, sanitize_path_component(fallback)
+                    settings.output_dir,
+                    sanitize_path_component(fallback or collection.name),
                 )
 
         try:
