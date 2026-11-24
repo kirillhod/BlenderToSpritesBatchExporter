@@ -83,11 +83,13 @@ canvas after Analyze, `skipped` for an empty collection and `disabled` for an
 off target.
 
 The three Overrides groups belong to the visible active row. View, Framing and
-Resolution are full-width collapsible sections with the group checkbox in the
-header. View starts off and adds one header row; an off group draws no fields,
-no separate `Using global` row, and collapses its empty body so an open but
-unchecked group leaves no blank row. When the active row is filtered out, one
-muted row says `Overrides: no target selected.`
+Resolution are full-width checkbox rows while off. Checking one turns it into a
+collapsible section with the group checkbox in the header; unchecking it turns
+the section back into a plain row. View starts off. An off group draws no
+fields, no separate `Using global` row and no empty panel body. The override
+fields use `Margin` and `Round To` so their labels fit at the default width.
+When the active row is filtered out, one muted row says
+`Overrides: no target selected.`
 
 The target list shrinks to its visible rows. The Always Include list uses 1-3
 rows; an empty list shows one info row. Isolation and Keep Lights sit below the
@@ -182,6 +184,8 @@ Restore each have a full row.
   `box`, `row`, `column`, `split` or another constrained layout.
 - The header may contain a checkbox, an operator or a right-aligned summary.
   This is the preferred place for a group toggle.
+- An override group is a plain checkbox row while off and becomes a panel only
+  when checked. This avoids an empty body under an unchecked group.
 - Use a stable `idname`. The open state is stored per region, not per scene.
 - Use `layout.panel_prop(data, prop)` only when the bool genuinely means
   "this section is open". Never use it for `override_*` toggles: collapsing

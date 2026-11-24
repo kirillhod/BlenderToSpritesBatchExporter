@@ -132,7 +132,7 @@ def _draw_view_grid(layout, owner):
 
 def _draw_framing_override(layout, item):
     col = layout.column(align=True)
-    col.prop(item, "camera_margin")
+    col.prop(item, "camera_margin", text="Margin")
     col.prop(item, "padding_mode", expand=True)
     col.prop(
         item,
@@ -143,7 +143,7 @@ def _draw_framing_override(layout, item):
 def _draw_resolution_override(layout, item):
     col = layout.column(align=True)
     col.prop(item, "pixels_per_unit")
-    col.prop(item, "resolution_multiple")
+    col.prop(item, "resolution_multiple", text="Round To")
     col.prop(item, "square_output")
     col.prop(item, "min_resolution")
     col.prop(item, "max_resolution")
@@ -161,19 +161,21 @@ def _draw_overrides(layout, item):
         ("resolution", "Resolution", _draw_resolution_override),
     )
     for group, label, draw in groups:
+        enabled = bool(getattr(item, "override_" + group, False))
+        if not enabled:
+            # Nothing to expand while the override is off: draw a plain
+            # checkbox row instead of a panel with an empty body.
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(item, "override_" + group, text=label)
+            continue
         header, body = layout.panel(
             "bts_override_" + group, default_closed=False
         )
         header.use_property_split = False
         header.prop(item, "override_" + group, text=label)
-        if body is None:
-            continue
-        if getattr(item, "override_" + group, False):
+        if body is not None:
             draw(body, item)
-        else:
-            # A panel body is always allocated while the section is open.
-            # Collapse it so an unchecked group shows only its header row.
-            body.scale_y = 0.0
 
 
 class BTS_UL_Targets(UIList):
@@ -415,7 +417,7 @@ class BTS_PT_Resolution(Panel):
         layout.use_property_decorate = False
         settings = context.scene.bts_settings
         layout.prop(settings, "pixels_per_unit")
-        layout.prop(settings, "resolution_multiple")
+        layout.prop(settings, "resolution_multiple", text="Round To")
         layout.prop(settings, "square_output")
         col = layout.column(align=True)
         col.prop(settings, "min_resolution")
