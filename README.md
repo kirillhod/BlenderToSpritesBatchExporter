@@ -1,12 +1,41 @@
-# Blender To Sprites Batch Exporter
+<h1 align="center">Blender To Sprites Batch Exporter</h1>
 
-Turn Blender collections into individual sprite images.
+<p align="center">
+  Turn Blender collections into individual sprite images with an auto-fitted
+  orthographic camera.
+</p>
+
+<p align="center">
+  <a href="https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases">
+    <img alt="Latest release" src="https://img.shields.io/github/v/release/kirillhod/BlenderToSpritesBatchExporter?sort=semver&label=release">
+  </a>
+  <a href="https://docs.blender.org/manual/en/5.2/">
+    <img alt="Blender 5.2 or newer" src="https://img.shields.io/badge/Blender-5.2%2B-orange">
+  </a>
+  <a href="LICENSE">
+    <img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue">
+  </a>
+</p>
+
+<p align="center">
+  <a href="#features">Features</a> ·
+  <a href="#requirements">Requirements</a> ·
+  <a href="#installation">Installation</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#collections">Collections</a> ·
+  <a href="#preview">Preview</a> ·
+  <a href="#canvas-grid">Canvas Grid</a> ·
+  <a href="#presets">Presets</a> ·
+  <a href="#license">License</a>
+</p>
+
+---
 
 The add-on frames each
 [collection](https://docs.blender.org/manual/en/5.2/scene_layout/collections/index.html)
 with an
 [orthographic camera](https://docs.blender.org/manual/en/5.2/render/cameras.html),
-renders it alone, and saves it as a separate file. It is made for 2D games,
+renders it alone and saves it as a separate file. It is made for 2D games,
 pixel art, isometric assets and any workflow that needs many clean renders.
 
 Blender terms in this guide link to the
@@ -14,39 +43,30 @@ Blender terms in this guide link to the
 
 ## Features
 
-- One sprite per
-  [collection](https://docs.blender.org/manual/en/5.2/scene_layout/collections/index.html),
-  framed automatically.
-- Multi-view export from top, bottom, front, back, right and left, with one
-  shared canvas per collection.
-- Viewport preview that fits the 3D View to the selected collection without
-  rendering, and a canvas grid guide with the output resolution.
-- Checkbox list of collections with All, None and Active buttons.
-- Per-collection framing, resolution and view overrides for different asset
-  scales and directions.
-- Separate **Always Include** list for lights, props or shared parts.
-- Transparent background, padding, pixel scale and square output.
-- PNG, JPEG, WebP, EXR and other
-  [main-render formats](https://docs.blender.org/manual/en/5.2/render/output/properties/format.html).
-- Optional
-  [File Output node](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
-  support:
-  - [Image](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
-    nodes (PNG, JPEG, ...)
-  - [Multi-Layer EXR](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
-    nodes
-- Names built from the collection, the view axis and the File Output socket:
-  `Body_front_Normal.png`.
-- Path preview and a Problems panel before rendering.
-- Overwrite existing files by default. Ask, Error, Skip and Add Suffix are
-  also available.
-- Built-in presets, including 4 and 6 directions, and your own JSON presets
-  with descriptions.
-- Export report and log.
+| Feature | What it does |
+| --- | --- |
+| **One sprite per collection** | Frames each collection automatically and saves one file per selected view. |
+| **Multi-view** | Top, bottom, front, back, right and left views; all selected views share one canvas and one orthographic scale per collection. |
+| **Collections list** | Checkbox table with All, None, Active and Activate. It follows collection creation, deletion and renaming without a manual refresh. |
+| **Per-collection overrides** | View, Framing and Resolution can be overridden for one collection without touching the global settings. |
+| **Always Include** | A separate list for lights, props or shared parts that stay visible in every render. |
+| **Output control** | Transparent background, padding, pixel scale, square output, and min and max resolution. |
+| **Formats** | PNG, JPEG, WebP, EXR and other [main-render formats](https://docs.blender.org/manual/en/5.2/render/output/properties/format.html). |
+| **File Output nodes** | [Image](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) and [Multi-Layer EXR](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) nodes. |
+| **Naming** | `{collection}` and `{axis}` templates; File Output names add the socket, for example `Body_front_Normal.png`. |
+| **Viewport preview** | Fits the 3D View to the selected collection in camera view, without rendering. |
+| **Canvas grid** | Output-pixel grid with an adaptive step, a center cross and the canvas resolution. |
+| **Preflight and log** | Path preview, Problems panel, export report and log before and after rendering. |
+| **Presets** | Built-in 4 and 6 directions plus custom JSON presets with descriptions. |
+| **Overwrite policy** | Overwrite by default; Ask, Error, Skip and Add Suffix are also available. |
 
 ## Requirements
 
-- Blender 5.2 or newer. Tested with 5.2.3 LTS and 5.3.
+| | |
+| --- | --- |
+| **Blender** | 5.2 or newer. Tested with 5.2.3 LTS and 5.3. |
+| **Add-on** | Install the latest zip from the [Releases page](https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases). |
+| **License** | GPL-3.0-or-later; free to use, including in commercial projects. |
 
 ## Installation
 
@@ -57,7 +77,7 @@ Blender terms in this guide link to the
    [**Get Extensions**](https://docs.blender.org/manual/en/5.2/editors/preferences/extensions.html).
 3. Click **Install from Disk** and choose the downloaded zip.
 4. Enable **Blender To Sprites Batch Exporter**.
-5. In the 3D View press **N** and open the **Batch Export** tab in the
+5. In the 3D View press <kbd>N</kbd> and open the **Batch Export** tab in the
    [Sidebar](https://docs.blender.org/manual/en/5.2/editors/3dview/sidebar.html).
 
 If an older version is already installed, remove it before installing the new
@@ -84,12 +104,18 @@ Enabled flags and per-collection settings survive a sync. **Refresh Targets** is
 only a manual fallback.
 
 The **Export** menu filters both the visible list and the actual export:
-**All Collections**, **Only Included**, **Active Collection** and
-**Top-Level Only**. The full target registry and its enabled flags are kept when
-the mode changes, so switching back restores the previous selection.
-**Active Collection** shows only the collection selected in the Outliner.
-Selecting a collection in the Outliner also selects its target row, and selecting
-a target row selects that collection in the Outliner.
+
+| Mode | Shows |
+| --- | --- |
+| **All Collections** | Every collection in the scene. |
+| **Only Included** | Collections that are not excluded from the view layer. |
+| **Active Collection** | The collection selected in the Outliner. |
+| **Top-Level Only** | Collections directly under the scene collection. |
+
+The full target registry and its enabled flags are kept when the mode changes,
+so switching back restores the previous selection. Selecting a collection in
+the Outliner also selects its target row, and selecting a target row selects
+that collection in the Outliner.
 
 After **Analyze**, each row shows the canvas that will be produced, for example
 `512x304` or `512x512, 4 views`. The row is empty before an analysis and after
@@ -114,9 +140,11 @@ camera and overrides as the export, and it updates when you select another
 target row, toggle a view or change a framing or resolution value. Changes apply
 immediately. The Outliner stays on the previewed collection. A target that is
 hidden in the Outliner is shown while it is previewed; its hide state returns on
-exit. It is a viewport mode, not a render: it uses the current viewport shading
-and writes no files. Switch the viewport to **Material Preview** or **Rendered**
-to see materials.
+exit.
+
+> **Preview is a viewport mode, not a render.** It uses the current viewport
+> shading and writes no files. Switch the viewport to **Material Preview** or
+> **Rendered** to see materials.
 
 When a collection has several views, Preview shows the first active view in the
 Top, Bottom, Front, Back, Right, Left order. Click **Exit Preview** or leave
@@ -139,10 +167,15 @@ Select a target row to open its **View**, **Framing** and **Resolution**
 override groups below the list. Each group is a checkbox row; turning it on
 opens a collapsible section with the checkbox in the header.
 
-- **View** overrides the six view toggles.
-- **Framing** overrides Margin, Padding Mode and Padding.
-- **Resolution** overrides Pixels / Unit, Round To, Square Output, Min Res and
-  Max Res.
+| Group | Overrides |
+| --- | --- |
+| **View** | The six view toggles. |
+| **Framing** | Margin, Padding Mode and Padding. |
+| **Resolution** | Pixels / Unit, Round To, Square Output, Min Res and Max Res. |
+
+<details>
+<summary><strong>Override rules</strong></summary>
+
 - A target with any active override shows the override marker in the list.
 - A group that is off uses the global value and draws no fields.
 - Turning a group on copies the current global values once. Later changes to
@@ -150,20 +183,20 @@ opens a collapsible section with the checkbox in the header.
 - Turning the group off and on again copies the current global values again.
 - Output directory, format, naming, overwrite policy, isolation, Always Include
   and node settings stay global.
+- Overrides belong to the target. Renaming a collection is treated as delete
+  plus add, so the new name starts with defaults.
 
-Overrides belong to the target. Renaming a collection is treated as delete plus
-add, so the new name starts with defaults.
+</details>
 
 ## Pixel art
 
-- [Filter Size](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html):
-  use `0.01-0.1` for crisp pixels. Blender's default `1.5` softens small
-  details.
-- [Transparent Film](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html):
-  keep it on when sprites need alpha.
-- **Pixels / Unit**: controls the final sprite size.
-- **Padding**: keeps sprites away from the image edge.
-- **Round To Multiple Of**: helps keep sprite sizes consistent.
+| Setting | Tip |
+| --- | --- |
+| [Filter Size](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html) | Use `0.01-0.1` for crisp pixels. Blender's default `1.5` softens small details. |
+| [Transparent Film](https://docs.blender.org/manual/en/5.2/render/eevee/render_settings/film.html) | Keep it on when sprites need alpha. |
+| **Pixels / Unit** | Controls the final sprite size. |
+| **Padding** | Keeps sprites away from the image edge. |
+| **Round To Multiple Of** | Helps keep sprite sizes consistent. |
 
 ## Presets
 
@@ -172,12 +205,12 @@ output directory, naming or file format. Collections with an active override
 keep their override values.
 
 | Preset | Settings | Best for |
-|---|---|---|
-| 4 Directions | Front, back, right and left views; `{collection}_{axis}` names | Characters and props with four sides |
-| 6 Directions | All six views; `{collection}_{axis}` names | Full turntable-style sprite sets |
-| Pixel Art Top | Top view, 32 px per unit, 1 px padding, square sprites | Crisp top-down tiles |
-| Platformer Front | Front view, 64 px per unit, 2 px padding | Side-view characters and props |
-| High Resolution Top | Top view, 128 px per unit, 8 px padding | Detailed top-down art |
+| --- | --- | --- |
+| **4 Directions** | Front, back, right and left views; `{collection}_{axis}` names | Characters and props with four sides |
+| **6 Directions** | All six views; `{collection}_{axis}` names | Full turntable-style sprite sets |
+| **Pixel Art Top** | Top view, 32 px per unit, 1 px padding, square sprites | Crisp top-down tiles |
+| **Platformer Front** | Front view, 64 px per unit, 2 px padding | Side-view characters and props |
+| **High Resolution Top** | Top view, 128 px per unit, 8 px padding | Detailed top-down art |
 
 ## Output names
 
@@ -212,28 +245,26 @@ gets its own file.
 
 ## Output modes
 
-- **Main render** - one file per collection and selected view in the chosen
-  format.
-- [**File Output nodes**](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) -
-  the compositor writes the files. Set the node's
-  [Media Type](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
-  to **Image** for PNG or JPEG, or to
-  [**Multi-Layer EXR**](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
-  for layered files. Enable **Also Save Main Render** if you want both.
+| Mode | Writes |
+| --- | --- |
+| **Main render** | One file per collection and selected view in the chosen format. |
+| [**File Output nodes**](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) | The compositor writes the files. Set the node's Media Type to **Image** for PNG or JPEG, or to **Multi-Layer EXR** for layered files. Enable **Also Save Main Render** to write both. |
 
 ## Notes
 
 - **Don't Modify** is a manual single-collection mode.
-- Cancel stops between collections; the render that is already running
-  finishes first.
+- Cancel stops between collections; the render that is already running finishes
+  first.
 
 ## For developers
 
 The add-on code is in `blender_to_sprites_batch_exporter/`.
 
-- Unit tests: `./tests/run_unit_tests.ps1`
-- Blender smoke test: `./tests/run_tests.ps1`
-- Release zip: `./tools/build_zip.ps1`
+```powershell
+./tests/run_unit_tests.ps1      # unit tests, Blender-free
+./tests/run_tests.ps1           # Blender smoke suite
+./tools/build_zip.ps1           # release zip
+```
 
 ## License
 
@@ -243,3 +274,11 @@ See [LICENSE](LICENSE) for the full text.
 
 You can use it for free, including in commercial projects. If you share a
 modified version, it must stay under the same license.
+
+---
+
+<p align="center">
+  <a href="https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases/latest">
+    <strong>Download the latest release</strong>
+  </a>
+</p>
