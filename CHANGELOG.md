@@ -2,6 +2,17 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.0.2] - 2026-11-24
+
+### Changed
+- An unchecked View, Framing or Resolution override group is a plain checkbox
+  row; checking it turns the row into a collapsible section.
+- Override labels use `Margin` and `Round To` so they fit at the default width.
+
+### Fixed
+- Unchecked override groups no longer leave an expandable empty body or a blank
+  row.
+
 ## [3.0.1] - 2026-11-24
 
 ### Fixed

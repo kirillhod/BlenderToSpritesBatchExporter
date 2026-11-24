@@ -113,8 +113,9 @@ rows and property labels share a narrow column. The reference scene with the
 new toggles off matches the 2.0.4 export pixel for pixel in 5.2.3.
 
 3.0.0 packages the combined 2.1.0-2.3.0 behavior and adds Blender 5.3 to the
-supported and tested versions. 3.0.1 removes the blank row under an unchecked
-but expanded override group. Next work is stage A: animation export for 3.1.0.
+supported and tested versions. 3.0.2 replaces the unchecked override panels with
+plain checkbox rows and removes their blank rows. Next work is stage A:
+animation export for 3.1.0.
 
 ---
 
@@ -495,7 +496,7 @@ not pinned here, because it grows with every stage.
 - cancel during a sequence restores the scene;
 - old scene and old preset load with unchanged output.
 
-At 3.0.1 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
+At 3.0.2 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
 also pass the API probe for File Output nodes, image settings, depsgraph bounds,
 action slots, NLA and `frame_set`.
 
@@ -530,8 +531,9 @@ action slots, NLA and `frame_set`.
 
 2.1.1 was an intermediate build; its changes are included in 2.1.2, so there is
 no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2`, `v2.1.3`, `v2.2.0`,
-`v2.3.0`, `v3.0.0` and `v3.0.1`. Stage O was released on 2026-11-19; stages V
-and C followed on 2026-11-24, with 3.0.1 as the override-spacing patch.
+`v2.3.0`, `v3.0.0`, `v3.0.1` and `v3.0.2`. Stage O was released on 2026-11-19;
+stages V and C followed on 2026-11-24, with 3.0.1 and 3.0.2 as override-spacing
+patches.
 
 The 2.x releases do not change existing output unless the user enables a
 feature. 3.1.0 changes output only when `export_animations` is on.
