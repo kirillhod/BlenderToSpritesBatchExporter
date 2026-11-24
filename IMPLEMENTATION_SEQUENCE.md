@@ -567,8 +567,8 @@ predictable names and content-sized lists.
   and 150% visual check passes.
 - **Done:** 2.3.0 is released and stage V is complete.
 - **Status:** released as 2.3.0. Unit, smoke and zip import checks pass in
-  Blender 5.3.0; the default-width visual check passes with the sidebar widened
-  at 150%. The 5.2.3 check remains open until C1.
+  Blender 5.3.0 and later in 5.2.3 LTS during C1; the default-width visual check
+  passes with the sidebar widened at 150%.
 
 ---
 
@@ -587,6 +587,8 @@ predictable names and content-sized lists.
   6. Add 5.3 to the documented requirements and the test matrix.
 - **Check:** both versions pass; failures have a documented reason.
 - **Done:** 5.3 is supported.
+- **Status:** complete. Unit and smoke pass in 5.2.3 LTS and 5.3; the API probe
+  agrees in both; the reference scene matches 2.0.4 pixels.
 
 ### C2. Version 3.0.0 and tag
 - **Depends:** C1.
@@ -736,9 +738,10 @@ stable canvas.
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
 | Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, clean install | before each tag |
 
-Current results at 2.2.0: the unit suite passes; smoke passes in Blender 5.3;
-the 2.2.0 zip imports, registers and unregisters. The 5.2.3 run is still
-pending because that Blender version is not installed in the test environment.
+Current results at 2.3.0: the unit suite passes; smoke passes in Blender 5.2.3
+LTS and 5.3; the 2.3.0 zip imports, registers and unregisters in both. The
+reference scene with the new toggles off matches the 2.0.4 export pixel for
+pixel.
 
 Minimal local check:
 
@@ -821,12 +824,12 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 - [x] Unknown tokens and name collisions block the export.
 - [x] The path preview matches the written files.
 - [x] Row status shows the view count when it applies.
-- [ ] A 2.0.4 scene opens with the legacy view selected.
-- [ ] The 3x2 view grid fits and the legacy axis control is hidden.
-- [ ] The three override groups collapse; an off View group adds one row.
+- [x] A 2.0.4 scene opens with the legacy view selected.
+- [x] The 3x2 view grid fits and the legacy axis control is hidden.
+- [x] The three override groups collapse; an off View group adds one row.
 - [x] Lists shrink with content; 50 collections still scroll.
 - [x] The UI passes a visual check at the default width; at 150% the sidebar is widened.
-- [ ] The 2.3.0 zip installs and enables in 5.2 and 5.3.
+- [x] The 2.3.0 zip installs and enables in 5.2 and 5.3.
 
 ### 3.0.0
 

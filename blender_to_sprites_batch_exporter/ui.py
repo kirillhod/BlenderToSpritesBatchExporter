@@ -275,7 +275,7 @@ class BTS_PT_MainPanel(Panel):
         row.operator("bts.analyze", icon='VIEWZOOM')
         row.operator("bts.cancel_export", icon='CANCEL')
         row = layout.row(align=True)
-        row.operator("bts.preview_camera", icon='CON_CAMERASOLVER')
+        row.operator("bts.preview_camera", text="Fit Camera", icon='CON_CAMERASOLVER')
         row.operator("bts.cleanup", icon='TRASH')
         layout.operator("bts.restore_collections", icon='LOOP_BACK')
         if is_relative_unsaved(settings.output_dir):
@@ -337,11 +337,13 @@ class BTS_PT_Source(Panel):
                 text="No targets match." if search else "No collections found.",
                 icon='INFO',
             )
-        row = layout.row(align=True)
-        row.operator("bts.targets_all", text="All")
-        row.operator("bts.targets_none", text="None")
-        row.operator("bts.targets_active", text="Active")
-        row.operator("bts.activate_target", text="Make Active", icon='RESTRICT_SELECT_OFF')
+        grid = layout.grid_flow(
+            row_major=True, columns=4, even_columns=True, align=True
+        )
+        grid.operator("bts.targets_all", text="All")
+        grid.operator("bts.targets_none", text="None")
+        grid.operator("bts.targets_active", text="Active")
+        grid.operator("bts.activate_target", text="Activate")
         _left_checkbox(layout, settings, "skip_empty")
 
         layout.separator(factor=0.5)

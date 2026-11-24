@@ -76,3 +76,6 @@ output lists, preflight or rendering. Pure logic belongs in the unit suite.
   hashes.
 - 5.2.3 and 5.3 are separate runs. Record which executable was used; a passing
   5.3 run does not verify 5.2.
+- At 2.3.0 both 5.2.3 LTS and 5.3 pass on Windows x64. When 5.2.3 is not
+  installed, unpack a portable build outside the repository and point
+  `BLENDER_EXE` at it.

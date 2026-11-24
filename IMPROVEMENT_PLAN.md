@@ -105,14 +105,14 @@ Stage V added multi-view and the 2.3.0 UI:
 - `{collection}` and `{axis}` names are validated; unknown tokens and
   sanitized collisions block the export.
 
-Verification at 2.3.0: the unit suite passes, the Blender 5.3 smoke suite
-passes, and the 2.3.0 zip imports, registers and unregisters in 5.3. The
-default-width visual check passes; at 150% the sidebar needs to be widened
-because the two view rows and property labels share a narrow column. The 5.2.3
-side of the matrix remains open until C1. The reference 2.0.4 comparison also
-runs in C1.
+Verification at 2.3.0: the unit suite passes; the smoke suite passes in Blender
+5.2.3 LTS and 5.3; the 2.3.0 zip imports, registers and unregisters in both.
+The default-width visual check passes after the view grid and the target-action
+row were widened; at 150% the sidebar needs to be widened because the two view
+rows and property labels share a narrow column. The reference scene with the
+new toggles off matches the 2.0.4 export pixel for pixel in 5.2.3.
 
-Next work starts at stage C: Blender 5.2.3 and 5.3 verification, then 3.0.0.
+Next work is the 3.0.0 release.
 
 ---
 
@@ -493,8 +493,9 @@ not pinned here, because it grows with every stage.
 - cancel during a sequence restores the scene;
 - old scene and old preset load with unchanged output.
 
-At 2.1.3 the smoke suite passes in Blender 5.3. Blender 5.2.3 is not installed
-in the current environment, so that half of the matrix is still open for C1.
+At 2.3.0 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
+also pass the API probe for File Output nodes, image settings, depsgraph bounds,
+action slots, NLA and `frame_set`.
 
 ### 10.3. Manual checks
 

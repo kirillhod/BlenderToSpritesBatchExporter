@@ -56,7 +56,7 @@ targets, one Always Include collection and no problems.
 | Panel | Open rows | Current contents |
 |---|---:|---|
 | Main | 5-9 | target summary; Export; Analyze and Cancel; Preview Camera and Cleanup; Restore Collections; optional job-status box; optional warnings |
-| Collections | 22-28 | export mode; refresh and search; table header; 3-8 target rows; All, None, Active and Make Active; Skip Empty; three collapsible Overrides groups; Always Include; isolation; keep lights |
+| Collections | 22-28 | export mode; refresh and search; table header; 3-8 target rows; All, None, Active and Activate; Skip Empty; three collapsible Overrides groups; Always Include; isolation; keep lights |
 | Camera & Framing | 6 | six view toggles in a 3x2 grid; margin; auto cleanup; padding mode; padding value |
 | Resolution | 5 | pixels per unit; multiple; square output; min; max |
 | Output & Naming | 14-26 | main or node output; format; overwrite; Path Preview; conflicts |
@@ -90,7 +90,10 @@ muted row says `Overrides: no target selected.`
 
 The target list shrinks to its visible rows. The Always Include list uses 1-3
 rows; an empty list shows one info row. Isolation and Keep Lights sit below the
-Add and Remove buttons.
+Add and Remove buttons. The target actions use one even four-column row so
+`All`, `None`, `Active` and `Activate` stay readable at the default width; the
+long `Fit Camera to Active` and `Remove Camera` operator labels are shortened in
+the Main panel and stay complete in their tooltips.
 
 Target rows have no marker for an active override.
 

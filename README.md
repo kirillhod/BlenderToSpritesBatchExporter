@@ -44,7 +44,7 @@ Blender terms in this guide link to the
 
 ## Requirements
 
-- Blender 5.2.
+- Blender 5.2.3 LTS or 5.3.
 
 ## Installation
 
