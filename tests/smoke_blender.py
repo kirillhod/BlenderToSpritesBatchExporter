@@ -1077,6 +1077,59 @@ def run_override_ui_test():
     )
 
 
+def run_list_density_test():
+    """List rows follow 0/2/50 collections and the search filter."""
+    from blender_to_sprites_batch_exporter import logic, ui
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    settings = scene.bts_settings
+    settings.export_source = "ALL"
+    settings.target_search = ""
+    logic.rebuild_target_items(bpy.context, settings)
+    check(
+        ui._target_row_count(bpy.context, settings) == 0,
+        "Empty scene target rows: %r"
+        % (ui._target_row_count(bpy.context, settings),),
+    )
+
+    body = make_collection("Body")
+    weapon = make_collection("Weapon")
+    add_cube(body, "BodyCube")
+    add_cube(weapon, "WeaponCube")
+    logic.rebuild_target_items(bpy.context, settings)
+    check(
+        ui._target_row_count(bpy.context, settings) == 2,
+        "Two-collection target rows: %r"
+        % (ui._target_row_count(bpy.context, settings),),
+    )
+    check(ui._list_rows(2, 3, 8) == 3, "Two targets should use three rows")
+
+    for index in range(48):
+        make_collection("Filler%02d" % index)
+    logic.rebuild_target_items(bpy.context, settings)
+    check(
+        ui._target_row_count(bpy.context, settings) == 50,
+        "Fifty-collection target rows: %r"
+        % (ui._target_row_count(bpy.context, settings),),
+    )
+    check(ui._list_rows(50, 3, 8) == 8, "Fifty targets should cap at eight rows")
+
+    settings.target_search = "Body"
+    check(
+        ui._target_row_count(bpy.context, settings) == 1,
+        "Search did not reduce target rows",
+    )
+    check(ui._list_rows(1, 3, 8) == 3, "One target should still use three rows")
+    settings.target_search = ""
+
+    check(ui._list_rows(0, 1, 3) == 1, "Empty Always Include should use one row")
+    check(ui._list_rows(0, 1, 4) == 1, "Empty Path Preview should use one row")
+    check(ui._list_rows(4, 1, 4) == 4, "Four preview files should use four rows")
+
+
 def run_collision_test():
     """Collections that sanitize to the same name block the export."""
     from blender_to_sprites_batch_exporter import logic
@@ -1523,6 +1576,7 @@ def run_test():
 
     run_collision_test()
     run_target_list_test()
+    run_list_density_test()
     run_override_property_test()
     run_view_property_test()
     run_multi_view_export_test()

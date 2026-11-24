@@ -37,36 +37,36 @@ All panels use `bl_space_type = 'VIEW_3D'`, `bl_region_type = 'UI'` and
 | Panel | ID | Purpose |
 |---|---|---|
 | Main | `BTS_PT_main` | target summary, export and analyze actions, job status, warnings |
-| Collections | `BTS_PT_source` | export mode, target table, target actions, Overrides block, Always Include, isolation |
-| Camera & Framing | `BTS_PT_camera` | camera axis or view toggles, margin, padding, cleanup |
+| Collections | `BTS_PT_source` | export mode, target table, target actions, three Override groups, Always Include, isolation |
+| Camera & Framing | `BTS_PT_camera` | six view toggles, margin, padding, cleanup |
 | Resolution | `BTS_PT_resolution` | pixels per unit, multiple, square output, min and max size |
 | Output & Naming | `BTS_PT_output` | main and node output, format, Path Preview, conflicts |
 | Problems | `BTS_PT_problems` | every problem, collection and fix hint in full |
 | Presets | `BTS_PT_presets` | built-in preset menu, JSON save and load; closed by default |
 | Log | `BTS_PT_report` | `Copy Log` and `Open Log` only; always open |
 
-The Overrides block is not a panel. It belongs to Collections and appears only
+The Override groups are not panels. They belong to Collections and appear only
 for the visible active target row.
 
 ## Current state
 
-Recorded at 2.2.0, before stage V. V6 updates this section after V5 and V5b. Row counts are approximate and assume two
+Recorded after V5 and V5b (2.3.0). Row counts are approximate and assume two
 targets, one Always Include collection and no problems.
 
 | Panel | Open rows | Current contents |
 |---|---:|---|
 | Main | 5-9 | target summary; Export; Analyze and Cancel; Preview Camera and Cleanup; Restore Collections; optional job-status box; optional warnings |
-| Collections | 25-31 | export mode; refresh and search; table header; 8-row target list; All, None, Active and Make Active; Skip Empty; Overrides block; Always Include; isolation; keep lights |
-| Camera & Framing | 5 | camera axis; margin; auto cleanup; padding mode; padding value |
+| Collections | 22-28 | export mode; refresh and search; table header; 3-8 target rows; All, None, Active and Make Active; Skip Empty; three collapsible Overrides groups; Always Include; isolation; keep lights |
+| Camera & Framing | 6 | six view toggles in a 3x2 grid; margin; auto cleanup; padding mode; padding value |
 | Resolution | 5 | pixels per unit; multiple; square output; min; max |
-| Output & Naming | 13-25 | main or node output; format; overwrite; Path Preview; conflicts |
+| Output & Naming | 14-26 | main or node output; format; overwrite; Path Preview; conflicts |
 | Problems | 1-20 | grouped full messages, collection and fix hint; Analyze and Copy |
 | Presets | 1 | closed header; built-in preset menu and JSON save/load inside |
 | Log | 1 | `Copy Log` and `Open Log` only |
 
-The default open state is typically 55-80 rows before problem messages, or
-1.5-2 sidebar screens at 1080p. The fixed-height lists reserve 18 rows; in the
-sample scene 13 of them are empty.
+The default open state is typically 45-60 rows before problem messages, or
+about one sidebar screen at 1080p. Content-sized lists no longer reserve empty
+rows: the target list uses 3-8 rows and the smaller lists use 1-4.
 
 ### Main
 
@@ -82,26 +82,35 @@ enabled checkbox, the collection name and `Canvas / status`. It shows the
 canvas after Analyze, `skipped` for an empty collection and `disabled` for an
 off target.
 
-The Overrides block is always open and belongs to the visible active row. It
-takes 5 rows when both groups are off and 11 when both are on. When the active
-row is filtered out it is disabled and shows `No target selected.`
+The three Overrides groups belong to the visible active row. View, Framing and
+Resolution are full-width collapsible sections with the group checkbox in the
+header. View starts off and adds one header row; an off group draws no fields
+and no separate `Using global` row. When the active row is filtered out, one
+muted row says `Overrides: no target selected.`
 
-The Always Include list is 3 rows; an empty list shows one info row. Isolation
-and Keep Lights sit below the Add and Remove buttons.
+The target list shrinks to its visible rows. The Always Include list uses 1-3
+rows; an empty list shows one info row. Isolation and Keep Lights sit below the
+Add and Remove buttons.
 
 Target rows have no marker for an active override.
+
+### Camera & Framing
+
+Six view toggles are drawn as a 3x2 grid with short labels and tooltips. The
+legacy `camera_axis` control is hidden but the property remains for presets and
+scripts. Margin, auto cleanup and padding follow the grid.
 
 ### Output & Naming
 
 The main branch draws output directory, name template, format, overwrite,
 transparency, `filter_size` and the open-folder button. The node branch adds
-the compositor toggles, a 3-row node list, naming mode, resolved label,
+the compositor toggles, a 1-3 row node list, naming mode, resolved label,
 warnings, base directory, write-main-output, format, transparency,
 `filter_size`, overwrite, name template and conflicts.
 
-Path Preview is a checkbox with a file count and a 4-row list. The panel mixes
-file settings, File Output node settings and the general render setting
-`render.filter_size`.
+Path Preview is a checkbox with a file count. It draws a 1-4 row list only when
+the checkbox is on and files are planned. The panel mixes file settings, File
+Output node settings and the general render setting `render.filter_size`.
 
 ### Problems, Presets and Log
 
@@ -113,8 +122,9 @@ tooltips. Log is always open and contains only its two buttons.
 
 ### Lists and actions
 
-List heights are fixed: target 8 rows, Always Include 3, Path Preview 4, File
-Output nodes 3. All lists scroll; none shrinks when it has fewer items.
+List heights follow their content: target 3-8 rows, Always Include 1-3,
+Path Preview 1-4, File Output nodes 1-3. All lists scroll. An empty target or
+Always Include list draws one info row instead of an empty `template_list`.
 
 Main uses four action rows. Analyze appears in Main and Problems; Copy appears
 in Problems and Log. Secondary actions such as Preview Camera, Cleanup and
@@ -123,13 +133,11 @@ Restore each have a full row.
 ### Known gaps
 
 - One sidebar category holds all eight panels.
-- Overrides are always expanded and have no collapsed summary.
 - Target rows do not show which targets have active overrides.
-- Lists keep their fixed height with few items.
 - A running job has no progress bar.
 - `render.filter_size` is duplicated outside the Render properties.
-- View toggles are not in the UI yet; `camera_axis` remains the visible control
-  until V5. Animation controls arrive with 3.1.
+- Collapsed override groups show only their label and checkbox, not the values
+  they contain. Animation controls arrive with 3.1.
 
 ## Layout rules
 
@@ -155,11 +163,10 @@ Restore each have a full row.
 - A skipped target shows the short `skipped` marker and stays compact.
 - Path Preview and File Output node information are compact lists, not boxes
   that grow with the data.
-- Current heights: target list 8 rows, Always Include 3, Path Preview 4,
-  File Output nodes 3. All lists scroll. Do not change these numbers without
-  updating this section.
-- V5b of 2.3.0 is planned to use content-sized rows (`rows = max(3, min(8,
-  visible))`); that change updates this section and the Current state table.
+- List heights follow their content: target `max(3, min(8, visible))`,
+  Always Include 1-3, Path Preview 1-4, File Output nodes 1-3. All lists
+  scroll. Draw one info row instead of an empty `template_list`.
+- Keep `filter_items` and the export-mode filter intact when changing heights.
 - `template_list(type='COMPACT')` disables `filter_items`. The target list must
   stay `DEFAULT`, because search and export-mode filtering depend on it.
 
@@ -245,7 +252,7 @@ python -m unittest discover -s tests -p "test_*.py"
 Then run the Blender smoke suite as described in
 [docs/agent/smoke.md](smoke.md). It covers the panel draw path, known icon
 names, tooltip strings, the 50-collection scene, the target table, output
-lists and the Overrides block.
+lists, the three Override groups and the view grid.
 
 If a panel starts using `layout.panel` or `layout.panel_prop`, update
 `_FakeLayout` in `tests/smoke_blender.py` so both methods return
@@ -260,9 +267,9 @@ Do not claim a UI change is complete from the draw probe alone.
 
 ## Improvement proposals
 
-Proposals are not all approved. P1.1, P1.2 and P1.7 are planned for 2.3.0 as
-V5b and V5. The detailed catalog, estimates and variants are in
-[ui-proposals.md](ui-proposals.md); the rest is unscheduled.
+P1.1, P1.2 and P1.7 are implemented in 2.3.0 as V5b and V5. The detailed
+catalog, estimates and variants are in [ui-proposals.md](ui-proposals.md); the
+rest is unscheduled.
 
 ## Related documents
 

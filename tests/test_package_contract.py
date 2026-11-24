@@ -266,8 +266,10 @@ class UiTextContractTest(unittest.TestCase):
         self.assertIn('"BTS_UL_Preview"', source)
         self.assertIn('"BTS_UL_NodeOutputs"', source)
         self.assertIn('"show_path_preview"', source)
-        self.assertIn("rows=4", source)
-        self.assertIn("rows=3", source)
+        self.assertIn("_list_rows(visible_rows, 3, 8)", source)
+        self.assertIn("_list_rows(count, 1, 4)", source)
+        self.assertIn("_list_rows(len(include_items), 1, 3)", source)
+        self.assertIn("_list_rows(len(nodes), 1, 3)", source)
         self.assertNotIn("_draw_preview", source)
         self.assertNotIn("active File Output node(s)", source)
 
@@ -284,6 +286,15 @@ class UiHelperTest(unittest.TestCase):
             ui._target_status_text("no renderable geometry"),
             "Skipped: no renderable geometry",
         )
+
+    def test_list_rows_shrink_to_content_and_respect_bounds(self):
+        self.assertEqual(ui._list_rows(0, 1, 3), 1)
+        self.assertEqual(ui._list_rows(2, 1, 3), 2)
+        self.assertEqual(ui._list_rows(50, 1, 3), 3)
+        self.assertEqual(ui._list_rows(0, 3, 8), 3)
+        self.assertEqual(ui._list_rows(2, 3, 8), 3)
+        self.assertEqual(ui._list_rows(50, 3, 8), 8)
+        self.assertEqual(ui._list_rows(4, 1, 4), 4)
 
     def test_compact_target_status_fits_the_status_column(self):
         self.assertEqual(ui._target_status_text("512x304", compact=True), "512x304")

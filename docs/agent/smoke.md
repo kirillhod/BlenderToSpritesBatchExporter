@@ -54,6 +54,7 @@ The entry point is `run_test()` in `tests/smoke_blender.py`. It calls:
 | `run_compositor_test` | File Output nodes, isolated render |
 | `run_analysis_and_cancel_test` | analysis cache, cancellation, restore |
 | `run_target_list_test` | target rows, enabled flags, All/None |
+| `run_list_density_test` | 0/2/50 collections, search, content-sized lists |
 | `run_override_property_test` | override seeding, analysis token, .blend persistence |
 | `run_view_property_test` | view migration, View override, empty-view preflight |
 | `run_multi_view_export_test` | four axes, shared canvas, axis names, node suffix |

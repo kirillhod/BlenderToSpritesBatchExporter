@@ -80,6 +80,27 @@ def _target_counts(context, settings):
     return sum(1 for item in items if item.enabled), len(items)
 
 
+def _list_rows(count, minimum, maximum):
+    """Content-sized list height, clamped to a stable range."""
+    return max(int(minimum), min(int(maximum), int(count)))
+
+
+def _target_row_count(context, settings):
+    """Rows visible after the export-mode and search filters."""
+    try:
+        names = {
+            collection.name
+            for collection in gather_source_collections(context, settings)
+        }
+        items = [item for item in settings.target_items if item.name in names]
+    except Exception:  # noqa: BLE001
+        items = list(settings.target_items)
+    search = str(getattr(settings, "target_search", "") or "").strip().casefold()
+    if search:
+        items = [item for item in items if search in item.name.casefold()]
+    return len(items)
+
+
 def _active_target_item(context, settings):
     """Selected target row, or None when it is not visible right now."""
     try:
@@ -295,20 +316,28 @@ class BTS_PT_Source(Panel):
         list_layout = layout.column()
         list_layout.use_property_split = False
         list_layout.use_property_decorate = False
-        header_row = list_layout.row(align=True)
-        header_row.label(icon='BLANK1')
-        split = header_row.split(factor=_TARGET_NAME_FACTOR, align=True)
-        split.label(text="Collection", icon='OUTLINER_COLLECTION')
-        split.label(text="Canvas / status")
-        list_layout.template_list(
-            "BTS_UL_Targets",
-            "",
-            settings,
-            "target_items",
-            settings,
-            "active_target_index",
-            rows=8,
-        )
+        visible_rows = _target_row_count(context, settings)
+        if visible_rows:
+            header_row = list_layout.row(align=True)
+            header_row.label(icon='BLANK1')
+            split = header_row.split(factor=_TARGET_NAME_FACTOR, align=True)
+            split.label(text="Collection", icon='OUTLINER_COLLECTION')
+            split.label(text="Canvas / status")
+            list_layout.template_list(
+                "BTS_UL_Targets",
+                "",
+                settings,
+                "target_items",
+                settings,
+                "active_target_index",
+                rows=_list_rows(visible_rows, 3, 8),
+            )
+        else:
+            search = str(getattr(settings, "target_search", "") or "").strip()
+            list_layout.label(
+                text="No targets match." if search else "No collections found.",
+                icon='INFO',
+            )
         row = layout.row(align=True)
         row.operator("bts.targets_all", text="All")
         row.operator("bts.targets_none", text="None")
@@ -332,7 +361,7 @@ class BTS_PT_Source(Panel):
                 "always_include_items",
                 settings,
                 "active_include_index",
-                rows=3,
+                rows=_list_rows(len(include_items), 1, 3),
             )
         row = layout.row(align=True)
         row.operator("bts.add_always_include", text="Add Active", icon='ADD')
@@ -505,17 +534,16 @@ class BTS_PT_Output(Panel):
             "node_items",
             settings,
             "active_node_index",
-            rows=3,
+            rows=_list_rows(len(nodes), 1, 3),
         )
 
     def _draw_path_preview(self, layout, settings):
-        if not len(settings.preview_items):
-            return
+        count = len(settings.preview_items)
         row = layout.row()
         row.use_property_split = False
         row.prop(settings, "show_path_preview", text="Path Preview")
-        row.label(text=f"{len(settings.preview_items)} file(s)")
-        if not settings.show_path_preview:
+        row.label(text=f"{count} file(s)")
+        if not settings.show_path_preview or count == 0:
             return
         list_layout = layout.column()
         list_layout.use_property_split = False
@@ -531,7 +559,7 @@ class BTS_PT_Output(Panel):
             "preview_items",
             settings,
             "active_preview_index",
-            rows=4,
+            rows=_list_rows(count, 1, 4),
         )
 
     def _draw_format(self, layout, settings):

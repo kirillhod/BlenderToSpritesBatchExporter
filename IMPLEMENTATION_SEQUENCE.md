@@ -550,6 +550,8 @@ predictable names and content-sized lists.
   50-collection scene still scrolls, and search and export-mode filtering still
   work.
 - **Done:** lists no longer reserve empty rows.
+- **Status:** implemented; unit and smoke tests pass. The 100% and 150% visual
+  check is still pending.
 
 ### V6. Tests and documentation
 - **Depends:** V1-V5b.
