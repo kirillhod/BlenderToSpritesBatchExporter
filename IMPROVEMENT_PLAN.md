@@ -281,6 +281,7 @@ orthographic camera view.
   so the grid stays readable and becomes a pixel grid at high zoom.
 - It reads the current render resolution. In Preview it follows the active
   collection's canvas and overrides; with the toggle off, output is unchanged.
+- 3.2.1 adds a dark resolution badge at the top-right of the canvas frame.
 - The grid handler is registered with the add-on and removed on unload.
 
 ---
@@ -532,7 +533,7 @@ not pinned here, because it grows with every stage.
 - cancel during a sequence restores the scene;
 - old scene and old preset load with unchanged output.
 
-At 3.2.0 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
+At 3.2.1 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
 also pass the API probe for File Output nodes, image settings, depsgraph bounds,
 action slots, NLA and `frame_set`.
 
@@ -569,15 +570,15 @@ action slots, NLA and `frame_set`.
 
 2.1.1 was an intermediate build; its changes are included in 2.1.2, so there is
 no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2`, `v2.1.3`, `v2.2.0`,
-`v2.3.0`, `v3.0.0`, `v3.0.1`, `v3.0.2`, `v3.0.3`, `v3.1.0`, `v3.1.1`, `v3.1.2`
-and `v3.2.0`. Stage O was released on 2026-11-19; stages V and C followed on
-2026-11-24, with 3.0.1-3.0.3 as override and list patches. 3.1.0 adds the
-viewport preview; 3.1.1 and 3.1.2 fix its target switching and update rate;
-3.2.0 adds the canvas grid.
+`v2.3.0`, `v3.0.0`, `v3.0.1`, `v3.0.2`, `v3.0.3`, `v3.1.0`, `v3.1.1`, `v3.1.2`,
+`v3.2.0` and `v3.2.1`. Stage O was released on 2026-11-19; stages V and C
+followed on 2026-11-24, with 3.0.1-3.0.3 as override and list patches. 3.1.0
+adds the viewport preview; 3.1.1 and 3.1.2 fix its target switching and update
+rate; 3.2.0 adds the canvas grid and 3.2.1 adds its resolution badge.
 
 The 2.x releases do not change existing output unless the user enables a
-feature. 3.2.0 is a viewport guide and changes no output. 3.3.0 changes output
-only when `export_animations` is on.
+feature. 3.2.0 and 3.2.1 are viewport guides and change no output. 3.3.0 changes
+output only when `export_animations` is on.
 
 ---
 
@@ -693,6 +694,13 @@ only when `export_animations` is on.
 - Preview shows the active collection's canvas and overrides in the grid.
 - README, CHANGELOG, manifest and package contract use 3.2.0.
 
+### 3.2.1
+
+- The Canvas Grid overlay shows the current canvas resolution at the frame.
+- The badge follows Preview and overrides and stays visible when the frame edge
+  is off-screen.
+- README, CHANGELOG, manifest and package contract use 3.2.1.
+
 ### 3.3.0
 
 - Every action of a collection is exported over its own frame range.
@@ -708,7 +716,7 @@ only when `export_animations` is on.
 ## 14. Summary
 
 The 2.x work made the exporter safe. Version 3 makes it comfortable and
-expressive without turning it into a platform. Releases 2.1.0-3.2.0 complete the
+expressive without turning it into a platform. Releases 2.1.0-3.2.1 complete the
 interface, override, view, compatibility, preview and grid stages; the
 remaining stage is animation (3.3.0).
 

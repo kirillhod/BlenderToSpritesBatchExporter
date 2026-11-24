@@ -2,6 +2,13 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.2.1] - 2026-11-24
+
+### Added
+- The Canvas Grid overlay shows the current canvas resolution as a small dark
+  badge at the top-right of the frame. It follows Preview and its overrides and
+  stays visible when the frame edge is off-screen.
+
 ## [3.2.0] - 2026-11-24
 
 ### Added

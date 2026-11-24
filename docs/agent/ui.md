@@ -51,7 +51,7 @@ for the visible active target row.
 
 ## Current state
 
-Recorded after 3.2.0. Row counts are approximate and assume two targets, one
+Recorded after 3.2.1. Row counts are approximate and assume two targets, one
 Always Include collection and no problems.
 
 | Panel | Open rows | Current contents |

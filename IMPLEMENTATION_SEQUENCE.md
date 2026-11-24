@@ -4,7 +4,7 @@ Date: 2026-11-11
 Base: `IMPROVEMENT_PLAN.md` (v3 revision, 2026-11-11)
 Baseline add-on version: 2.0.4
 Target releases: 2.1.0, 2.1.1, 2.1.2, 2.1.3, 2.2.0, 2.3.0, 3.0.0, 3.1.0,
-3.1.1, 3.1.2, 3.2.0, 3.3.0
+3.1.1, 3.1.2, 3.2.0, 3.2.1, 3.3.0
 
 The repository uses `main` as its default branch. `feature/improvements-v3`
 was created from `origin/main` at `1710a0e`. Stage U is implemented and
@@ -109,7 +109,7 @@ S0 baseline
  |                    |
  |                    +-- P1  viewport preview (3.1.0)
  |                    |      |
- |                    |      +-- G1  canvas grid (3.2.0)
+ |                    |      +-- G1  canvas grid (3.2.0-3.2.1)
  |                    |             |
  |                    |             +-- A1-A8  animation (3.3.0)
 ```
@@ -744,12 +744,12 @@ stable canvas.
 | Smoke naming | tokens, padding, unknown token, auto suffix, collisions | V |
 | Smoke 5.3 | install, render, nodes, action slots, NLA | C1 and A8 |
 | Smoke preview | camera mode, target isolation, row switching, immediate refresh, export exit, restore; camera view is GUI-only | 3.1.2 |
-| Smoke grid | property and panel draw; overlay, adaptive step and clipping are GUI-only | 3.2.0 |
+| Smoke grid | property and panel draw; overlay, adaptive step, resolution badge and clipping are GUI-only | 3.2.1 |
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
 | Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, canvas grid, clean install | before each tag |
 
-Current results at 3.2.0: the unit suite passes; smoke passes in Blender 5.2.3
-LTS and 5.3; the 3.2.0 zip imports, registers and unregisters in both. The
+Current results at 3.2.1: the unit suite passes; smoke passes in Blender 5.2.3
+LTS and 5.3; the 3.2.1 zip imports, registers and unregisters in both. The
 reference scene with the new toggles off matches the 2.0.4 export pixel for
 pixel.
 
@@ -780,6 +780,7 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 | M4b | viewport preview | 3.1.0 |
 | M4c | preview target and refresh fixes | 3.1.2 |
 | M4d | canvas grid | 3.2.0 |
+| M4e | canvas resolution badge | 3.2.1 |
 | M5 | animation | 3.3.0-dev |
 | M6 | 3.3.0 released | 3.3.0 |
 
@@ -900,6 +901,13 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 - [x] The grid stays clipped at fit, zoomed in and zoomed out in 5.2.3 and 5.3.
 - [x] The 3.2.0 zip installs, exports and unregisters in 5.2.3 and 5.3.
 
+### 3.2.1
+
+- [x] The canvas resolution is shown at the top-right of the grid frame.
+- [x] The badge follows Preview and overrides and stays visible when the frame
+  edge is off-screen.
+- [x] The 3.2.1 zip installs, exports and unregisters in 5.2.3 and 5.3.
+
 ### 3.3.0
 
 - [ ] Two actions of one collection export over their own ranges.
@@ -951,10 +959,11 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 ## 14. Next working day
 
 Stage C and the 3.0.x patches are complete; 3.1.0 adds the viewport preview,
-3.1.1-3.1.2 fix target switching, refresh rate and export safety, and 3.2.0 adds
-the canvas grid. The next work is stage A (3.3.0):
+3.1.1-3.1.2 fix target switching, refresh rate and export safety, 3.2.0 adds the
+canvas grid and 3.2.1 adds its resolution badge. The next work is stage A
+(3.3.0):
 
-1. Confirm the clean tree, `v3.2.0` and the 3.2.0 zip.
+1. Confirm the clean tree, `v3.2.1` and the 3.2.1 zip.
 2. Start A1: animation properties, frame sampling and action discovery.
 3. Keep the current view, override and naming behavior unchanged when
    `export_animations` is off.
@@ -1007,3 +1016,5 @@ the canvas grid. The next work is stage A (3.3.0):
 - **Check:** the grid stays clipped to the canvas at fit, zoomed in and zoomed
   out; it does not render or change output; 5.2.3 and 5.3 pass.
 - **Done:** 3.2.0 is released.
+- **Status:** 3.2.1 adds the canvas resolution badge at the top-right of the
+  frame.
