@@ -85,6 +85,8 @@ output lists, preflight or rendering. Pure logic belongs in the unit suite.
 - Preview value drags refresh immediately. Update smoothness needs a GUI; it is
   checked with a timer that changes a framing value and records camera updates.
 - Canvas grid drawing and its adaptive step need a GUI; check camera view and
-  Preview at fit, zoomed in and zoomed out.
+  Preview at fit, zoomed in and zoomed out, and confirm the resolution badge
+  sits above the frame's top-left corner and stays visible when the frame top
+  leaves the view.
 - Preview shows a target object hidden in the Outliner and restores both hide
   states on exit.

@@ -2,6 +2,13 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.2.4] - 2026-11-24
+
+### Changed
+- The Canvas Grid resolution badge moved above the frame's top-left corner,
+  outside the canvas, so it never covers framed content. When the frame top
+  leaves the view, the badge pins to the top of the viewport.
+
 ## [3.2.3] - 2026-11-24
 
 ### Fixed

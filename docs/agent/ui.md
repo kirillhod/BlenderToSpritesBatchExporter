@@ -51,7 +51,7 @@ for the visible active target row.
 
 ## Current state
 
-Recorded after 3.2.3. Row counts are approximate and assume two targets, one
+Recorded after 3.2.4. Row counts are approximate and assume two targets, one
 Always Include collection and no problems.
 
 | Panel | Open rows | Current contents |
@@ -109,9 +109,9 @@ target, override or depsgraph changes and shows the first active
 view. A row change switches it; hiding collections resets the Outliner
 selection, so the row is read first and the Outliner is put back. Exit,
 leaving camera view, saving or unloading restores camera, resolution, visibility
-and view state. The mode is not saved. The **Canvas Grid** checkbox next to
-Preview draws adaptive canvas-pixel lines, a center cross and the current
-resolution at the border; it follows the Preview canvas and does not render.
+and view state. The mode is not saved. **Canvas Grid** next to Preview draws
+adaptive canvas-pixel lines, a center cross and the resolution in a badge above
+the frame's top-left corner; it follows the Preview canvas and does not render.
 
 ### Camera & Framing
 

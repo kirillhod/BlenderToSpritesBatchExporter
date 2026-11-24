@@ -131,9 +131,7 @@ def _draw_overlay():
         _draw_lines(shader, grid, _GRID_COLOR)
         _draw_lines(shader, frame_lines, _FRAME_COLOR)
         _draw_lines(shader, center, _CENTER_COLOR)
-        _draw_resolution(
-            shader, region, res_x, res_y, right, bottom, top
-        )
+        _draw_resolution(shader, region, res_x, res_y, x0, y1)
     finally:
         gpu.state.line_width_set(line_width)
         gpu.state.blend_set(blend)
@@ -273,18 +271,71 @@ def _draw_rect(shader, x, y, width, height, color):
     batch.draw(shader)
 
 
-def _draw_resolution(shader, region, res_x, res_y, right, bottom, top):
-    """Draw the canvas resolution inside the frame at its top-right."""
+def _content_rect(area, region):
+    """Return the visible 3D View content rect in region pixels.
+
+    The WINDOW region spans the whole area, so headers and toolbars drawn over
+    it are subtracted to keep the badge inside the viewport.
+    """
+    width = float(region.width)
+    height = float(region.height)
+    if area is None:
+        return 0.0, width, 0.0, height
+    area_x = float(area.x)
+    area_y = float(area.y)
+    area_width = float(area.width)
+    top = height
+    bottom = 0.0
+    for other in getattr(area, "regions", ()):
+        if other.type == 'WINDOW' or other.width <= 1 or other.height <= 1:
+            continue
+        if abs(float(other.width) - area_width) > 1.0:
+            continue
+        y0 = float(other.y) - area_y
+        y1 = y0 + float(other.height)
+        if y0 >= height / 2.0:
+            top = min(top, y0)
+        elif y1 <= height / 2.0:
+            bottom = max(bottom, y1)
+    left = 0.0
+    right = width
+    for other in getattr(area, "regions", ()):
+        if other.type == 'WINDOW' or other.width <= 1 or other.height <= 1:
+            continue
+        x0 = float(other.x) - area_x
+        y0 = float(other.y) - area_y
+        x1 = x0 + float(other.width)
+        y1 = y0 + float(other.height)
+        if y0 > 1.0 or y1 < top - 1.0:
+            continue
+        if x0 <= 1.0:
+            left = max(left, x1)
+        elif x1 >= width - 1.0:
+            right = min(right, x0)
+    if right - left < 8.0 or top - bottom < 8.0:
+        return 0.0, width, 0.0, height
+    return left, right, bottom, top
+
+
+def _draw_resolution(shader, region, res_x, res_y, x0, y1):
+    """Draw the canvas resolution above the frame's top-left corner.
+
+    The label stays outside the canvas so it never hides framed content. When
+    the frame top is off screen or too close to the viewport top, the label
+    pins to the top of the visible viewport instead.
+    """
     text = "%dx%d" % (int(res_x), int(res_y))
     blf.size(0, 11)
     text_w, text_h = blf.dimensions(0, text)
     pad = 4.0
     box_w = float(text_w) + pad * 2.0
     box_h = float(text_h) + pad * 2.0
-    x = right - box_w - 6.0
-    y = top - box_h - 6.0
-    x = max(2.0, min(x, float(region.width) - box_w - 2.0))
-    y = max(bottom + 2.0, min(y, float(region.height) - box_h - 2.0))
+    left, right, bottom, top = _content_rect(
+        getattr(bpy.context, "area", None), region
+    )
+    x = max(left + 2.0, min(float(x0), right - box_w - 2.0))
+    y = min(float(y1) + 6.0, top - box_h - 2.0)
+    y = max(bottom + 2.0, y)
     _draw_rect(shader, x, y, box_w, box_h, _LABEL_BG)
     blf.color(0, *_LABEL_TEXT)
     blf.position(0, x + pad, y + pad, 0)

@@ -126,9 +126,10 @@ reach the rendered frames.
 
 Turn on **Canvas Grid** next to **Preview** in **Collections** to draw the
 orthographic camera canvas as a grid in camera view. The outer frame is the
-output canvas, its resolution is shown at the top edge, lines snap to output
-pixels and the step grows as you zoom out. In Preview it follows the active
-collection's canvas and overrides. It is a viewport guide and is not rendered.
+output canvas, its resolution is shown in a badge above the top-left corner of
+the frame, lines snap to output pixels and the step grows as you zoom out. In
+Preview it follows the active collection's canvas and overrides. It is a
+viewport guide and is not rendered.
 
 ### Per-collection overrides
 

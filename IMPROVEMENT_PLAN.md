@@ -29,7 +29,7 @@ Version 3 does seven things:
 | 7 | Blender 5.3 compatibility | 3.0.0 |
 
 Releases are incremental: **2.1.0-2.1.3**, **2.2.0**, **2.3.0**, **3.0.0**,
-**3.1.0-3.1.2**, **3.2.0** and **3.3.0**.
+**3.1.0-3.1.2**, **3.2.0-3.2.4** and **3.3.0**.
 
 Each stage ships a testable build instead of waiting for the final release. UI
 cleanup is 2.1.0 with review patches through 2.1.3, overrides are 2.2.0,
@@ -118,8 +118,8 @@ new toggles off matches the 2.0.4 export pixel for pixel in 5.2.3.
 supported and tested versions. 3.0.2 replaces the unchecked override panels with
 plain checkbox rows and removes their blank rows; 3.0.3 marks override targets
 in the list; 3.1.0 adds the viewport preview; 3.1.1 and 3.1.2 fix its target
-switching and update rate; 3.2.0 adds the canvas grid. Next work is stage A:
-animation export for 3.3.0.
+switching and update rate; 3.2.0 adds the canvas grid, with 3.2.1-3.2.4 as badge,
+toggle and preview patches. Next work is stage A: animation export for 3.3.0.
 
 ---
 
@@ -283,8 +283,9 @@ orthographic camera view.
   so the grid stays readable and becomes a pixel grid at high zoom.
 - It reads the current render resolution. In Preview it follows the active
   collection's canvas and overrides; with the toggle off, output is unchanged.
-- 3.2.1 adds a dark resolution badge at the top-right of the canvas frame.
+- 3.2.1 adds a dark resolution badge at the canvas frame.
 - 3.2.2 moves the toggle next to Preview in Collections.
+- 3.2.4 moves the badge above the frame's top-left corner, outside the canvas.
 - The grid handler is registered with the add-on and removed on unload.
 
 ---
@@ -536,7 +537,7 @@ not pinned here, because it grows with every stage.
 - cancel during a sequence restores the scene;
 - old scene and old preset load with unchanged output.
 
-At 3.2.3 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
+At 3.2.4 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
 also pass the API probe for File Output nodes, image settings, depsgraph bounds,
 action slots, NLA and `frame_set`.
 
@@ -574,15 +575,15 @@ action slots, NLA and `frame_set`.
 2.1.1 was an intermediate build; its changes are included in 2.1.2, so there is
 no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2`, `v2.1.3`, `v2.2.0`,
 `v2.3.0`, `v3.0.0`, `v3.0.1`, `v3.0.2`, `v3.0.3`, `v3.1.0`, `v3.1.1`, `v3.1.2`,
-`v3.2.0`, `v3.2.1`, `v3.2.2` and `v3.2.3`. Stage O was released on 2026-11-19;
-stages V and C followed on 2026-11-24, with 3.0.1-3.0.3 as override and list
-patches. 3.1.0 adds the viewport preview; 3.1.1 and 3.1.2 fix its target
-switching and update rate; 3.2.0 adds the canvas grid, 3.2.1 adds its resolution
-badge, 3.2.2 moves the toggle next to Preview and 3.2.3 shows hidden target
-objects.
+`v3.2.0`, `v3.2.1`, `v3.2.2`, `v3.2.3` and `v3.2.4`. Stage O was released on
+2026-11-19; stages V and C followed on 2026-11-24, with 3.0.1-3.0.3 as override
+and list patches. 3.1.0 adds the viewport preview; 3.1.1 and 3.1.2 fix its
+target switching and update rate; 3.2.0 adds the canvas grid, 3.2.1 adds its
+resolution badge, 3.2.2 moves the toggle next to Preview, 3.2.3 shows hidden
+target objects and 3.2.4 moves the badge above the frame's top-left corner.
 
 The 2.x releases do not change existing output unless the user enables a
-feature. 3.2.0-3.2.3 are viewport guides and change no output. 3.3.0 changes
+feature. 3.2.0-3.2.4 are viewport guides and change no output. 3.3.0 changes
 output only when `export_animations` is on.
 
 ---
@@ -718,6 +719,12 @@ output only when `export_animations` is on.
   Outliner; both viewport hide states are restored on exit.
 - README, CHANGELOG, manifest and package contract use 3.2.3.
 
+### 3.2.4
+
+- The resolution badge sits above the frame's top-left corner, outside the
+  canvas; it pins to the viewport top when the frame top leaves the view.
+- README, CHANGELOG, manifest and package contract use 3.2.4.
+
 ### 3.3.0
 
 - Every action of a collection is exported over its own frame range.
@@ -733,7 +740,7 @@ output only when `export_animations` is on.
 ## 14. Summary
 
 The 2.x work made the exporter safe. Version 3 makes it comfortable and
-expressive without turning it into a platform. Releases 2.1.0-3.2.3 complete the
+expressive without turning it into a platform. Releases 2.1.0-3.2.4 complete the
 interface, override, view, compatibility, preview and grid stages; the
 remaining stage is animation (3.3.0).
 
