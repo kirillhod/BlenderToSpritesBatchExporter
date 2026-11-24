@@ -2,6 +2,15 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.1.1] - 2026-11-24
+
+### Fixed
+- Preview follows the selected target row while it is on. Hiding collections
+  resets the Outliner active collection, which made the preview report
+  `Select a collection in the Outliner.` and could switch to a parent
+  collection after selecting another row.
+- The Outliner stays on the previewed collection during and after preview.
+
 ## [3.1.0] - 2026-11-24
 
 ### Added

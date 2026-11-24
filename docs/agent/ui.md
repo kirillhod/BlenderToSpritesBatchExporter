@@ -101,13 +101,14 @@ the Main panel and stay complete in their tooltips.
 Target rows show the override marker before the status when at least one group
 is on.
 
-The **Preview** button switches the 3D View to camera view for the active
-Outliner collection. It uses the export frame and overrides, hides other
-collections and keeps lights visible. It is not a render: the current shading is
-used and no files are written. A timer refreshes after target, override or
-depsgraph changes; the first active view is shown. Exit Preview, leaving camera
-view, saving or unloading restores the camera, resolution, visibility and view
-state. The mode is not saved.
+The **Preview** button switches the 3D View to camera view for the selected
+target row and uses the export frame and overrides. It hides other collections,
+keeps lights visible, uses current shading, writes no files. It refreshes after
+target, override or depsgraph changes and shows the first active
+view. A row change switches it; hiding collections resets the Outliner
+selection, so the row is read first and the Outliner is put back. Exit,
+leaving camera view, saving or unloading restores camera, resolution, visibility
+and view state. The mode is not saved.
 
 ### Camera & Framing
 

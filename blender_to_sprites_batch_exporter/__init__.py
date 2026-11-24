@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Blender To Sprites Batch Exporter",
     "author": "kirillhod",
-    "version": (3, 1, 0),
+    "version": (3, 1, 1),
     "blender": (5, 2, 0),
     "location": "View3D > Sidebar (N) > Batch Export",
     "description": "Batch render collections to sprites with an auto-fitted orthographic camera.",

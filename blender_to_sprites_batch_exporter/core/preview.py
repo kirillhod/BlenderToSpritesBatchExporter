@@ -22,7 +22,7 @@ from .scene import (
     objects_in_collection,
     resolve_lc,
 )
-from .targets import get_target_item
+from .targets import find_layer_collection, get_target_item
 
 _PREVIEWS = {}
 _DIRTY = set()
@@ -53,13 +53,53 @@ def preview_depsgraph_handler(scene=None, *_args):
         _DIRTY.add(scene.as_pointer())
 
 
-def _active_collection(view_layer):
+def _active_layer(view_layer):
     layer_collection = getattr(view_layer, "active_layer_collection", None)
     if layer_collection is None:
         return None
     if layer_collection == view_layer.layer_collection:
         return None
-    return getattr(layer_collection, "collection", None)
+    return layer_collection
+
+
+def _row_layer(settings, view_layer):
+    """Layer collection of the active target row, if it exists."""
+    items = getattr(settings, "target_items", None) or ()
+    index = int(getattr(settings, "active_target_index", 0) or 0)
+    if not 0 <= index < len(items):
+        return None
+    name = str(getattr(items[index], "name", "") or "")
+    if not name:
+        return None
+    return find_layer_collection(view_layer, name)
+
+
+def _target_layer(settings, view_layer):
+    """Resolve the preview target. The selected row wins over the Outliner.
+
+    Hiding collections resets the Outliner active collection to the root or to
+    an ancestor. Reading the row first keeps the preview on the collection the
+    user picked while the list stays the source of truth.
+    """
+    candidates = (_row_layer(settings, view_layer), _active_layer(view_layer))
+    for layer_collection in candidates:
+        if layer_collection is None:
+            continue
+        collection = getattr(layer_collection, "collection", None)
+        if collection is not None:
+            return collection, layer_collection
+    return None, None
+
+
+def _keep_active(view_layer, layer_collection):
+    """Put the Outliner active collection back on the preview target."""
+    if layer_collection is None:
+        return
+    try:
+        if view_layer.active_layer_collection != layer_collection:
+            view_layer.active_layer_collection = layer_collection
+    except Exception:  # noqa: BLE001 - selection is best effort
+        pass
 
 
 def _find_view3d(context):
@@ -206,7 +246,11 @@ def enter_preview(context, collection=None):
     scene = context.scene
     settings = scene.bts_settings
     view_layer = context.view_layer
-    target = collection if collection is not None else _active_collection(view_layer)
+    if collection is not None:
+        target = collection
+        layer = find_layer_collection(view_layer, target.name)
+    else:
+        target, layer = _target_layer(settings, view_layer)
     if target is None:
         return False, "Select a collection in the Outliner."
     data, error = _frame_data(context, settings, target)
@@ -244,6 +288,7 @@ def enter_preview(context, collection=None):
         if not _isolate(view_layer, target, keep):
             exit_preview(scene=scene)
             return False, "%s is not in the view layer." % target.name
+        _keep_active(view_layer, layer)
 
         if space is not None and region_3d is not None:
             try:
@@ -280,6 +325,12 @@ def exit_preview(context=None, scene=None):
 
     view_layer = state["view_layer"]
     _restore_visibility(view_layer, state["layers"], state["objects"])
+    target_layer = (
+        find_layer_collection(view_layer, state["collection"])
+        if state.get("collection")
+        else None
+    )
+    _keep_active(view_layer, target_layer)
 
     try:
         scene.camera = state["camera"]
@@ -342,9 +393,9 @@ def refresh_preview(scene=None):
             return
 
     view_layer = state["view_layer"]
-    target = _active_collection(view_layer)
+    settings = scene.bts_settings
+    target, layer = _target_layer(settings, view_layer)
     if target is None:
-        state["message"] = "Select a collection in the Outliner."
         return
 
     dirty = key in _DIRTY
@@ -357,7 +408,7 @@ def refresh_preview(scene=None):
     if getattr(context, "scene", None) is not scene:
         return
     try:
-        data, error = _frame_data(context, scene.bts_settings, target)
+        data, error = _frame_data(context, settings, target)
     except Exception as exc:  # noqa: BLE001
         state["message"] = str(exc)
         return
@@ -372,6 +423,10 @@ def refresh_preview(scene=None):
             state["message"] = "%s is not in the view layer." % target.name
             return
         state["collection"] = target.name
+        # Hiding collections resets the Outliner active collection; put it back
+        # only after our own visibility writes, so an Outliner click survives
+        # until the target sync updates the row.
+        _keep_active(view_layer, layer)
 
     _apply_frame(state, target, data)
 

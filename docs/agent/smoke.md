@@ -61,7 +61,7 @@ The entry point is `run_test()` in `tests/smoke_blender.py`. It calls:
 | `run_view_override_export_test` | six global axes, a two-view target override, per-collection canvases |
 | `run_override_export_test` | per-collection padding/PPU, report, no-override fallback |
 | `run_override_ui_test` | active override row, three collapsible groups, view grid, search and export-mode filters, draw path |
-| `run_preview_test` | preview camera, target isolation, resolution and camera view; exit restores the scene |
+| `run_preview_test` | preview camera, target isolation, resolution and camera view; row switching keeps the target and Outliner selection; exit restores the scene |
 | `run_collision_test` | sanitized name collisions block the export; temporary camera |
 | `run_target_sync_test` | automatic sync and Outliner linkage |
 | `run_target_filter_test` | `export_source` filter and registry persistence |

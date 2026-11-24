@@ -740,12 +740,12 @@ stable canvas.
 | Smoke density | dynamic list heights, empty lists, filter still works | V5b |
 | Smoke naming | tokens, padding, unknown token, auto suffix, collisions | V |
 | Smoke 5.3 | install, render, nodes, action slots, NLA | C1 and A8 |
-| Smoke preview | camera mode, target isolation, restore; camera view is GUI-only | 3.1.0 |
+| Smoke preview | camera mode, target isolation, row switching, restore; camera view is GUI-only | 3.1.1 |
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
 | Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, clean install | before each tag |
 
-Current results at 3.1.0: the unit suite passes; smoke passes in Blender 5.2.3
-LTS and 5.3; the 3.1.0 zip imports, registers and unregisters in both. The
+Current results at 3.1.1: the unit suite passes; smoke passes in Blender 5.2.3
+LTS and 5.3; the 3.1.1 zip imports, registers and unregisters in both. The
 reference scene with the new toggles off matches the 2.0.4 export pixel for
 pixel.
 
@@ -871,6 +871,13 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 - [x] Exit Preview restores camera, resolution, visibility and view state.
 - [x] The 3.1.0 zip installs, exports and unregisters in 5.2.3 and 5.3.
 
+### 3.1.1
+
+- [x] Selecting another target row switches the preview and keeps its canvas.
+- [x] The preview does not report a missing Outliner selection after a switch.
+- [x] The Outliner stays on the previewed collection during and after preview.
+- [x] The 3.1.1 zip installs, exports and unregisters in 5.2.3 and 5.3.
+
 ### 3.2.0
 
 - [ ] Two actions of one collection export over their own ranges.
@@ -921,10 +928,10 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ## 14. Next working day
 
-Stage C and the 3.0.x patches are complete; 3.1.0 adds the viewport preview.
-The next work is stage A (3.2.0):
+Stage C and the 3.0.x patches are complete; 3.1.0 adds the viewport preview and
+3.1.1 fixes target switching in it. The next work is stage A (3.2.0):
 
-1. Confirm the clean tree, `v3.1.0` and the 3.1.0 zip.
+1. Confirm the clean tree, `v3.1.1` and the 3.1.1 zip.
 2. Start A1: animation properties, frame sampling and action discovery.
 3. Keep the current view, override and naming behavior unchanged when
    `export_animations` is off.
@@ -951,7 +958,10 @@ The next work is stage A (3.2.0):
      restore on exit, save and unload.
   5. Add the Preview button and smoke coverage; update README, `ui.md` and the
      smoke coverage table.
-- **Check:** preview follows the active collection, overrides and canvas; exit
+- **Check:** preview follows the active target row, overrides and canvas; exit
   restores camera, resolution and visibility; no files are written; 5.2.3 and
   5.3 pass.
 - **Done:** 3.1.0 is released.
+- **Status:** 3.1.1 resolves the preview target from the selected row first,
+  because hiding collections resets the Outliner active collection. The
+  Outliner stays on the previewed collection.

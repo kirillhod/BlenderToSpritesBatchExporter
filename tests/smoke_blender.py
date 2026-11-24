@@ -1571,6 +1571,43 @@ def run_preview_test():
     check(weapon_layer.hide_viewport is True, "Preview did not isolate other collections")
     check(scene.render.resolution_percentage == 100, "Preview did not use 100% resolution")
     check(scene.render.resolution_x > 0, "Preview canvas is empty")
+    check(logic.preview_message(scene) == "", "Preview reported a missing Outliner selection")
+    body_res_x = scene.render.resolution_x
+
+    names = [item.name for item in settings.target_items]
+    check(
+        "Body" in names and "Weapon" in names,
+        "Preview target rows are missing",
+    )
+
+    # Selecting another row switches the preview. Hiding collections resets the
+    # Outliner active collection, so two refreshes cover the timer tick that
+    # used to report a missing Outliner selection.
+    settings.active_target_index = names.index("Weapon")
+    logic.refresh_preview(scene)
+    logic.refresh_preview(scene)
+    check(logic.preview_message(scene) == "", "Preview lost the target after a row switch")
+    check(weapon_layer.hide_viewport is False, "Preview did not reveal the new target")
+    check(body_layer.hide_viewport is True, "Preview did not hide the previous target")
+    check(
+        scene.render.resolution_x < body_res_x,
+        "Preview did not refit the new target",
+    )
+    check(
+        view_layer.active_layer_collection == weapon_layer,
+        "Preview did not keep the Outliner on the new target",
+    )
+
+    settings.active_target_index = names.index("Body")
+    logic.refresh_preview(scene)
+    logic.refresh_preview(scene)
+    check(logic.preview_message(scene) == "", "Preview lost the target after switching back")
+    check(body_layer.hide_viewport is False, "Preview did not switch back to the target")
+    check(weapon_layer.hide_viewport is True, "Preview did not hide the previous target")
+    check(
+        view_layer.active_layer_collection == body_layer,
+        "Preview did not keep the Outliner on the target",
+    )
 
     result = bpy.ops.bts.preview_camera(preview=True)
     check(result == {"FINISHED"}, "Preview did not stop: %r" % (result,))
@@ -1593,6 +1630,17 @@ def run_preview_test():
         weapon_layer.hide_viewport == before_weapon_hide,
         "Preview did not restore the other collection",
     )
+    check(
+        view_layer.active_layer_collection == body_layer,
+        "Exit moved the Outliner selection",
+    )
+
+    # Pressing Preview with the scene root selected must use the target row.
+    view_layer.active_layer_collection = view_layer.layer_collection
+    result = bpy.ops.bts.preview_camera(preview=True)
+    check(result == {"FINISHED"}, "Preview did not start from the target row")
+    check(logic.preview_message(scene) == "", "Preview reported a missing Outliner selection")
+    bpy.ops.bts.preview_camera(preview=True)
     bpy.ops.bts.cleanup()
 
 

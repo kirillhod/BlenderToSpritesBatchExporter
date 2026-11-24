@@ -109,10 +109,10 @@ in preflight.
 Select a collection and click **Preview** in **Collections** to switch the 3D
 View to camera view for that collection. The preview uses the same canvas,
 camera and overrides as the export, and it updates when you select another
-collection, toggle a view or change a framing or resolution value. It is a
-viewport mode, not a render: it uses the current viewport shading and writes no
-files. Switch the viewport to **Material Preview** or **Rendered** to see
-materials.
+target row, toggle a view or change a framing or resolution value. The Outliner
+stays on the previewed collection. It is a viewport mode, not a render: it uses
+the current viewport shading and writes no files. Switch the viewport to
+**Material Preview** or **Rendered** to see materials.
 
 When a collection has several views, Preview shows the first active view in the
 Top, Bottom, Front, Back, Right, Left order. Click **Exit Preview** or leave
