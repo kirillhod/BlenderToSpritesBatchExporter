@@ -1,33 +1,10 @@
 <h1 align="center">Blender To Sprites Batch Exporter</h1>
 
-<p align="center">
-  Turn Blender collections into individual sprite images with an auto-fitted
-  orthographic camera.
-</p>
+<p align="center">Turn Blender collections into individual sprite images with an auto-fitted orthographic camera.</p>
 
-<p align="center">
-  <a href="https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases">
-    <img alt="Latest release" src="https://img.shields.io/github/v/release/kirillhod/BlenderToSpritesBatchExporter?sort=semver&label=release">
-  </a>
-  <a href="https://docs.blender.org/manual/en/5.2/">
-    <img alt="Blender 5.2 or newer" src="https://img.shields.io/badge/Blender-5.2%2B-orange">
-  </a>
-  <a href="LICENSE">
-    <img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue">
-  </a>
-</p>
+<p align="center"><a href="https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases"><img alt="Latest release" src="https://img.shields.io/github/v/release/kirillhod/BlenderToSpritesBatchExporter?sort=semver&label=release"></a> <a href="https://docs.blender.org/manual/en/5.2/"><img alt="Blender 5.2 or newer" src="https://img.shields.io/badge/Blender-5.2%2B-orange"></a> <a href="LICENSE"><img alt="License: GPL-3.0-or-later" src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue"></a></p>
 
-<p align="center">
-  <a href="#features">Features</a> ·
-  <a href="#requirements">Requirements</a> ·
-  <a href="#installation">Installation</a> ·
-  <a href="#quick-start">Quick start</a> ·
-  <a href="#collections">Collections</a> ·
-  <a href="#preview">Preview</a> ·
-  <a href="#canvas-grid">Canvas Grid</a> ·
-  <a href="#presets">Presets</a> ·
-  <a href="#license">License</a>
-</p>
+<p align="center"><a href="#features">Features</a> · <a href="#requirements">Requirements</a> · <a href="#installation">Installation</a> · <a href="#quick-start">Quick start</a> · <a href="#collections">Collections</a> · <a href="#preview">Preview</a> · <a href="#canvas-grid">Canvas Grid</a> · <a href="#presets">Presets</a> · <a href="#license">License</a></p>
 
 ---
 
@@ -277,8 +254,4 @@ modified version, it must stay under the same license.
 
 ---
 
-<p align="center">
-  <a href="https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases/latest">
-    <strong>Download the latest release</strong>
-  </a>
-</p>
+<p align="center"><a href="https://github.com/kirillhod/BlenderToSpritesBatchExporter/releases/latest"><strong>Download the latest release</strong></a></p>
