@@ -144,7 +144,13 @@ callback does not write back to the Outliner and create a feedback loop.
 - Do not claim a fix or release is complete without running the relevant
   commands and reporting their actual results.
 - For visual UI changes, verify the result in Blender when possible; do not
-  infer alignment from source alone.
+  infer alignment from source alone. One screenshot of the changed state is
+  enough.
+- A change that cannot affect output (viewport preview, canvas grid, panel
+  drawing, tooltips) needs the unit suite, one smoke run in one Blender version
+  and one visual check. Changes that can affect pixels, names, frame ranges or
+  files need both supported versions. The procedure is in
+  [docs/agent/smoke.md](docs/agent/smoke.md).
 
 ## Git and scope
 

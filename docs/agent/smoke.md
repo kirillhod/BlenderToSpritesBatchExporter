@@ -44,6 +44,15 @@ Optional environment variables:
 - on failure stdout contains `SMOKE FAIL` and a traceback, and the output
   directory is kept for inspection.
 
+## Which versions to run
+
+- Run one version for a change that only affects viewport drawing: preview,
+  canvas grid, panel layout or tooltips. Use the installed 5.2.3 LTS build and
+  take one screenshot of the changed state with `screen.screenshot_area`.
+- Run both 5.2.3 LTS and 5.3 when the change can affect output: pixels, file
+  names, frame ranges, actions, NLA or the render camera. The release also
+  checks that the built zip imports and registers in both.
+
 ## Coverage
 
 The entry point is `run_test()` in `tests/smoke_blender.py`. It calls:
@@ -84,9 +93,8 @@ output lists, preflight or rendering. Pure logic belongs in the unit suite.
   GUI and is checked visually.
 - Preview value drags refresh immediately. Update smoothness needs a GUI; it is
   checked with a timer that changes a framing value and records camera updates.
-- Canvas grid drawing and its adaptive step need a GUI; check camera view and
-  Preview at fit, zoomed in and zoomed out, and confirm the resolution badge
-  sits above the frame's top-left corner and stays visible when the frame top
-  leaves the view.
+- Canvas grid drawing needs a GUI; take one screenshot of the changed state and
+  confirm the resolution badge sits above the frame's top-left corner. Vary the
+  zoom only when the adaptive step or clipping changes.
 - Preview shows a target object hidden in the Outliner and restores both hide
   states on exit.

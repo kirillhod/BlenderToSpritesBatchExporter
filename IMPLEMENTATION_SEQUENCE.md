@@ -748,6 +748,10 @@ stable canvas.
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
 | Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, canvas grid, clean install | before each tag |
 
+Viewport-only patches (preview, grid, panel drawing) run the unit suite, one
+smoke version and one screenshot. Both versions are required when output can
+change. The rule is in `AGENTS.md`; the procedure is in `docs/agent/smoke.md`.
+
 Current results at 3.2.4: the unit suite passes; smoke passes in Blender 5.2.3
 LTS and 5.3; the 3.2.4 zip imports, registers and unregisters in both. The
 reference scene with the new toggles off matches the 2.0.4 export pixel for
