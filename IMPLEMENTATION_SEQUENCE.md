@@ -436,6 +436,7 @@ predictable names and content-sized lists.
 - **Check:** each legacy axis maps to one boolean; an empty selection is a
   preflight error; the View override copies and restores the global set.
 - **Done:** view selection is stored, migrated and overridable.
+- **Status:** implemented and smoke-verified in Blender 5.3.0.
 
 ### V2. Axis canvas math
 - **Depends:** V1.

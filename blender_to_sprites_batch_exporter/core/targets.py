@@ -8,12 +8,24 @@ from .output import node_output_format_label
 from .scene import gather_source_collections
 
 
+VIEW_AXES = ("TOP", "BOTTOM", "FRONT", "BACK", "RIGHT", "LEFT")
+VIEW_FIELDS = {
+    "TOP": "view_top",
+    "BOTTOM": "view_bottom",
+    "FRONT": "view_front",
+    "BACK": "view_back",
+    "RIGHT": "view_right",
+    "LEFT": "view_left",
+}
+
+
 # Collections are synced from a debounced timer, outside the depsgraph callback.
 _SYNC_SUPPRESSED = 0
 _SYNC_PENDING = set()
 _SYNC_LAST = {}
 _SYNC_TIMER_REGISTERED = False
 _ACTIVE_INDEX_SUPPRESSED = 0
+_LEGACY_AXIS_SUPPRESSED = 0
 
 
 def _active_collection_name(context):
@@ -30,6 +42,11 @@ def _active_collection_name(context):
 def active_target_update_suppressed():
     """True while sync writes the active row without touching the Outliner."""
     return _ACTIVE_INDEX_SUPPRESSED > 0
+
+
+def legacy_axis_update_suppressed():
+    """True while the view set writes camera_axis on purpose."""
+    return _LEGACY_AXIS_SUPPRESSED > 0
 
 
 def set_active_target_index(settings, index):
@@ -204,6 +221,59 @@ def _include_clear(settings):
         settings.always_include_items.remove(0)
 
 
+def clear_view_axes(owner, keep=None):
+    """Disable every view boolean on a settings or target item."""
+    for axis in VIEW_AXES:
+        if axis == keep:
+            continue
+        setattr(owner, VIEW_FIELDS[axis], False)
+
+
+def active_view_axes(owner):
+    """Active axis identifiers in the canonical TOP..LEFT order."""
+    if owner is None:
+        return []
+    return [
+        axis
+        for axis in VIEW_AXES
+        if bool(getattr(owner, VIEW_FIELDS[axis], False))
+    ]
+
+
+def apply_view_migration(settings):
+    """Map the legacy single camera_axis to exactly one view boolean."""
+    axis = str(getattr(settings, "camera_axis", "TOP") or "TOP").upper()
+    if axis not in VIEW_FIELDS:
+        axis = "TOP"
+    # Enable the target first, then disable the others. Clearing first can leave
+    # an old view temporarily alone and let its update callback overwrite
+    # camera_axis with the previous axis.
+    setattr(settings, VIEW_FIELDS[axis], True)
+    clear_view_axes(settings, keep=axis)
+    return axis
+
+
+def sync_legacy_camera_axis(settings, item=None):
+    """Mirror a single active view into the legacy camera_axis value.
+
+    A per-collection view override does not write the global legacy value:
+    other targets may still follow the global view set.
+    """
+    global _LEGACY_AXIS_SUPPRESSED
+    if item is not None and bool(getattr(item, "override_view", False)):
+        return
+    axes = active_view_axes(settings)
+    if len(axes) != 1:
+        return
+    if str(getattr(settings, "camera_axis", "")) == axes[0]:
+        return
+    _LEGACY_AXIS_SUPPRESSED += 1
+    try:
+        settings.camera_axis = axes[0]
+    finally:
+        _LEGACY_AXIS_SUPPRESSED -= 1
+
+
 def migrate_settings(context, settings):
     """One-time migration of legacy string settings and the node layout."""
     if not getattr(settings, "target_items_migrated", False):
@@ -211,6 +281,10 @@ def migrate_settings(context, settings):
         for collection in gather_source_collections(context, settings):
             _target_add(settings, collection.name, True)
         settings.target_items_migrated = True
+
+    if not getattr(settings, "views_migrated", False):
+        apply_view_migration(settings)
+        settings.views_migrated = True
 
     if not getattr(settings, "always_include_migrated", False):
         if len(settings.always_include_items) == 0:
@@ -346,6 +420,14 @@ def get_target_item(settings, name):
     return None
 
 
+OVERRIDE_VIEW_FIELDS = (
+    "view_top",
+    "view_bottom",
+    "view_front",
+    "view_back",
+    "view_right",
+    "view_left",
+)
 OVERRIDE_FRAMING_FIELDS = (
     "camera_margin",
     "padding_mode",
@@ -360,10 +442,13 @@ OVERRIDE_RESOLUTION_FIELDS = (
     "max_resolution",
 )
 OVERRIDE_GROUP_FIELDS = {
+    "view": OVERRIDE_VIEW_FIELDS,
     "framing": OVERRIDE_FRAMING_FIELDS,
     "resolution": OVERRIDE_RESOLUTION_FIELDS,
 }
 TARGET_OVERRIDE_ATTRS = (
+    "override_view",
+    *OVERRIDE_VIEW_FIELDS,
     "override_framing",
     *OVERRIDE_FRAMING_FIELDS,
     "override_resolution",
@@ -458,8 +543,8 @@ def active_include_name(settings):
 
 
 def target_view_count(settings):
-    """Views used for one target. Single view until multi-view is enabled."""
-    return 1
+    """Global view count used before per-target axes are resolved."""
+    return len(active_view_axes(settings)) or 1
 
 
 def format_target_status(res_x, res_y, view_count=1, frame_count=0, skip_reason=""):

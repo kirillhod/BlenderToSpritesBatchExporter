@@ -29,6 +29,13 @@ def make_settings(**overrides):
         "min_resolution": 1,
         "max_resolution": 0,
         "resolution_multiple": 1,
+        "view_top": True,
+        "view_bottom": False,
+        "view_front": False,
+        "view_back": False,
+        "view_right": False,
+        "view_left": False,
+        "views_migrated": True,
     }
     values.update(overrides)
     return SimpleNamespace(**values)
@@ -37,6 +44,14 @@ def make_settings(**overrides):
 def make_target_item(**overrides):
     values = {
         "name": "Body",
+        "override_view": False,
+        "override_view_seeded": False,
+        "view_top": True,
+        "view_bottom": False,
+        "view_front": False,
+        "view_back": False,
+        "view_right": False,
+        "view_left": False,
         "override_framing": False,
         "override_framing_seeded": False,
         "camera_margin": 10.0,
@@ -821,7 +836,7 @@ class TargetOverrideTest(unittest.TestCase):
     def test_unknown_group_fails(self):
         with self.assertRaises(ValueError):
             logic.apply_override_toggle(
-                make_settings(), self.make_item(), "view", True
+                make_settings(), self.make_item(), "pivot", True
             )
 
     def test_target_override_state_keeps_order_and_fields(self):
@@ -841,7 +856,127 @@ class TargetOverrideTest(unittest.TestCase):
         self.assertEqual(
             logic.active_override_groups(item), ("framing", "resolution")
         )
+        item.override_view = True
+        self.assertEqual(
+            logic.active_override_groups(item),
+            ("view", "framing", "resolution"),
+        )
         self.assertEqual(logic.active_override_groups(None), ())
+
+    def test_enabling_view_copies_globals_once(self):
+        settings = make_settings(
+            view_top=False,
+            view_front=True,
+            view_left=True,
+        )
+        item = self.make_item()
+        self.assertTrue(logic.apply_override_toggle(settings, item, "view", True))
+        self.assertTrue(item.view_front)
+        self.assertTrue(item.view_left)
+        self.assertFalse(item.view_top)
+        self.assertTrue(item.override_view_seeded)
+
+        settings.view_front = False
+        settings.view_back = True
+        self.assertFalse(logic.apply_override_toggle(settings, item, "view", True))
+        self.assertTrue(item.view_front)
+        self.assertFalse(item.view_back)
+
+    def test_disabling_view_override_clears_seed(self):
+        settings = make_settings(view_front=True, view_top=False)
+        item = self.make_item()
+        logic.apply_override_toggle(settings, item, "view", True)
+        logic.apply_override_toggle(settings, item, "view", False)
+        self.assertFalse(item.override_view_seeded)
+        self.assertTrue(item.view_front)
+
+    def test_view_axes_use_global_order(self):
+        settings = make_settings(
+            view_top=True,
+            view_bottom=False,
+            view_front=True,
+            view_back=True,
+            view_right=False,
+            view_left=True,
+        )
+        self.assertEqual(
+            logic.view_axes_for(settings),
+            ["TOP", "FRONT", "BACK", "LEFT"],
+        )
+        self.assertEqual(
+            logic.view_axes_for(settings, self.make_item()),
+            ["TOP", "FRONT", "BACK", "LEFT"],
+        )
+
+    def test_view_override_seeds_and_wins(self):
+        settings = make_settings(view_top=True, view_front=False)
+        item = self.make_item(override_view=True)
+        self.assertEqual(
+            logic.view_axes_for(settings, item),
+            ["TOP"],
+        )
+        self.assertTrue(item.override_view_seeded)
+
+        item.view_top = False
+        item.view_right = True
+        self.assertEqual(logic.view_axes_for(settings, item), ["RIGHT"])
+        self.assertEqual(logic.view_axes_for(settings), ["TOP"])
+
+    def test_empty_view_override_stays_empty(self):
+        settings = make_settings(view_top=True)
+        item = self.make_item(
+            override_view=True,
+            override_view_seeded=True,
+            view_top=False,
+        )
+        self.assertEqual(logic.view_axes_for(settings, item), [])
+
+    def test_legacy_axis_mirrors_a_single_view(self):
+        settings = make_settings(
+            view_top=False,
+            view_bottom=False,
+            view_front=False,
+            view_back=False,
+            view_right=True,
+            view_left=False,
+            camera_axis="TOP",
+        )
+        logic.sync_legacy_camera_axis(settings)
+        self.assertEqual(settings.camera_axis, "RIGHT")
+        self.assertFalse(logic.legacy_axis_update_suppressed())
+
+    def test_legacy_axis_ignores_several_or_no_views(self):
+        settings = make_settings(view_top=True, view_front=True, camera_axis="TOP")
+        logic.sync_legacy_camera_axis(settings)
+        self.assertEqual(settings.camera_axis, "TOP")
+
+        settings.view_top = False
+        settings.view_front = False
+        logic.sync_legacy_camera_axis(settings)
+        self.assertEqual(settings.camera_axis, "TOP")
+
+    def test_legacy_axis_ignores_an_override(self):
+        settings = make_settings(view_top=True, camera_axis="TOP")
+        item = self.make_item(
+            override_view=True,
+            override_view_seeded=True,
+            view_top=False,
+            view_left=True,
+        )
+        logic.sync_legacy_camera_axis(settings, item)
+        self.assertEqual(settings.camera_axis, "TOP")
+
+    def test_each_legacy_axis_migrates_to_one_view(self):
+        for axis in logic.VIEW_AXES:
+            with self.subTest(axis=axis):
+                settings = make_settings(camera_axis=axis)
+                self.assertEqual(logic.apply_view_migration(settings), axis)
+                self.assertEqual(logic.active_view_axes(settings), [axis])
+
+    def test_unknown_legacy_axis_migrates_to_top(self):
+        settings = make_settings(camera_axis="SIDE")
+        self.assertEqual(logic.apply_view_migration(settings), "TOP")
+        self.assertEqual(logic.active_view_axes(settings), ["TOP"])
 
 
 class TargetResolverTest(unittest.TestCase):
@@ -981,6 +1116,18 @@ class TargetResolverTest(unittest.TestCase):
             make_settings(camera_margin=7.0), None
         )
         self.assertEqual(resolved.camera_margin, 7.0)
+
+    def test_view_override_does_not_replace_framing_values(self):
+        settings = make_settings(camera_margin=25.0, view_top=True)
+        item = make_target_item(
+            override_view=True,
+            override_view_seeded=True,
+            view_top=False,
+            view_front=True,
+        )
+        resolved = logic.resolve_target_settings(settings, item)
+        self.assertEqual(resolved.camera_margin, 25.0)
+        self.assertEqual(resolved.camera_axis, "TOP")
 
 
 class JobReportTest(unittest.TestCase):

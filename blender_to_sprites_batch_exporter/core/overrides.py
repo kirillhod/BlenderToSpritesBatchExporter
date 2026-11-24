@@ -2,7 +2,11 @@
 
 from dataclasses import dataclass
 
-from .targets import OVERRIDE_GROUP_FIELDS, apply_override_toggle
+from .targets import (
+    OVERRIDE_GROUP_FIELDS,
+    active_view_axes,
+    apply_override_toggle,
+)
 
 
 @dataclass(frozen=True)
@@ -46,10 +50,24 @@ def resolve_target_settings(settings, item):
     values = _global_values(settings)
     if item is None:
         return TargetSettings(**values)
-    for group, fields in OVERRIDE_GROUP_FIELDS.items():
+    for group in ("framing", "resolution"):
+        fields = OVERRIDE_GROUP_FIELDS[group]
         if not bool(getattr(item, "override_" + group, False)):
             continue
         apply_override_toggle(settings, item, group)
         for field in fields:
             values[field] = getattr(item, field)
     return TargetSettings(**values)
+
+
+def view_axes_for(settings, item=None):
+    """Active axis identifiers for one target in canonical order.
+
+    A per-collection View override seeds from the globals on first use and then
+    owns its own set. An enabled but empty override stays empty so preflight can
+    report it instead of silently falling back.
+    """
+    if item is not None and bool(getattr(item, "override_view", False)):
+        apply_override_toggle(settings, item, "view")
+        return active_view_axes(item)
+    return active_view_axes(settings)

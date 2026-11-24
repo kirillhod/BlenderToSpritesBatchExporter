@@ -673,6 +673,91 @@ def run_override_property_test():
     os.rmdir(out_dir)
 
 
+def run_view_property_test():
+    """Legacy axis migration, view overrides and the empty-view preflight."""
+    from blender_to_sprites_batch_exporter import logic
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    add_cube(body, "BodyCube")
+
+    settings = scene.bts_settings
+    settings.export_source = "ALL"
+    settings.skip_empty = True
+    out_dir = tempfile.mkdtemp(prefix="bts_views_")
+    settings.output_dir = out_dir
+
+    for axis in logic.VIEW_AXES:
+        logic.apply_view_migration(settings)
+        settings.camera_axis = axis
+        logic.apply_view_migration(settings)
+        active = logic.active_view_axes(settings)
+        check(active == [axis], "View migration for %s produced %r" % (axis, active))
+
+    settings.views_migrated = True
+    settings.view_top = True
+    settings.view_front = True
+    logic.migrate_settings(bpy.context, settings)
+    check(
+        settings.view_top and settings.view_front,
+        "migrate_settings reset an already migrated multi-view set",
+    )
+
+    logic.rebuild_target_items(bpy.context, settings)
+    item = next((row for row in settings.target_items if row.name == "Body"), None)
+    check(item is not None, "View test has no Body target")
+
+    settings.view_top = False
+    settings.view_front = True
+    settings.view_left = True
+    item.override_view = True
+    check(item.view_front, "View override did not copy Front")
+    check(item.view_left, "View override did not copy Left")
+    check(not item.view_top, "View override did not copy the disabled Top")
+    check(item.override_view_seeded, "View override was not seeded")
+
+    settings.view_back = True
+    check(
+        not item.view_back,
+        "A seeded View override was overwritten by a global change",
+    )
+    check(
+        logic.view_axes_for(settings, item) == ["FRONT", "LEFT"],
+        "View override order is not canonical: %r"
+        % (logic.view_axes_for(settings, item),),
+    )
+
+    item.view_front = False
+    item.view_left = False
+    check(
+        logic.view_axes_for(settings, item) == [],
+        "An empty View override did not stay empty",
+    )
+    analysis = logic.preflight(bpy.context, settings)
+    problems = [
+        problem
+        for problem in analysis.problems
+        if problem.code == "no_view" and problem.collection == "Body"
+    ]
+    check(problems, "Empty View override did not produce a no_view preflight error")
+
+    item.view_top = True
+    analysis = logic.preflight(bpy.context, settings)
+    problems = [
+        problem
+        for problem in analysis.problems
+        if problem.code == "no_view" and problem.collection == "Body"
+    ]
+    check(not problems, "A selected view still produced a no_view error")
+
+    for name in os.listdir(out_dir):
+        os.remove(os.path.join(out_dir, name))
+    os.rmdir(out_dir)
+
+
 def image_size(path):
     image = bpy.data.images.load(path, check_existing=False)
     try:
@@ -1264,6 +1349,7 @@ def run_test():
     run_collision_test()
     run_target_list_test()
     run_override_property_test()
+    run_view_property_test()
     run_override_export_test()
     run_override_ui_test()
     run_target_sync_test()

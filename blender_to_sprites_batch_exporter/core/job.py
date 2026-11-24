@@ -13,7 +13,7 @@ from .output import *  # noqa: F401,F403
 from .scene import *  # noqa: F401,F403
 from .framing import *  # noqa: F401,F403
 from .targets import *  # noqa: F401,F403
-from .overrides import resolve_target_settings
+from .overrides import resolve_target_settings, view_axes_for
 
 
 SEVERITY_ORDER = {"ERROR": 0, "WARNING": 1, "INFO": 2}
@@ -33,6 +33,12 @@ ANALYSIS_SETTING_ATTRS = (
     "nodes_connected_only",
     "overwrite_policy",
     "camera_axis",
+    "view_top",
+    "view_bottom",
+    "view_front",
+    "view_back",
+    "view_right",
+    "view_left",
     "camera_margin",
     "auto_cleanup_camera",
     "padding_mode",
@@ -410,6 +416,20 @@ def _run_preflight(context, settings, allow_existing=False):
         )
         for collection in targets
     }
+
+    for collection in targets:
+        if view_axes_for(settings, target_items.get(collection.name)):
+            continue
+        problems.add(
+            "ERROR",
+            "no_view",
+            "No view is selected for this target.",
+            collection=collection.name,
+            fix_hint=(
+                "Enable at least one view in Camera & Framing or in the "
+                "collection View override."
+            ),
+        )
 
     token = analysis_token(context, settings, targets=targets, nodes=all_file_outputs)
 

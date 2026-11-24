@@ -15,7 +15,12 @@ from bpy.props import (
 )
 from bpy.types import PropertyGroup
 
-from .core.targets import apply_override_toggle
+from .core.targets import (
+    apply_override_toggle,
+    apply_view_migration,
+    legacy_axis_update_suppressed,
+    sync_legacy_camera_axis,
+)
 
 
 def _invalidate_analysis(_self, context):
@@ -78,6 +83,45 @@ def _override_group_changed(item, context, group):
     _invalidate_analysis(item, context)
 
 
+def _global_view_changed(self, context):
+    try:
+        sync_legacy_camera_axis(self)
+    except Exception:
+        pass
+    _invalidate_analysis(self, context)
+
+
+def _camera_axis_changed(self, context):
+    """Keep the legacy single-axis control working before V5 hides it."""
+    if legacy_axis_update_suppressed():
+        return
+    try:
+        apply_view_migration(self)
+    except Exception:
+        pass
+    _invalidate_analysis(self, context)
+
+
+def _target_view_changed(self, context):
+    try:
+        settings = _target_settings(self)
+        if settings is not None:
+            sync_legacy_camera_axis(settings, self)
+    except Exception:
+        pass
+    _invalidate_analysis(self, context)
+
+
+def _override_view_changed(self, context):
+    _override_group_changed(self, context, "view")
+    try:
+        settings = _target_settings(self)
+        if settings is not None:
+            sync_legacy_camera_axis(settings, self)
+    except Exception:
+        pass
+
+
 def _override_framing_changed(self, context):
     _override_group_changed(self, context, "framing")
 
@@ -92,6 +136,65 @@ class BTS_TargetItem(PropertyGroup):
     name: StringProperty(name="Collection")
     enabled: BoolProperty(name="Export", default=True, update=_invalidate_analysis)
     size_status: StringProperty(name="Status", default="")
+
+    override_view: BoolProperty(
+        name="Override View",
+        description=(
+            "Use collection-specific views instead of the global Camera & "
+            "Framing views"
+        ),
+        default=False,
+        update=_override_view_changed,
+    )
+    override_view_seeded: BoolProperty(default=False, options={'HIDDEN'})
+    view_top: BoolProperty(
+        name="Top",
+        description=(
+            "Include the top view. Used only when View override is on"
+        ),
+        default=True,
+        update=_target_view_changed,
+    )
+    view_bottom: BoolProperty(
+        name="Bottom",
+        description=(
+            "Include the bottom view. Used only when View override is on"
+        ),
+        default=False,
+        update=_target_view_changed,
+    )
+    view_front: BoolProperty(
+        name="Front",
+        description=(
+            "Include the front view. Used only when View override is on"
+        ),
+        default=False,
+        update=_target_view_changed,
+    )
+    view_back: BoolProperty(
+        name="Back",
+        description=(
+            "Include the back view. Used only when View override is on"
+        ),
+        default=False,
+        update=_target_view_changed,
+    )
+    view_right: BoolProperty(
+        name="Right",
+        description=(
+            "Include the right view. Used only when View override is on"
+        ),
+        default=False,
+        update=_target_view_changed,
+    )
+    view_left: BoolProperty(
+        name="Left",
+        description=(
+            "Include the left view. Used only when View override is on"
+        ),
+        default=False,
+        update=_target_view_changed,
+    )
 
     override_framing: BoolProperty(
         name="Override Framing",
@@ -235,6 +338,7 @@ class BTS_Settings(PropertyGroup):
     target_items_migrated: BoolProperty(default=False, options={'HIDDEN'})
     always_include_migrated: BoolProperty(default=False, options={'HIDDEN'})
     layout_migrated: BoolProperty(default=False, options={'HIDDEN'})
+    views_migrated: BoolProperty(default=False, options={'HIDDEN'})
     target_search: StringProperty(
         name="Filter",
         description="Show only target rows whose collection name contains this text",
@@ -406,6 +510,43 @@ class BTS_Settings(PropertyGroup):
             ('LEFT', "Left", "Look along +X"),
         ],
         default='TOP',
+        update=_camera_axis_changed,
+    )
+    view_top: BoolProperty(
+        name="Top",
+        description="Include the top view in the export",
+        default=True,
+        update=_global_view_changed,
+    )
+    view_bottom: BoolProperty(
+        name="Bottom",
+        description="Include the bottom view in the export",
+        default=False,
+        update=_global_view_changed,
+    )
+    view_front: BoolProperty(
+        name="Front",
+        description="Include the front view in the export",
+        default=False,
+        update=_global_view_changed,
+    )
+    view_back: BoolProperty(
+        name="Back",
+        description="Include the back view in the export",
+        default=False,
+        update=_global_view_changed,
+    )
+    view_right: BoolProperty(
+        name="Right",
+        description="Include the right view in the export",
+        default=False,
+        update=_global_view_changed,
+    )
+    view_left: BoolProperty(
+        name="Left",
+        description="Include the left view in the export",
+        default=False,
+        update=_global_view_changed,
     )
     camera_margin: FloatProperty(
         name="Camera Distance Margin",
