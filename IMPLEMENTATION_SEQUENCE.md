@@ -602,6 +602,8 @@ predictable names and content-sized lists.
   5. Tag `v3.0.0`.
 - **Check:** versions match; install and export work; package contract passes.
 - **Done:** 3.0.0 is released.
+- **Status:** released as 3.0.0. The zip registers, exports one sprite and
+  unregisters in Blender 5.2.3 LTS and 5.3.
 
 ---
 
@@ -833,11 +835,11 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ### 3.0.0
 
-- [ ] The add-on enables and disables cleanly in 5.2 and 5.3.
-- [ ] A no-override export matches the 2.0.4 reference pixels.
-- [ ] Preset save/load works on Windows; old presets load.
-- [ ] Cancel during a real export restores camera, excludes and render state.
-- [ ] The release zip installs on clean 5.2 and 5.3 profiles.
+- [x] The add-on enables and disables cleanly in 5.2 and 5.3.
+- [x] A no-override export matches the 2.0.4 reference pixels.
+- [x] Preset save/load works on Windows; old presets load.
+- [x] Cancel during a real export restores camera, excludes and render state.
+- [x] The release zip installs on clean 5.2 and 5.3 profiles.
 
 ### 3.1.0
 
@@ -889,14 +891,13 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ## 14. Next working day
 
-Stage V is complete and released as 2.3.0. The next work is stage C:
+Stage C is complete and released as 3.0.0. The next work is stage A (3.1.0):
 
-1. Confirm the clean tree, `v2.3.0` and the 2.3.0 zip.
-2. Run the unit and smoke suites in Blender 5.2.3 and 5.3.
-3. Compare the reference scene with toggles off against 2.0.4 pixels.
-4. Check the UI at 100% and 150% scale: the 3x2 view grid, three override
-   groups, dynamic lists and no clipped labels.
-5. Keep the target filter, Outliner linkage, override values, naming rules and
-   compact output lists intact.
-6. Commit one C task at a time and tag each release version. Do not push unless
+1. Confirm the clean tree, `v3.0.0` and the 3.0.0 zip.
+2. Start A1: animation properties, frame sampling and action discovery.
+3. Keep the current view, override and naming behavior unchanged when
+   `export_animations` is off.
+4. Add smoke coverage for two actions, two views, stable sizes, names, NLA
+   restore and cancel.
+5. Commit one A task at a time and tag each release version. Do not push unless
    asked.

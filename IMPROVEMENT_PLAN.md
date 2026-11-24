@@ -112,7 +112,9 @@ row were widened; at 150% the sidebar needs to be widened because the two view
 rows and property labels share a narrow column. The reference scene with the
 new toggles off matches the 2.0.4 export pixel for pixel in 5.2.3.
 
-Next work is the 3.0.0 release.
+3.0.0 packages the combined 2.1.0-2.3.0 behavior and adds Blender 5.3 to the
+supported and tested versions. Next work is stage A: animation export for
+3.1.0.
 
 ---
 
@@ -527,8 +529,9 @@ action slots, NLA and `frame_set`.
 | **3.1.0** | animation export | 2 weeks |
 
 2.1.1 was an intermediate build; its changes are included in 2.1.2, so there is
-no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2`, `v2.1.3` and
-`v2.2.0`. Stage O was released on 2026-11-19.
+no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2`, `v2.1.3`, `v2.2.0`,
+`v2.3.0` and `v3.0.0`. Stage O was released on 2026-11-19; stages V and C
+followed on 2026-11-24.
 
 The 2.x releases do not change existing output unless the user enables a
 feature. 3.1.0 changes output only when `export_animations` is on.
@@ -629,9 +632,9 @@ feature. 3.1.0 changes output only when `export_animations` is on.
 ## 14. Summary
 
 The 2.x work made the exporter safe. Version 3 makes it comfortable and
-expressive without turning it into a platform. Releases 2.1.0-2.1.3 complete the
-first feature; the remaining stages are focused on overrides, views, animation
-and the final Blender compatibility pass.
+expressive without turning it into a platform. Releases 2.1.0-3.0.0 complete
+the interface, override, view and compatibility stages; the remaining stage is
+animation.
 
 The remaining goals are:
 

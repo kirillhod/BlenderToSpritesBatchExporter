@@ -2,6 +2,24 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.0.0] - 2026-11-24
+
+### Added
+- Blender 5.3 support. Blender 5.2.3 LTS remains supported.
+- File Output nodes, image settings, depsgraph bounds, action slots, NLA and
+  frame changes are verified in both versions.
+
+### Changed
+- `Fit Camera` and `Activate` replace longer button labels; the full operator
+  names stay in tooltips.
+- The target actions use one even four-column row, so all four labels fit at
+  the default sidebar width.
+
+### Tests
+- Unit and smoke suites pass in Blender 5.2.3 LTS and 5.3.
+- The reference scene with the new toggles off matches the 2.0.4 export pixel
+  for pixel.
+
 ## [2.3.0] - 2026-11-24
 
 ### Added
