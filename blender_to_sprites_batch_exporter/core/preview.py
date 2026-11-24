@@ -45,12 +45,39 @@ def mark_preview_dirty(scene=None):
     scene = scene if scene is not None else getattr(bpy.context, "scene", None)
     if scene is not None and scene.as_pointer() in _PREVIEWS:
         _DIRTY.add(scene.as_pointer())
+        _request_update()
 
 
 def preview_depsgraph_handler(scene=None, *_args):
     scene = scene if scene is not None else getattr(bpy.context, "scene", None)
     if scene is not None and scene.as_pointer() in _PREVIEWS:
         _DIRTY.add(scene.as_pointer())
+        _request_update()
+
+
+def _request_update():
+    """Apply pending preview changes as soon as Blender is idle.
+
+    The polling timer alone caps the preview at four updates per second, which
+    makes value drags look stepped. A zero interval one-shot timer costs
+    nothing while idle and keeps drags close to the screen refresh rate.
+    """
+    if is_background() or not _DIRTY:
+        return
+    timers = getattr(bpy.app, "timers", None)
+    if timers is None:
+        return
+    try:
+        if not timers.is_registered(_update_now):
+            timers.register(_update_now, first_interval=0.0)
+    except Exception:  # noqa: BLE001 - the polling timer still refreshes
+        pass
+
+
+def _update_now():
+    for state in list(_PREVIEWS.values()):
+        refresh_preview(state["scene"])
+    return None
 
 
 def _active_layer(view_layer):

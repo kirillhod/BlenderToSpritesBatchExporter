@@ -258,6 +258,9 @@ The Collections panel gets a Preview button for the selected target row.
 - It is not a render: the current viewport shading is used and no files are
   written.
 - A timer refreshes the frame after target, override or depsgraph changes.
+  Changes apply as soon as Blender is idle, so value drags stay smooth.
+- Starting an export exits preview first, so its camera and visibility cannot
+  reach the rendered frames.
   Selecting another row switches the target; the preview reads the row first
   because hiding collections resets the Outliner active collection.
 - Exit Preview, leaving camera view, saving or unloading restores the camera,
@@ -513,7 +516,7 @@ not pinned here, because it grows with every stage.
 - cancel during a sequence restores the scene;
 - old scene and old preset load with unchanged output.
 
-At 3.1.1 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
+At 3.1.2 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
 also pass the API probe for File Output nodes, image settings, depsgraph bounds,
 action slots, NLA and `frame_set`.
 
@@ -549,10 +552,10 @@ action slots, NLA and `frame_set`.
 
 2.1.1 was an intermediate build; its changes are included in 2.1.2, so there is
 no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2`, `v2.1.3`, `v2.2.0`,
-`v2.3.0`, `v3.0.0`, `v3.0.1`, `v3.0.2`, `v3.0.3`, `v3.1.0` and `v3.1.1`. Stage O
-was released on 2026-11-19; stages V and C followed on 2026-11-24, with
-3.0.1-3.0.3 as override and list patches. 3.1.0 adds the viewport preview and
-3.1.1 fixes preview target switching.
+`v2.3.0`, `v3.0.0`, `v3.0.1`, `v3.0.2`, `v3.0.3`, `v3.1.0`, `v3.1.1` and
+`v3.1.2`. Stage O was released on 2026-11-19; stages V and C followed on
+2026-11-24, with 3.0.1-3.0.3 as override and list patches. 3.1.0 adds the
+viewport preview; 3.1.1 and 3.1.2 fix its target switching and update rate.
 
 The 2.x releases do not change existing output unless the user enables a
 feature. 3.2.0 changes output only when `export_animations` is on.
@@ -654,6 +657,14 @@ feature. 3.2.0 changes output only when `export_animations` is on.
   to a parent collection after a row change.
 - The Outliner stays on the previewed collection.
 - README, CHANGELOG, manifest and package contract use 3.1.1.
+
+### 3.1.2
+
+- Preview applies framing, resolution and target changes as soon as Blender is
+  idle; value drags no longer wait for the polling tick.
+- Starting an export exits preview before the job changes camera, resolution or
+  visibility.
+- README, CHANGELOG, manifest and package contract use 3.1.2.
 
 ### 3.2.0
 

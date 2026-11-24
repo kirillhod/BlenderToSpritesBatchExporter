@@ -1640,7 +1640,37 @@ def run_preview_test():
     result = bpy.ops.bts.preview_camera(preview=True)
     check(result == {"FINISHED"}, "Preview did not start from the target row")
     check(logic.preview_message(scene) == "", "Preview reported a missing Outliner selection")
-    bpy.ops.bts.preview_camera(preview=True)
+
+    # An export must exit the preview before it touches the render state.
+    # Normalize the settings left by earlier tests so the export has one target
+    # and plain PNG output.
+    saved_enabled = [(item, item.enabled) for item in settings.target_items]
+    saved_nodes = settings.use_compositor_nodes
+    saved_policy = settings.overwrite_policy
+    saved_source = settings.export_source
+    saved_skip = settings.skip_empty
+    for item in settings.target_items:
+        item.enabled = item.name == "Body"
+    settings.use_compositor_nodes = False
+    settings.overwrite_policy = "OVERWRITE"
+    settings.export_source = "ALL"
+    settings.skip_empty = True
+    try:
+        result = bpy.ops.bts.batch_export()
+        check(result == {"FINISHED"}, "Export from preview did not finish")
+        check(not logic.preview_active(scene), "Export did not exit preview")
+        check(scene.camera == user_cam, "Export left the preview camera")
+        check(
+            body_layer.hide_viewport == before_body_hide,
+            "Export left the preview isolation",
+        )
+    finally:
+        settings.use_compositor_nodes = saved_nodes
+        settings.overwrite_policy = saved_policy
+        settings.export_source = saved_source
+        settings.skip_empty = saved_skip
+        for item, value in saved_enabled:
+            item.enabled = value
     bpy.ops.bts.cleanup()
 
 

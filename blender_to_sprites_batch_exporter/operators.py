@@ -18,6 +18,7 @@ from .logic import (
     configure_camera,
     default_preset_dir,
     ensure_camera,
+    exit_preview,
     export_preset,
     find_layer_collection,
     format_job_report,
@@ -83,6 +84,7 @@ class BTS_OT_BatchExport(Operator):
         return self._start_modal(context, analysis)
 
     def _start_modal(self, context, analysis):
+        exit_preview(context=context)
         self._job = BatchJob(
             context, context.scene.bts_settings, analysis, operator=self
         )
@@ -151,6 +153,7 @@ class BTS_OT_BatchExport(Operator):
         if context.window is not None and not is_background():
             return self._start_modal(context, analysis)
 
+        exit_preview(context=context)
         job = BatchJob(context, settings, analysis, operator=self)
         result = job.run()
         self._report_result(result, context)

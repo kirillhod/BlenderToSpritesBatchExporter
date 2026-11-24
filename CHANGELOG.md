@@ -2,6 +2,14 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.1.2] - 2026-11-24
+
+### Fixed
+- Preview applies framing, resolution and target changes immediately instead of
+  waiting for the 0.25 s polling tick; value drags no longer look stepped.
+- Starting an export exits the preview first, so the preview camera, resolution
+  and hidden collections cannot reach the rendered frames.
+
 ## [3.1.1] - 2026-11-24
 
 ### Fixed

@@ -18,7 +18,7 @@ from blender_to_sprites_batch_exporter import logic, properties, ui  # noqa: E40
 
 class RegistrationContractTest(unittest.TestCase):
     def test_bl_info(self):
-        self.assertEqual(addon.bl_info["version"], (3, 1, 1))
+        self.assertEqual(addon.bl_info["version"], (3, 1, 2))
         self.assertEqual(addon.bl_info["blender"], (5, 2, 0))
 
     def test_operator_ids(self):
