@@ -1,7 +1,7 @@
 bl_info = {
     "name": "Blender To Sprites Batch Exporter",
     "author": "kirillhod",
-    "version": (3, 0, 3),
+    "version": (3, 1, 0),
     "blender": (5, 2, 0),
     "location": "View3D > Sidebar (N) > Batch Export",
     "description": "Batch render collections to sprites with an auto-fitted orthographic camera.",
@@ -14,7 +14,10 @@ from bpy.props import PointerProperty
 from . import logic
 from .logic import (
     clear_analysis_cache,
+    clear_previews,
+    exit_all_previews,
     migrate_settings,
+    preview_depsgraph_handler,
     request_target_sync,
     sync_depsgraph_handler,
     unregister_target_sync,
@@ -104,6 +107,7 @@ classes = (
 
 def _clear_cache_on_load(*_args):
     clear_analysis_cache()
+    clear_previews()
     try:
         scene = bpy.context.scene
         settings = getattr(scene, "bts_settings", None)
@@ -113,6 +117,13 @@ def _clear_cache_on_load(*_args):
         pass
     try:
         request_target_sync(bpy.context)
+    except Exception:
+        pass
+
+
+def _restore_preview_on_save(*_args):
+    try:
+        exit_all_previews()
     except Exception:
         pass
 
@@ -127,9 +138,18 @@ def register():
     depsgraph_handlers = bpy.app.handlers.depsgraph_update_post
     if sync_depsgraph_handler not in depsgraph_handlers:
         depsgraph_handlers.append(sync_depsgraph_handler)
+    if preview_depsgraph_handler not in depsgraph_handlers:
+        depsgraph_handlers.append(preview_depsgraph_handler)
+    save_handlers = bpy.app.handlers.save_pre
+    if _restore_preview_on_save not in save_handlers:
+        save_handlers.append(_restore_preview_on_save)
 
 
 def unregister():
+    try:
+        exit_all_previews()
+    except Exception:
+        pass
     if hasattr(bpy.types.Scene, "bts_settings"):
         del bpy.types.Scene.bts_settings
     handlers = bpy.app.handlers.load_post
@@ -138,7 +158,13 @@ def unregister():
     depsgraph_handlers = bpy.app.handlers.depsgraph_update_post
     if sync_depsgraph_handler in depsgraph_handlers:
         depsgraph_handlers.remove(sync_depsgraph_handler)
+    if preview_depsgraph_handler in depsgraph_handlers:
+        depsgraph_handlers.remove(preview_depsgraph_handler)
+    save_handlers = bpy.app.handlers.save_pre
+    if _restore_preview_on_save in save_handlers:
+        save_handlers.remove(_restore_preview_on_save)
     unregister_target_sync()
     clear_analysis_cache()
+    clear_previews()
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)

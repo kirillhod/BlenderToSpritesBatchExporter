@@ -1532,6 +1532,70 @@ def run_ui_icon_probe():
     check(not missing, "Unknown UI icons: %r" % (missing,))
 
 
+def run_preview_test():
+    """Preview enters camera mode, isolates the target and restores the scene."""
+    from blender_to_sprites_batch_exporter import logic
+
+    scene = bpy.context.scene
+    view_layer = bpy.context.view_layer
+    settings = scene.bts_settings
+    user_cam = scene.camera
+    before_resolution = (
+        scene.render.resolution_x,
+        scene.render.resolution_y,
+        scene.render.resolution_percentage,
+    )
+    body_layer = logic.find_layer_collection(view_layer, "Body")
+    weapon_layer = logic.find_layer_collection(view_layer, "Weapon")
+    check(body_layer is not None and weapon_layer is not None, "Preview collections missing")
+    before_body_hide = body_layer.hide_viewport
+    before_weapon_hide = weapon_layer.hide_viewport
+
+    for name in (
+        "view_top",
+        "view_bottom",
+        "view_front",
+        "view_back",
+        "view_right",
+        "view_left",
+    ):
+        setattr(settings, name, name == "view_top")
+    settings.views_migrated = True
+    view_layer.active_layer_collection = body_layer
+
+    result = bpy.ops.bts.preview_camera(preview=True)
+    check(result == {"FINISHED"}, "Preview did not start: %r" % (result,))
+    check(logic.preview_active(scene), "Preview was not marked active")
+    check(scene.camera != user_cam, "Preview did not switch the scene camera")
+    check(body_layer.hide_viewport is False, "Preview hid the target collection")
+    check(weapon_layer.hide_viewport is True, "Preview did not isolate other collections")
+    check(scene.render.resolution_percentage == 100, "Preview did not use 100% resolution")
+    check(scene.render.resolution_x > 0, "Preview canvas is empty")
+
+    result = bpy.ops.bts.preview_camera(preview=True)
+    check(result == {"FINISHED"}, "Preview did not stop: %r" % (result,))
+    check(not logic.preview_active(scene), "Preview stayed active")
+    check(scene.camera == user_cam, "Preview did not restore the scene camera")
+    check(
+        (
+            scene.render.resolution_x,
+            scene.render.resolution_y,
+            scene.render.resolution_percentage,
+        )
+        == before_resolution,
+        "Preview did not restore the resolution",
+    )
+    check(
+        body_layer.hide_viewport == before_body_hide,
+        "Preview did not restore the target visibility",
+    )
+    check(
+        weapon_layer.hide_viewport == before_weapon_hide,
+        "Preview did not restore the other collection",
+    )
+    bpy.ops.bts.cleanup()
+
+
 def run_test():
     bpy.ops.wm.read_factory_settings(use_empty=True)
     addon = load_addon()
@@ -1695,6 +1759,7 @@ def run_test():
     run_target_filter_test()
     run_analysis_and_cancel_test()
     run_compositor_test()
+    run_preview_test()
     run_ui_draw_probe()
     run_ui_icon_probe()
 

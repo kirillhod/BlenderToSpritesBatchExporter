@@ -29,6 +29,11 @@ def _invalidate_analysis(_self, context):
         clear_analysis_cache(context.scene)
     except Exception:
         pass
+    try:
+        from .core.preview import mark_preview_dirty
+        mark_preview_dirty(context.scene)
+    except Exception:
+        pass
 
 
 def _active_target_changed(_self, context):

@@ -28,7 +28,7 @@ do not re-read it. Read only the row you need.
 
 | Task | Start here | Docs | Focused check |
 | --- | --- | --- | --- |
-| Panels, tooltips, density, target table, overrides UI, view UI | `ui.py` | `docs/agent/ui.md`, `docs/agent/ui-proposals.md`; plan §4-§6; sequence U1-U5, O4, V5, V5b | contract test + smoke |
+| Panels, tooltips, density, target table, overrides UI, view UI, preview | `ui.py` | `docs/agent/ui.md`, `docs/agent/ui-proposals.md`; plan §4-§6; sequence U1-U5, O4, V5, V5b, §15 | contract test + smoke |
 | Target registry, export filter, Outliner link, status text | `core/targets.py`, `core/scene.py` | plan §4.3-§4.4; sequence U3-U4 | unit suite + smoke |
 | Per-collection overrides | `core/overrides.py`, `properties.py` | plan §5; sequence O1-O5 | `test_logic_unit.py` |
 | Preflight, analysis cache, job loop, restore | `core/job.py` | plan §5, §8; sequence O3, C1 | smoke |
@@ -70,13 +70,14 @@ re-exports `core.*`; `core.*` never imports `ui` or `operators`.
 | `core/naming.py` | strict `{collection}` / `{axis}` templates and token errors |
 | `core/job.py` | problems, analysis token, preflight, `BatchJob`, report |
 | `core/output.py` | main-render paths, collisions, File Output node plans |
+| `core/preview.py` | viewport preview state, camera view, isolation and refresh |
 | `core/presets.py` | built-in and JSON presets |
 | `core/common.py` | path helpers and image settings |
 | `logic.py` | compatibility facade over `core.*` |
 | `properties.py` | settings, target, preview and node property groups |
 | `operators.py` | operators and their tooltips |
 | `ui.py` | panels and UIList classes |
-| `__init__.py` | registration, load and depsgraph handlers |
+| `__init__.py` | registration, load, save and depsgraph handlers |
 
 ## Reading recipe
 

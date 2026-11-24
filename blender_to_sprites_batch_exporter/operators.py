@@ -35,6 +35,7 @@ from .logic import (
     set_active_target,
     set_all_targets,
     sync_target_items,
+    toggle_preview,
     write_job_log,
 )
 
@@ -493,10 +494,26 @@ class BTS_OT_LoadPreset(Operator):
 class BTS_OT_PreviewCamera(Operator):
     bl_idname = "bts.preview_camera"
     bl_label = "Fit Camera to Active"
-    bl_description = "Position the orthographic camera over the active collection"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_description = "Preview the active collection in camera view, or fit the orthographic camera"
+    bl_options = {'REGISTER'}
+
+    preview: BoolProperty(
+        name="Preview",
+        description="Show the active collection in camera view instead of only fitting the camera",
+        default=False,
+        options={'SKIP_SAVE'},
+    )
 
     def execute(self, context):
+        if self.preview:
+            ok, message = toggle_preview(context)
+            if not ok:
+                self.report({'WARNING'}, message)
+                return {'CANCELLED'}
+            if message:
+                self.report({'INFO'}, message)
+            return {'FINISHED'}
+
         scene = context.scene
         settings = scene.bts_settings
         vl = context.view_layer

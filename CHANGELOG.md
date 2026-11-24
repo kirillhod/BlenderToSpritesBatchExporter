@@ -2,6 +2,18 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.1.0] - 2026-11-24
+
+### Added
+- Viewport preview for the active collection. **Preview** switches the 3D View
+  to camera view, applies the resolved canvas, overrides and first active view,
+  isolates the target and updates automatically. It uses the current viewport
+  shading and writes no files.
+
+### Changed
+- `bts.preview_camera` accepts a preview flag. The existing `Fit Camera` action
+  keeps its behavior when the flag is off.
+
 ## [3.0.3] - 2026-11-24
 
 ### Added

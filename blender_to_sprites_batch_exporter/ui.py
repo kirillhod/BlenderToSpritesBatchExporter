@@ -10,6 +10,8 @@ from .logic import (
     is_relative_unsaved,
     normalize_image_settings,
     peek_cached_analysis,
+    preview_active,
+    preview_message,
     resolve_node_layout,
     target_view_count,
 )
@@ -359,6 +361,18 @@ class BTS_PT_Source(Panel):
         grid.operator("bts.targets_active", text="Active")
         grid.operator("bts.activate_target", text="Activate")
         _left_checkbox(layout, settings, "skip_empty")
+
+        active_preview = preview_active(context.scene)
+        op = layout.operator(
+            "bts.preview_camera",
+            text="Exit Preview" if active_preview else "Preview",
+            icon='VIEW_CAMERA',
+        )
+        op.preview = True
+        if active_preview:
+            message = preview_message(context.scene)
+            if message:
+                layout.label(text=message, icon='ERROR')
 
         layout.separator(factor=0.5)
         _draw_overrides(layout, _active_target_item(context, settings))

@@ -56,7 +56,7 @@ targets, one Always Include collection and no problems.
 | Panel | Open rows | Current contents |
 |---|---:|---|
 | Main | 5-9 | target summary; Export; Analyze and Cancel; Preview Camera and Cleanup; Restore Collections; optional job-status box; optional warnings |
-| Collections | 22-28 | export mode; refresh and search; table header; 3-8 target rows; All, None, Active and Activate; Skip Empty; three collapsible Overrides groups; Always Include; isolation; keep lights |
+| Collections | 23-29 | export mode; refresh and search; table header; 3-8 target rows; All, None, Active and Activate; Skip Empty; Preview; three collapsible Overrides groups; Always Include; isolation; keep lights |
 | Camera & Framing | 6 | six view toggles in a 3x2 grid; margin; auto cleanup; padding mode; padding value |
 | Resolution | 5 | pixels per unit; multiple; square output; min; max |
 | Output & Naming | 14-26 | main or node output; format; overwrite; Path Preview; conflicts |
@@ -100,6 +100,14 @@ the Main panel and stay complete in their tooltips.
 
 Target rows show the override marker before the status when at least one group
 is on.
+
+The **Preview** button switches the 3D View to camera view for the active
+Outliner collection. It uses the export frame and overrides, hides other
+collections and keeps lights visible. It is not a render: the current shading is
+used and no files are written. A timer refreshes after target, override or
+depsgraph changes; the first active view is shown. Exit Preview, leaving camera
+view, saving or unloading restores the camera, resolution, visibility and view
+state. The mode is not saved.
 
 ### Camera & Framing
 

@@ -3,7 +3,7 @@
 Date: 2026-11-11
 Base: `IMPROVEMENT_PLAN.md` (v3 revision, 2026-11-11)
 Baseline add-on version: 2.0.4
-Target releases: 2.1.0, 2.1.1, 2.1.2, 2.1.3, 2.2.0, 2.3.0, 3.0.0, 3.1.0
+Target releases: 2.1.0, 2.1.1, 2.1.2, 2.1.3, 2.2.0, 2.3.0, 3.0.0, 3.1.0, 3.2.0
 
 The repository uses `main` as its default branch. `feature/improvements-v3`
 was created from `origin/main` at `1710a0e`. Stage U is implemented and
@@ -106,7 +106,9 @@ S0 baseline
  |             |
  |             +-- C2  3.0.0 release
  |                    |
- |                    +-- A1-A8  animation (3.1.0)
+ |                    +-- P1  viewport preview (3.1.0)
+ |                    |      |
+ |                    |      +-- A1-A8  animation (3.2.0)
 ```
 
 Safe parallelism:
@@ -602,13 +604,13 @@ predictable names and content-sized lists.
   5. Tag `v3.0.0`.
 - **Check:** versions match; install and export work; package contract passes.
 - **Done:** 3.0.0 is released.
-- **Status:** released as 3.0.0, with 3.0.3 as the override and list patch. The
-  3.0.3 zip registers, exports one sprite and unregisters in Blender 5.2.3 LTS
-  and 5.3.
+- **Status:** released as 3.0.0, with 3.0.3 as the override and list patches.
+  3.1.0 adds the viewport preview; its zip registers, exports one sprite and
+  unregisters in Blender 5.2.3 LTS and 5.3.
 
 ---
 
-## 9. Stage A. Animation export (3.1.0)
+## 9. Stage A. Animation export (3.2.0)
 
 **Result:** every action of a collection exported over its own range with one
 stable canvas.
@@ -715,13 +717,13 @@ stable canvas.
   and limitations sections, CHANGELOG.
 - **Done:** stage A is functionally complete.
 
-### A8. Version 3.1.0 and tag
+### A8. Version 3.2.0 and tag
 - **Depends:** A7.
 - **Files:** `__init__.py`, `blender_manifest.toml`,
   `tests/test_package_contract.py`, `CHANGELOG.md`.
-- **Actions:** set 3.1.0 everywhere, build the zip, install in clean 5.2 and 5.3
-  profiles, run the smoke suite, tag `v3.1.0`.
-- **Done:** 3.1.0 is released.
+- **Actions:** set 3.2.0 everywhere, build the zip, install in clean 5.2 and 5.3
+  profiles, run the smoke suite, tag `v3.2.0`.
+- **Done:** 3.2.0 is released.
 
 ---
 
@@ -738,11 +740,12 @@ stable canvas.
 | Smoke density | dynamic list heights, empty lists, filter still works | V5b |
 | Smoke naming | tokens, padding, unknown token, auto suffix, collisions | V |
 | Smoke 5.3 | install, render, nodes, action slots, NLA | C1 and A8 |
+| Smoke preview | camera mode, target isolation, restore; camera view is GUI-only | 3.1.0 |
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
 | Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, clean install | before each tag |
 
-Current results at 3.0.3: the unit suite passes; smoke passes in Blender 5.2.3
-LTS and 5.3; the 3.0.3 zip imports, registers and unregisters in both. The
+Current results at 3.1.0: the unit suite passes; smoke passes in Blender 5.2.3
+LTS and 5.3; the 3.1.0 zip imports, registers and unregisters in both. The
 reference scene with the new toggles off matches the 2.0.4 export pixel for
 pixel.
 
@@ -770,8 +773,9 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 | M2 | per-collection overrides, released | 2.2.0 |
 | M3 | multi-view, canvas, naming and list density | 2.3.0 |
 | M4 | 5.3 verified, 3.0.0 released | 3.0.0 |
-| M5 | animation | 3.1.0-dev |
-| M6 | 3.1.0 released | 3.1.0 |
+| M4b | viewport preview | 3.1.0 |
+| M5 | animation | 3.2.0-dev |
+| M6 | 3.2.0 released | 3.2.0 |
 
 ---
 
@@ -861,6 +865,14 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ### 3.1.0
 
+- [x] Preview switches the 3D View to camera view for the active collection.
+- [x] Other collections are hidden; lights and the target stay visible.
+- [x] Changing the active collection or overrides updates the preview.
+- [x] Exit Preview restores camera, resolution, visibility and view state.
+- [x] The 3.1.0 zip installs, exports and unregisters in 5.2.3 and 5.3.
+
+### 3.2.0
+
 - [ ] Two actions of one collection export over their own ranges.
 - [ ] All frames and actions of a collection share one canvas.
 - [ ] Names include action and frame; sequences sort correctly.
@@ -909,9 +921,10 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ## 14. Next working day
 
-Stage C is complete and released as 3.0.0. The next work is stage A (3.1.0):
+Stage C and the 3.0.x patches are complete; 3.1.0 adds the viewport preview.
+The next work is stage A (3.2.0):
 
-1. Confirm the clean tree, `v3.0.3` and the 3.0.3 zip.
+1. Confirm the clean tree, `v3.1.0` and the 3.1.0 zip.
 2. Start A1: animation properties, frame sampling and action discovery.
 3. Keep the current view, override and naming behavior unchanged when
    `export_animations` is off.
@@ -919,3 +932,26 @@ Stage C is complete and released as 3.0.0. The next work is stage A (3.1.0):
    restore and cancel.
 5. Commit one A task at a time and tag each release version. Do not push unless
    asked.
+
+---
+
+## 15. Viewport preview (3.1.0)
+
+- **Depends:** 3.0.3.
+- **Files:** `core/preview.py`, `operators.py`, `ui.py`, `properties.py`,
+  `__init__.py`, `tests/smoke_blender.py`, README, CHANGELOG and docs.
+- **Actions:**
+  1. Reuse `bts.preview_camera` with a `preview` property; keep the old fit
+     behavior when the property is off.
+  2. Resolve the active target with `resolve_target_settings`, `view_axes_for`
+     and `compute_collection_frame`; use the first active axis.
+  3. Hide other collections in the viewport, keep light objects, switch the 3D
+     View to camera view and set the canvas resolution.
+  4. Refresh on a 0.25 s timer after target, override or depsgraph changes;
+     restore on exit, save and unload.
+  5. Add the Preview button and smoke coverage; update README, `ui.md` and the
+     smoke coverage table.
+- **Check:** preview follows the active collection, overrides and canvas; exit
+  restores camera, resolution and visibility; no files are written; 5.2.3 and
+  5.3 pass.
+- **Done:** 3.1.0 is released.

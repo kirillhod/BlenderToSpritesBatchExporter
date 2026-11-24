@@ -16,25 +16,25 @@ release with five features.
 
 ## 1. Scope
 
-Version 3 does five things:
+Version 3 does six things:
 
 | # | Feature | Release |
 |---|---|---|
 | 1 | UI cleanup: tooltips, density, automatic collection sync, readable status | 2.1.0 |
 | 2 | Per-collection overrides for framing and resolution (view joins in 2.3.0) | 2.2.0 |
 | 3 | Multi-view export with 4- and 6-direction presets and one naming policy | 2.3.0 |
-| 4 | Animation export: every action of a collection, its frame range and its name | 3.1.0 |
-| 5 | Blender 5.3 compatibility | 3.0.0 |
+| 4 | Viewport preview of the active collection, its camera and its canvas | 3.1.0 |
+| 5 | Animation export: every action of a collection, its frame range and its name | 3.2.0 |
+| 6 | Blender 5.3 compatibility | 3.0.0 |
 
-Releases are incremental: **2.1.0-2.1.3**, **2.2.0**, **2.3.0**, **3.0.0** and
-**3.1.0**. There is no 3.2.
+Releases are incremental: **2.1.0-2.1.3**, **2.2.0**, **2.3.0**, **3.0.0**,
+**3.1.0** and **3.2.0**.
 
 Each stage ships a testable build instead of waiting for the final release. UI
 cleanup is 2.1.0 with review patches through 2.1.3, overrides are 2.2.0,
 multi-view and naming are 2.3.0, and Blender 5.3 plus the combined verification
-is 3.0.0. Animation is 3.1.0 because it reuses the naming and canvas rules
-introduced in 2.3.0. The 3.1.0 work is not optional polish; it is the animation
-feature.
+is 3.0.0. Viewport preview is 3.1.0. Animation is 3.2.0 because it reuses the
+naming and canvas rules introduced in 2.3.0; that work is not optional polish.
 
 ### 1.1. Explicit non-goals
 
@@ -115,7 +115,8 @@ new toggles off matches the 2.0.4 export pixel for pixel in 5.2.3.
 3.0.0 packages the combined 2.1.0-2.3.0 behavior and adds Blender 5.3 to the
 supported and tested versions. 3.0.2 replaces the unchecked override panels with
 plain checkbox rows and removes their blank rows; 3.0.3 marks override targets
-in the list. Next work is stage A: animation export for 3.1.0.
+in the list; 3.1.0 adds the viewport preview. Next work is stage A: animation
+export for 3.2.0.
 
 ---
 
@@ -247,6 +248,20 @@ The former Report panel is now `Log`; its `BTS_PT_report` ID is preserved for
 compatibility. The current panel map and its rules are owned by
 [docs/agent/ui.md](docs/agent/ui.md).
 
+### 4.6. Viewport preview (3.1.0)
+
+The Collections panel gets a Preview button for the active collection.
+
+- The button switches the 3D View to camera view using the same resolved frame,
+  overrides and first active view as the export.
+- Other collections are hidden in the viewport; light objects stay visible.
+- It is not a render: the current viewport shading is used and no files are
+  written.
+- A timer refreshes the frame after target, override or depsgraph changes.
+- Exit Preview, leaving camera view, saving or unloading restores the camera,
+  resolution, visibility and view state. The mode is not saved in the `.blend`.
+- Reuse `bts.preview_camera` with a `preview` property; no new operator ID.
+
 ---
 
 ## 5. Feature 2: per-collection overrides
@@ -366,7 +381,7 @@ A custom oblique or isometric camera is not part of v3.
 
 ---
 
-## 7. Feature 4: animation export (3.1.0)
+## 7. Feature 4: animation export (3.2.0)
 
 ### 7.1. What is exported
 
@@ -496,7 +511,7 @@ not pinned here, because it grows with every stage.
 - cancel during a sequence restores the scene;
 - old scene and old preset load with unchanged output.
 
-At 3.0.3 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
+At 3.1.0 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
 also pass the API probe for File Output nodes, image settings, depsgraph bounds,
 action slots, NLA and `frame_set`.
 
@@ -527,16 +542,17 @@ action slots, NLA and `frame_set`.
 | **2.2.0** | per-collection overrides | 4 days |
 | **2.3.0** | multi-view, canvas, naming and list density | 4 days |
 | **3.0.0** | Blender 5.3 and combined verification | 2 days |
-| **3.1.0** | animation export | 2 weeks |
+| **3.1.0** | viewport preview for the active collection | 1 day |
+| **3.2.0** | animation export | 2 weeks |
 
 2.1.1 was an intermediate build; its changes are included in 2.1.2, so there is
 no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2`, `v2.1.3`, `v2.2.0`,
-`v2.3.0`, `v3.0.0`, `v3.0.1`, `v3.0.2` and `v3.0.3`. Stage O was released on
-2026-11-19; stages V and C followed on 2026-11-24, with 3.0.1-3.0.3 as override
-and list patches.
+`v2.3.0`, `v3.0.0`, `v3.0.1`, `v3.0.2`, `v3.0.3` and `v3.1.0`. Stage O was
+released on 2026-11-19; stages V and C followed on 2026-11-24, with 3.0.1-3.0.3
+as override and list patches. 3.1.0 adds the viewport preview.
 
 The 2.x releases do not change existing output unless the user enables a
-feature. 3.1.0 changes output only when `export_animations` is on.
+feature. 3.2.0 changes output only when `export_animations` is on.
 
 ---
 
@@ -621,22 +637,31 @@ feature. 3.1.0 changes output only when `export_animations` is on.
 
 ### 3.1.0
 
+- Preview switches the 3D View to camera view for the active collection.
+- It uses the resolved canvas, overrides and first active view; it updates after
+  target, override and depsgraph changes.
+- Exit Preview or leaving camera view restores the camera, resolution and
+  visibility. No files are written.
+- README, CHANGELOG, manifest and package contract use 3.1.0.
+
+### 3.2.0
+
 - Every action of a collection is exported over its own frame range.
 - All frames of a collection have the same size and scale across actions and
   views.
 - Names include the action and the frame by default.
 - Cancelling a sequence restores the action, slot, NLA state, frame, camera and
   render settings.
-- README, CHANGELOG, manifest and package contract use 3.1.0.
+- README, CHANGELOG, manifest and package contract use 3.2.0.
 
 ---
 
 ## 14. Summary
 
 The 2.x work made the exporter safe. Version 3 makes it comfortable and
-expressive without turning it into a platform. Releases 2.1.0-3.0.0 complete
-the interface, override, view and compatibility stages; the remaining stage is
-animation.
+expressive without turning it into a platform. Releases 2.1.0-3.1.0 complete the
+interface, override, view, compatibility and preview stages; the remaining
+stage is animation (3.2.0).
 
 The remaining goals are:
 

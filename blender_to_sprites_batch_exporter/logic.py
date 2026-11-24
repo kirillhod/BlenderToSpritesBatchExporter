@@ -11,6 +11,7 @@ from .core.scene import *  # noqa: F401,F403
 from .core.framing import *  # noqa: F401,F403
 from .core.targets import *  # noqa: F401,F403
 from .core.overrides import *  # noqa: F401,F403
+from .core.preview import *  # noqa: F401,F403
 from .core.tasks import *  # noqa: F401,F403
 from .core.naming import *  # noqa: F401,F403
 from .core.presets import *  # noqa: F401,F403
