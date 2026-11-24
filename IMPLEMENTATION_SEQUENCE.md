@@ -3,14 +3,15 @@
 Date: 2026-11-11
 Base: `IMPROVEMENT_PLAN.md` (v3 revision, 2026-11-11)
 Baseline add-on version: 2.0.4
-Target releases: 2.1.0, 2.1.1, 2.1.2, 2.1.3, 2.2.0, 2.3.0, 3.0.0, 3.1.0, 3.2.0
+Target releases: 2.1.0, 2.1.1, 2.1.2, 2.1.3, 2.2.0, 2.3.0, 3.0.0, 3.1.0,
+3.1.1, 3.1.2, 3.2.0, 3.3.0
 
 The repository uses `main` as its default branch. `feature/improvements-v3`
 was created from `origin/main` at `1710a0e`. Stage U is implemented and
 released as 2.1.0; its UI follow-up fixes are 2.1.1, 2.1.2 and 2.1.3. Stage O
 is implemented and released as 2.2.0.
 
-This sequence covers only the five features in the plan. It is intentionally
+This sequence covers only the seven features in the plan. It is intentionally
 smaller than the previous draft: no module splits, no atlas, no CLI, no pivots,
 no shared global canvas.
 
@@ -108,7 +109,9 @@ S0 baseline
  |                    |
  |                    +-- P1  viewport preview (3.1.0)
  |                    |      |
- |                    |      +-- A1-A8  animation (3.2.0)
+ |                    |      +-- G1  canvas grid (3.2.0)
+ |                    |             |
+ |                    |             +-- A1-A8  animation (3.3.0)
 ```
 
 Safe parallelism:
@@ -610,13 +613,13 @@ predictable names and content-sized lists.
 
 ---
 
-## 9. Stage A. Animation export (3.2.0)
+## 9. Stage A. Animation export (3.3.0)
 
 **Result:** every action of a collection exported over its own range with one
 stable canvas.
 
 ### A1. Properties
-- **Depends:** C2.
+- **Depends:** G1.
 - **Files:** `properties.py`, `core/presets.py`.
 - **Actions:**
   1. Add `export_animations` (default false) and `animation_frame_step`
@@ -717,13 +720,13 @@ stable canvas.
   and limitations sections, CHANGELOG.
 - **Done:** stage A is functionally complete.
 
-### A8. Version 3.2.0 and tag
+### A8. Version 3.3.0 and tag
 - **Depends:** A7.
 - **Files:** `__init__.py`, `blender_manifest.toml`,
   `tests/test_package_contract.py`, `CHANGELOG.md`.
-- **Actions:** set 3.2.0 everywhere, build the zip, install in clean 5.2 and 5.3
-  profiles, run the smoke suite, tag `v3.2.0`.
-- **Done:** 3.2.0 is released.
+- **Actions:** set 3.3.0 everywhere, build the zip, install in clean 5.2 and 5.3
+  profiles, run the smoke suite, tag `v3.3.0`.
+- **Done:** 3.3.0 is released.
 
 ---
 
@@ -741,11 +744,12 @@ stable canvas.
 | Smoke naming | tokens, padding, unknown token, auto suffix, collisions | V |
 | Smoke 5.3 | install, render, nodes, action slots, NLA | C1 and A8 |
 | Smoke preview | camera mode, target isolation, row switching, immediate refresh, export exit, restore; camera view is GUI-only | 3.1.2 |
+| Smoke grid | property and panel draw; overlay, adaptive step and clipping are GUI-only | 3.2.0 |
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
-| Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, clean install | before each tag |
+| Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, canvas grid, clean install | before each tag |
 
-Current results at 3.1.2: the unit suite passes; smoke passes in Blender 5.2.3
-LTS and 5.3; the 3.1.2 zip imports, registers and unregisters in both. The
+Current results at 3.2.0: the unit suite passes; smoke passes in Blender 5.2.3
+LTS and 5.3; the 3.2.0 zip imports, registers and unregisters in both. The
 reference scene with the new toggles off matches the 2.0.4 export pixel for
 pixel.
 
@@ -774,8 +778,10 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 | M3 | multi-view, canvas, naming and list density | 2.3.0 |
 | M4 | 5.3 verified, 3.0.0 released | 3.0.0 |
 | M4b | viewport preview | 3.1.0 |
-| M5 | animation | 3.2.0-dev |
-| M6 | 3.2.0 released | 3.2.0 |
+| M4c | preview target and refresh fixes | 3.1.2 |
+| M4d | canvas grid | 3.2.0 |
+| M5 | animation | 3.3.0-dev |
+| M6 | 3.3.0 released | 3.3.0 |
 
 ---
 
@@ -887,6 +893,15 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ### 3.2.0
 
+- [x] Canvas Grid draws the canvas frame, adaptive lines and a center cross in
+  camera view.
+- [x] Preview shows the active collection's canvas and overrides; with the
+  toggle off, output is unchanged.
+- [x] The grid stays clipped at fit, zoomed in and zoomed out in 5.2.3 and 5.3.
+- [x] The 3.2.0 zip installs, exports and unregisters in 5.2.3 and 5.3.
+
+### 3.3.0
+
 - [ ] Two actions of one collection export over their own ranges.
 - [ ] All frames and actions of a collection share one canvas.
 - [ ] Names include action and frame; sequences sort correctly.
@@ -935,11 +950,11 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ## 14. Next working day
 
-Stage C and the 3.0.x patches are complete; 3.1.0 adds the viewport preview and
-3.1.1-3.1.2 fix target switching, refresh rate and export safety. The next work
-is stage A (3.2.0):
+Stage C and the 3.0.x patches are complete; 3.1.0 adds the viewport preview,
+3.1.1-3.1.2 fix target switching, refresh rate and export safety, and 3.2.0 adds
+the canvas grid. The next work is stage A (3.3.0):
 
-1. Confirm the clean tree, `v3.1.2` and the 3.1.2 zip.
+1. Confirm the clean tree, `v3.2.0` and the 3.2.0 zip.
 2. Start A1: animation properties, frame sampling and action discovery.
 3. Keep the current view, override and naming behavior unchanged when
    `export_animations` is off.
@@ -962,8 +977,8 @@ is stage A (3.2.0):
      and `compute_collection_frame`; use the first active axis.
   3. Hide other collections in the viewport, keep light objects, switch the 3D
      View to camera view and set the canvas resolution.
-  4. Refresh on a 0.25 s timer after target, override or depsgraph changes;
-     restore on exit, save and unload.
+  4. Refresh as soon as Blender is idle after target, override or depsgraph
+     changes; restore on exit, save and unload.
   5. Add the Preview button and smoke coverage; update README, `ui.md` and the
      smoke coverage table.
 - **Check:** preview follows the active target row, overrides and canvas; exit
@@ -974,3 +989,21 @@ is stage A (3.2.0):
   because hiding collections resets the Outliner active collection. 3.1.2
   applies changes as soon as Blender is idle and exits preview before an
   export. The Outliner stays on the previewed collection.
+
+---
+
+## 16. Canvas grid (3.2.0)
+
+- **Depends:** 3.1.2.
+- **Files:** `core/canvas_grid.py`, `properties.py`, `ui.py`, `__init__.py`,
+  `tests/test_package_contract.py`, README, CHANGELOG and docs.
+- **Actions:**
+  1. Add the opt-in `show_canvas_grid` property; no new operator ID.
+  2. Draw a POST_PIXEL overlay in camera view with the camera frame, adaptive
+     canvas-pixel lines and a center cross.
+  3. Read the current render resolution so Preview follows the active target and
+     its overrides; register and remove the draw handler with the add-on.
+  4. Add the Camera & Framing toggle, the contract test and the GUI check.
+- **Check:** the grid stays clipped to the canvas at fit, zoomed in and zoomed
+  out; it does not render or change output; 5.2.3 and 5.3 pass.
+- **Done:** 3.2.0 is released.

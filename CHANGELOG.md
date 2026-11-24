@@ -2,6 +2,14 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.2.0] - 2026-11-24
+
+### Added
+- Canvas Grid toggle in Camera & Framing. It draws the orthographic camera
+  canvas in camera view with lines that snap to output pixels, an adaptive step
+  and a center cross. Preview shows the active collection's canvas and
+  overrides. It is a viewport guide and never reaches a render.
+
 ## [3.1.2] - 2026-11-24
 
 ### Fixed

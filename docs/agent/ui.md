@@ -51,7 +51,7 @@ for the visible active target row.
 
 ## Current state
 
-Recorded after 3.1.2. Row counts are approximate and assume two targets, one
+Recorded after 3.2.0. Row counts are approximate and assume two targets, one
 Always Include collection and no problems.
 
 | Panel | Open rows | Current contents |
@@ -151,7 +151,7 @@ Restore each have a full row.
 - A running job has no progress bar.
 - `render.filter_size` is duplicated outside the Render properties.
 - Collapsed override groups show only their label and checkbox, not the values
-  they contain. Animation controls arrive with 3.2.0.
+  they contain. Animation controls arrive with 3.3.0.
 
 ## Layout rules
 
