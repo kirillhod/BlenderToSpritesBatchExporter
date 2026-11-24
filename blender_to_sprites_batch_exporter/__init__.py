@@ -143,9 +143,19 @@ def register():
     save_handlers = bpy.app.handlers.save_pre
     if _restore_preview_on_save not in save_handlers:
         save_handlers.append(_restore_preview_on_save)
+    try:
+        from .core.canvas_grid import register_canvas_grid
+        register_canvas_grid()
+    except Exception:  # noqa: BLE001 - the grid is a viewport extra
+        pass
 
 
 def unregister():
+    try:
+        from .core.canvas_grid import unregister_canvas_grid
+        unregister_canvas_grid()
+    except Exception:  # noqa: BLE001
+        pass
     try:
         exit_all_previews()
     except Exception:

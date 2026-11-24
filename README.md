@@ -120,6 +120,14 @@ camera view to restore the scene camera, resolution and visibility. Starting an
 export exits Preview first, so the preview camera and hidden collections do not
 reach the rendered frames.
 
+### Canvas Grid
+
+Turn on **Canvas Grid** in **Camera & Framing** to draw the orthographic camera
+canvas as a grid in camera view. The outer frame is the output canvas, lines
+snap to output pixels and the step grows as you zoom out. In Preview it follows
+the active collection's canvas and overrides. It is a viewport guide and is not
+rendered.
+
 ### Per-collection overrides
 
 Select a target row to open its **View**, **Framing** and **Resolution**

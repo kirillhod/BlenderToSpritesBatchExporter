@@ -65,7 +65,7 @@ The entry point is `run_test()` in `tests/smoke_blender.py`. It calls:
 | `run_collision_test` | sanitized name collisions block the export; temporary camera |
 | `run_target_sync_test` | automatic sync and Outliner linkage |
 | `run_target_filter_test` | `export_source` filter and registry persistence |
-| `run_ui_draw_probe` | every panel draws in every mode |
+| `run_ui_draw_probe` | every panel draws in every mode, including the canvas grid toggle |
 | `run_ui_icon_probe` | icon identifiers resolve |
 
 Add a check here when the change touches target filtering, Outliner linkage,
@@ -84,3 +84,5 @@ output lists, preflight or rendering. Pure logic belongs in the unit suite.
   GUI and is checked visually.
 - Preview value drags refresh immediately. Update smoothness needs a GUI; it is
   checked with a timer that changes a framing value and records camera updates.
+- Canvas grid drawing and its adaptive step need a GUI; check camera view and
+  Preview at fit, zoomed in and zoomed out.

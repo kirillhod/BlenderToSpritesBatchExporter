@@ -88,6 +88,16 @@ def _override_group_changed(item, context, group):
     _invalidate_analysis(item, context)
 
 
+def _canvas_grid_changed(_self, context):
+    """Redraw the 3D View when the canvas grid toggle changes."""
+    try:
+        from .core.canvas_grid import reset_failure, tag_redraw
+        reset_failure()
+        tag_redraw(context)
+    except Exception:
+        pass
+
+
 def _global_view_changed(self, context):
     try:
         sync_legacy_camera_axis(self)
@@ -568,6 +578,16 @@ class BTS_Settings(PropertyGroup):
         name="Remove Camera After Export",
         description="Delete the temporary camera after the export finishes",
         default=True,
+    )
+    show_canvas_grid: BoolProperty(
+        name="Canvas Grid",
+        description=(
+            "Draw the orthographic camera canvas as a grid in camera view. "
+            "Cells follow the output resolution and the step adapts to the "
+            "viewport zoom"
+        ),
+        default=False,
+        update=_canvas_grid_changed,
     )
 
     padding_mode: EnumProperty(

@@ -414,7 +414,13 @@ class BTS_PT_Camera(Panel):
         settings = context.scene.bts_settings
         _draw_view_grid(layout, settings)
         layout.prop(settings, "camera_margin", text="Margin")
-        layout.prop(settings, "auto_cleanup_camera", text="Remove Camera")
+        toggles = layout.grid_flow(
+            row_major=True, columns=2, even_columns=True, align=True
+        )
+        toggles.use_property_split = False
+        toggles.use_property_decorate = False
+        toggles.prop(settings, "auto_cleanup_camera", text="Remove Camera")
+        toggles.prop(settings, "show_canvas_grid", text="Canvas Grid")
         layout.separator(factor=0.5)
         layout.prop(settings, "padding_mode", expand=True)
         layout.prop(

@@ -124,6 +124,7 @@ class RegistrationContractTest(unittest.TestCase):
             "view_left",
             "camera_margin",
             "auto_cleanup_camera",
+            "show_canvas_grid",
             "padding_mode",
             "padding_pixels",
             "padding_units",

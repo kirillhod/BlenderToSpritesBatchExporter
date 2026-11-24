@@ -20,9 +20,10 @@ lives in `IMPLEMENTATION_SEQUENCE.md`.
 4. Progressive disclosure needs a summary. A collapsed section must show its
    state or count in the header, for example `Format: PNG / RGBA` or
    `Overrides: 2 active`.
-5. Use Blender primitives. Do not draw custom widgets, floating toolbars or
-   GPU overlays. Panels, subpanels, `layout.panel`, `template_list`, menus and
-   popovers are the allowed building blocks.
+5. Use Blender primitives. Do not draw custom widgets or floating toolbars.
+   Panels, subpanels, `layout.panel`, `template_list`, menus and popovers are
+   the allowed building blocks. A viewport overlay is allowed only as a
+   render/canvas guide, never as a control.
 6. Dense but scannable. Prefer one aligned row over two short rows, but do not
    compress labels until they become ambiguous.
 7. Do not compute bounds, scan nodes or run preflight in `draw()`. Use the
@@ -38,7 +39,7 @@ All panels use `bl_space_type = 'VIEW_3D'`, `bl_region_type = 'UI'` and
 |---|---|---|
 | Main | `BTS_PT_main` | target summary, export and analyze actions, job status, warnings |
 | Collections | `BTS_PT_source` | export mode, target table, target actions, three Override groups, Always Include, isolation |
-| Camera & Framing | `BTS_PT_camera` | six view toggles, margin, padding, cleanup |
+| Camera & Framing | `BTS_PT_camera` | six view toggles, margin, padding, cleanup, canvas grid |
 | Resolution | `BTS_PT_resolution` | pixels per unit, multiple, square output, min and max size |
 | Output & Naming | `BTS_PT_output` | main and node output, format, Path Preview, conflicts |
 | Problems | `BTS_PT_problems` | every problem, collection and fix hint in full |
@@ -50,14 +51,14 @@ for the visible active target row.
 
 ## Current state
 
-Recorded after V5 and V5b (2.3.0). Row counts are approximate and assume two
-targets, one Always Include collection and no problems.
+Recorded after 3.1.2. Row counts are approximate and assume two targets, one
+Always Include collection and no problems.
 
 | Panel | Open rows | Current contents |
 |---|---:|---|
 | Main | 5-9 | target summary; Export; Analyze and Cancel; Preview Camera and Cleanup; Restore Collections; optional job-status box; optional warnings |
 | Collections | 23-29 | export mode; refresh and search; table header; 3-8 target rows; All, None, Active and Activate; Skip Empty; Preview; three collapsible Overrides groups; Always Include; isolation; keep lights |
-| Camera & Framing | 6 | six view toggles in a 3x2 grid; margin; auto cleanup; padding mode; padding value |
+| Camera & Framing | 6 | six view toggles in a 3x2 grid; margin; auto cleanup and canvas grid; padding mode; padding value |
 | Resolution | 5 | pixels per unit; multiple; square output; min; max |
 | Output & Naming | 14-26 | main or node output; format; overwrite; Path Preview; conflicts |
 | Problems | 1-20 | grouped full messages, collection and fix hint; Analyze and Copy |
@@ -114,7 +115,9 @@ and view state. The mode is not saved.
 
 Six view toggles are drawn as a 3x2 grid with short labels and tooltips. The
 legacy `camera_axis` control is hidden but the property remains for presets and
-scripts. Margin, auto cleanup and padding follow the grid.
+scripts. Margin, auto cleanup and padding follow the grid. **Canvas Grid** draws
+adaptive canvas-pixel lines and a center cross in camera view; it follows the
+Preview canvas and does not render.
 
 ### Output & Naming
 
@@ -138,10 +141,6 @@ tooltips. Log is always open and contains only its two buttons.
 
 ### Lists and actions
 
-List heights follow their content: target 3-8 rows, Always Include 1-3,
-Path Preview 1-4, File Output nodes 1-3. All lists scroll. An empty target or
-Always Include list draws one info row instead of an empty `template_list`.
-
 Main uses four action rows. Analyze appears in Main and Problems; Copy appears
 in Problems and Log. Secondary actions such as Preview Camera, Cleanup and
 Restore each have a full row.
@@ -149,11 +148,10 @@ Restore each have a full row.
 ### Known gaps
 
 - One sidebar category holds all eight panels.
-- Target rows do not show which targets have active overrides.
 - A running job has no progress bar.
 - `render.filter_size` is duplicated outside the Render properties.
 - Collapsed override groups show only their label and checkbox, not the values
-  they contain. Animation controls arrive with 3.1.
+  they contain. Animation controls arrive with 3.2.0.
 
 ## Layout rules
 
