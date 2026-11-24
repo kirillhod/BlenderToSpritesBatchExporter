@@ -1563,6 +1563,13 @@ def run_preview_test():
     settings.views_migrated = True
     view_layer.active_layer_collection = body_layer
 
+    weapon_obj = bpy.data.objects.get("WeaponCube")
+    check(weapon_obj is not None, "Preview weapon object missing")
+    before_weapon_object_hide = weapon_obj.hide_get()
+    before_weapon_object_viewport = weapon_obj.hide_viewport
+    weapon_obj.hide_set(True)
+    weapon_obj.hide_viewport = True
+
     result = bpy.ops.bts.preview_camera(preview=True)
     check(result == {"FINISHED"}, "Preview did not start: %r" % (result,))
     check(logic.preview_active(scene), "Preview was not marked active")
@@ -1597,6 +1604,14 @@ def run_preview_test():
         view_layer.active_layer_collection == weapon_layer,
         "Preview did not keep the Outliner on the new target",
     )
+    check(
+        weapon_obj.hide_get() is False,
+        "Preview left the new target hidden in the viewport",
+    )
+    check(
+        weapon_obj.hide_viewport is False,
+        "Preview left the new target disabled in the viewport",
+    )
 
     settings.active_target_index = names.index("Body")
     logic.refresh_preview(scene)
@@ -1607,6 +1622,14 @@ def run_preview_test():
     check(
         view_layer.active_layer_collection == body_layer,
         "Preview did not keep the Outliner on the target",
+    )
+    check(
+        weapon_obj.hide_get() is True,
+        "Preview did not restore the previous target object",
+    )
+    check(
+        weapon_obj.hide_viewport is True,
+        "Preview did not restore the previous target viewport state",
     )
 
     result = bpy.ops.bts.preview_camera(preview=True)
@@ -1634,6 +1657,16 @@ def run_preview_test():
         view_layer.active_layer_collection == body_layer,
         "Exit moved the Outliner selection",
     )
+    check(
+        weapon_obj.hide_get() is True,
+        "Exit did not restore the hidden target object",
+    )
+    check(
+        weapon_obj.hide_viewport is True,
+        "Exit did not restore the disabled target object",
+    )
+    weapon_obj.hide_set(before_weapon_object_hide)
+    weapon_obj.hide_viewport = before_weapon_object_viewport
 
     # Pressing Preview with the scene root selected must use the target row.
     view_layer.active_layer_collection = view_layer.layer_collection

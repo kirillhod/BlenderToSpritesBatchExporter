@@ -4,7 +4,7 @@ Date: 2026-11-11
 Base: `IMPROVEMENT_PLAN.md` (v3 revision, 2026-11-11)
 Baseline add-on version: 2.0.4
 Target releases: 2.1.0, 2.1.1, 2.1.2, 2.1.3, 2.2.0, 2.3.0, 3.0.0, 3.1.0,
-3.1.1, 3.1.2, 3.2.0, 3.2.1, 3.2.2, 3.3.0
+3.1.1, 3.1.2, 3.2.0, 3.2.1, 3.2.2, 3.2.3, 3.3.0
 
 The repository uses `main` as its default branch. `feature/improvements-v3`
 was created from `origin/main` at `1710a0e`. Stage U is implemented and
@@ -107,7 +107,7 @@ S0 baseline
  |             |
  |             +-- C2  3.0.0 release
  |                    |
- |                    +-- P1  viewport preview (3.1.0)
+ |                    +-- P1  viewport preview (3.1.0-3.2.3)
  |                    |      |
  |                    |      +-- G1  canvas grid (3.2.0-3.2.2)
  |                    |             |
@@ -743,13 +743,13 @@ stable canvas.
 | Smoke density | dynamic list heights, empty lists, filter still works | V5b |
 | Smoke naming | tokens, padding, unknown token, auto suffix, collisions | V |
 | Smoke 5.3 | install, render, nodes, action slots, NLA | C1 and A8 |
-| Smoke preview | camera mode, target isolation, row switching, immediate refresh, export exit, restore; camera view is GUI-only | 3.1.2 |
+| Smoke preview | camera mode, target isolation, hidden target objects, row switching, immediate refresh, export exit, restore; camera view is GUI-only | 3.2.3 |
 | Smoke grid | property, row placement and panel draw; overlay, adaptive step, resolution badge and clipping are GUI-only | 3.2.2 |
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
 | Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, canvas grid, clean install | before each tag |
 
-Current results at 3.2.2: the unit suite passes; smoke passes in Blender 5.2.3
-LTS and 5.3; the 3.2.2 zip imports, registers and unregisters in both. The
+Current results at 3.2.3: the unit suite passes; smoke passes in Blender 5.2.3
+LTS and 5.3; the 3.2.3 zip imports, registers and unregisters in both. The
 reference scene with the new toggles off matches the 2.0.4 export pixel for
 pixel.
 
@@ -782,6 +782,7 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 | M4d | canvas grid | 3.2.0 |
 | M4e | canvas resolution badge | 3.2.1 |
 | M4f | grid toggle next to Preview | 3.2.2 |
+| M4g | hidden preview targets | 3.2.3 |
 | M5 | animation | 3.3.0-dev |
 | M6 | 3.3.0 released | 3.3.0 |
 
@@ -915,6 +916,12 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 - [x] Camera & Framing keeps only Remove Camera; the panel row count is unchanged.
 - [x] The 3.2.2 zip installs, exports and unregisters in 5.2.3 and 5.3.
 
+### 3.2.3
+
+- [x] Switching to a target whose object is hidden in the Outliner shows it.
+- [x] Exit restores both viewport hide states.
+- [x] The 3.2.3 zip installs, exports and unregisters in 5.2.3 and 5.3.
+
 ### 3.3.0
 
 - [ ] Two actions of one collection export over their own ranges.
@@ -967,10 +974,10 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 Stage C and the 3.0.x patches are complete; 3.1.0 adds the viewport preview,
 3.1.1-3.1.2 fix target switching, refresh rate and export safety, 3.2.0 adds the
-canvas grid, 3.2.1 adds its resolution badge and 3.2.2 moves the toggle next to
-Preview. The next work is stage A (3.3.0):
+canvas grid, 3.2.1 adds its resolution badge, 3.2.2 moves the toggle next to
+Preview and 3.2.3 shows hidden target objects. The next work is stage A (3.3.0):
 
-1. Confirm the clean tree, `v3.2.2` and the 3.2.2 zip.
+1. Confirm the clean tree, `v3.2.3` and the 3.2.3 zip.
 2. Start A1: animation properties, frame sampling and action discovery.
 3. Keep the current view, override and naming behavior unchanged when
    `export_animations` is off.
@@ -1004,7 +1011,8 @@ Preview. The next work is stage A (3.3.0):
 - **Status:** 3.1.1 resolves the preview target from the selected row first,
   because hiding collections resets the Outliner active collection. 3.1.2
   applies changes as soon as Blender is idle and exits preview before an
-  export. The Outliner stays on the previewed collection.
+  export. 3.2.3 shows target objects that are hidden in the Outliner. The
+  Outliner stays on the previewed collection.
 
 ---
 

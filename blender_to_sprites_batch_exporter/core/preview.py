@@ -149,15 +149,17 @@ def _snapshot_visibility(view_layer):
         if path:
             layers[path] = bool(layer_collection.hide_viewport)
     objects = {}
+    objects_viewport = {}
     for obj in view_layer.objects:
         try:
             objects[obj.name] = bool(obj.hide_get())
+            objects_viewport[obj.name] = bool(obj.hide_viewport)
         except Exception:  # noqa: BLE001 - visibility is best effort
             pass
-    return layers, objects
+    return layers, objects, objects_viewport
 
 
-def _restore_visibility(view_layer, layers, objects):
+def _restore_visibility(view_layer, layers, objects, objects_viewport):
     for path, state in layers.items():
         layer_collection = resolve_lc(view_layer, path)
         if layer_collection is None:
@@ -167,6 +169,15 @@ def _restore_visibility(view_layer, layers, objects):
                 layer_collection.hide_viewport = state
             except Exception:  # noqa: BLE001
                 pass
+    for name, state in objects_viewport.items():
+        obj = bpy.data.objects.get(name)
+        if obj is None:
+            continue
+        try:
+            if obj.hide_viewport != state:
+                obj.hide_viewport = state
+        except Exception:  # noqa: BLE001
+            pass
     for name, state in objects.items():
         obj = bpy.data.objects.get(name)
         if obj is None:
@@ -217,7 +228,18 @@ def _isolate(view_layer, target_collection, keep_collections):
 
     keep_names = objects_in_collection(target_collection)
     for obj in view_layer.objects:
-        if obj.name in keep_names or is_owned_camera(obj):
+        if obj.name in keep_names:
+            # The preview target must be visible even when it is hidden in the
+            # Outliner. Both viewport hide states are snapshotted and restored.
+            try:
+                if obj.hide_viewport:
+                    obj.hide_viewport = False
+                if obj.hide_get():
+                    obj.hide_set(False)
+            except Exception:  # noqa: BLE001
+                pass
+            continue
+        if is_owned_camera(obj):
             continue
         if obj.type in {'LIGHT', 'LIGHT_PROBE'}:
             continue
@@ -284,7 +306,7 @@ def enter_preview(context, collection=None):
     if data is None:
         return False, "%s: %s" % (target.name, error)
 
-    layers, objects = _snapshot_visibility(view_layer)
+    layers, objects, objects_viewport = _snapshot_visibility(view_layer)
     space = _find_view3d(context)
     region_3d = getattr(space, "region_3d", None) if space is not None else None
     state = {
@@ -302,6 +324,7 @@ def enter_preview(context, collection=None):
         "camera_offset": tuple(getattr(region_3d, "view_camera_offset", (0.0, 0.0))),
         "layers": layers,
         "objects": objects,
+        "objects_viewport": objects_viewport,
         "camera_obj": None,
         "message": "",
     }
@@ -351,7 +374,12 @@ def exit_preview(context=None, scene=None):
     _DIRTY.discard(key)
 
     view_layer = state["view_layer"]
-    _restore_visibility(view_layer, state["layers"], state["objects"])
+    _restore_visibility(
+        view_layer,
+        state["layers"],
+        state["objects"],
+        state.get("objects_viewport", {}),
+    )
     target_layer = (
         find_layer_collection(view_layer, state["collection"])
         if state.get("collection")
@@ -444,7 +472,12 @@ def refresh_preview(scene=None):
         return
 
     if changed:
-        _restore_visibility(view_layer, state["layers"], state["objects"])
+        _restore_visibility(
+            view_layer,
+            state["layers"],
+            state["objects"],
+            state.get("objects_viewport", {}),
+        )
         keep = list(collections_with_lights(scene))
         if not _isolate(view_layer, target, keep):
             state["message"] = "%s is not in the view layer." % target.name

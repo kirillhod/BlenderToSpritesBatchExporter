@@ -2,6 +2,12 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.2.3] - 2026-11-24
+
+### Fixed
+- Preview shows the target collection's objects even when they are hidden in the
+  Outliner. Both viewport hide states are restored when the preview exits.
+
 ## [3.2.2] - 2026-11-24
 
 ### Changed

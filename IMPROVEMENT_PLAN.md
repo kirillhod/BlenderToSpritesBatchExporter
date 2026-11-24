@@ -264,6 +264,8 @@ The Collections panel gets a Preview button for the selected target row.
   Changes apply as soon as Blender is idle, so value drags stay smooth.
 - Starting an export exits preview first, so its camera and visibility cannot
   reach the rendered frames.
+- A target hidden in the Outliner is shown while it is previewed; both viewport
+  hide states are restored on exit.
 - Selecting another row switches the target; the preview reads the row first
   because hiding collections resets the Outliner active collection.
 - Exit Preview, leaving camera view, saving or unloading restores the camera,
@@ -534,7 +536,7 @@ not pinned here, because it grows with every stage.
 - cancel during a sequence restores the scene;
 - old scene and old preset load with unchanged output.
 
-At 3.2.2 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
+At 3.2.3 the smoke suite passes in Blender 5.2.3 LTS and 5.3. Both versions
 also pass the API probe for File Output nodes, image settings, depsgraph bounds,
 action slots, NLA and `frame_set`.
 
@@ -572,14 +574,15 @@ action slots, NLA and `frame_set`.
 2.1.1 was an intermediate build; its changes are included in 2.1.2, so there is
 no `v2.1.1` tag. The tagged releases are `v2.1.0`, `v2.1.2`, `v2.1.3`, `v2.2.0`,
 `v2.3.0`, `v3.0.0`, `v3.0.1`, `v3.0.2`, `v3.0.3`, `v3.1.0`, `v3.1.1`, `v3.1.2`,
-`v3.2.0`, `v3.2.1` and `v3.2.2`. Stage O was released on 2026-11-19; stages V
-and C followed on 2026-11-24, with 3.0.1-3.0.3 as override and list patches.
-3.1.0 adds the viewport preview; 3.1.1 and 3.1.2 fix its target switching and
-update rate; 3.2.0 adds the canvas grid, 3.2.1 adds its resolution badge and
-3.2.2 moves the toggle next to Preview.
+`v3.2.0`, `v3.2.1`, `v3.2.2` and `v3.2.3`. Stage O was released on 2026-11-19;
+stages V and C followed on 2026-11-24, with 3.0.1-3.0.3 as override and list
+patches. 3.1.0 adds the viewport preview; 3.1.1 and 3.1.2 fix its target
+switching and update rate; 3.2.0 adds the canvas grid, 3.2.1 adds its resolution
+badge, 3.2.2 moves the toggle next to Preview and 3.2.3 shows hidden target
+objects.
 
 The 2.x releases do not change existing output unless the user enables a
-feature. 3.2.0-3.2.2 are viewport guides and change no output. 3.3.0 changes
+feature. 3.2.0-3.2.3 are viewport guides and change no output. 3.3.0 changes
 output only when `export_animations` is on.
 
 ---
@@ -709,6 +712,12 @@ output only when `export_animations` is on.
 - Camera & Framing keeps only the framing controls; panel rows stay unchanged.
 - README, CHANGELOG, manifest and package contract use 3.2.2.
 
+### 3.2.3
+
+- Preview shows the target collection's objects even when they are hidden in the
+  Outliner; both viewport hide states are restored on exit.
+- README, CHANGELOG, manifest and package contract use 3.2.3.
+
 ### 3.3.0
 
 - Every action of a collection is exported over its own frame range.
@@ -724,7 +733,7 @@ output only when `export_animations` is on.
 ## 14. Summary
 
 The 2.x work made the exporter safe. Version 3 makes it comfortable and
-expressive without turning it into a platform. Releases 2.1.0-3.2.2 complete the
+expressive without turning it into a platform. Releases 2.1.0-3.2.3 complete the
 interface, override, view, compatibility, preview and grid stages; the
 remaining stage is animation (3.3.0).
 
