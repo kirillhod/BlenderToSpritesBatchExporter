@@ -19,6 +19,8 @@ Blender terms in this guide link to the
   framed automatically.
 - Multi-view export from top, bottom, front, back, right and left, with one
   shared canvas per collection.
+- Viewport preview that fits the 3D View to the selected collection without
+  rendering, and a canvas grid guide with the output resolution.
 - Checkbox list of collections with All, None and Active buttons.
 - Per-collection framing, resolution and view overrides for different asset
   scales and directions.
@@ -44,7 +46,7 @@ Blender terms in this guide link to the
 
 ## Requirements
 
-- Blender 5.2.3 LTS or 5.3.
+- Blender 5.2 or newer. Tested with 5.2.3 LTS and 5.3.
 
 ## Installation
 
