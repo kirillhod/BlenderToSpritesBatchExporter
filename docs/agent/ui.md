@@ -98,7 +98,8 @@ Add and Remove buttons. The target actions use one even four-column row so
 long `Fit Camera to Active` and `Remove Camera` operator labels are shortened in
 the Main panel and stay complete in their tooltips.
 
-Target rows have no marker for an active override.
+Target rows show the override marker before the status when at least one group
+is on.
 
 ### Camera & Framing
 

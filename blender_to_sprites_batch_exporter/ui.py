@@ -4,6 +4,7 @@ from bpy.types import Panel, UIList
 
 from .logic import (
     DEPTH_CAPABLE,
+    active_override_groups,
     gather_source_collections,
     get_job_status,
     is_relative_unsaved,
@@ -187,10 +188,15 @@ class BTS_UL_Targets(UIList):
         split = row.split(factor=_TARGET_NAME_FACTOR, align=True)
         split.label(text=item.name, icon='OUTLINER_COLLECTION')
         analysis = peek_cached_analysis(context.scene)
+        status = ""
         if analysis is not None and item.size_status:
-            split.label(text=_target_status_text(item.size_status, compact=True))
+            status = _target_status_text(item.size_status, compact=True)
         elif not item.enabled:
-            split.label(text="disabled")
+            status = "disabled"
+        if active_override_groups(item):
+            split.label(text=status, icon='DECORATE_OVERRIDE')
+        elif status:
+            split.label(text=status)
 
     def filter_items(self, context, data, propname):
         items = getattr(data, propname)

@@ -107,13 +107,14 @@ in preflight.
 ### Per-collection overrides
 
 Select a target row to open its **View**, **Framing** and **Resolution**
-override groups below the list. Each group is a collapsible section with its
-checkbox in the header.
+override groups below the list. Each group is a checkbox row; turning it on
+opens a collapsible section with the checkbox in the header.
 
 - **View** overrides the six view toggles.
-- **Framing** overrides Camera Distance Margin, Padding Mode and Padding.
-- **Resolution** overrides Pixels / Unit, Round To Multiple Of, Square Output,
-  Min Res and Max Res.
+- **Framing** overrides Margin, Padding Mode and Padding.
+- **Resolution** overrides Pixels / Unit, Round To, Square Output, Min Res and
+  Max Res.
+- A target with any active override shows the override marker in the list.
 - A group that is off uses the global value and draws no fields.
 - Turning a group on copies the current global values once. Later changes to
   the global settings do not affect that collection.
