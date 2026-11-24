@@ -2,6 +2,12 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.0.1] - 2026-11-24
+
+### Fixed
+- An unchecked View, Framing or Resolution override group no longer leaves a
+  blank row between headers while the group is expanded.
+
 ## [3.0.0] - 2026-11-24
 
 ### Added

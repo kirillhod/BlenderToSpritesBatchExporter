@@ -602,8 +602,9 @@ predictable names and content-sized lists.
   5. Tag `v3.0.0`.
 - **Check:** versions match; install and export work; package contract passes.
 - **Done:** 3.0.0 is released.
-- **Status:** released as 3.0.0. The zip registers, exports one sprite and
-  unregisters in Blender 5.2.3 LTS and 5.3.
+- **Status:** released as 3.0.0, with 3.0.1 as the override-spacing patch. The
+  3.0.1 zip registers, exports one sprite and unregisters in Blender 5.2.3 LTS
+  and 5.3.
 
 ---
 
@@ -740,8 +741,8 @@ stable canvas.
 | Smoke animation | two actions, two views, stable size, names, restore, cancel | A |
 | Manual | tooltips, auto-sync, target filter, status, UI density, per-collection output, clean install | before each tag |
 
-Current results at 2.3.0: the unit suite passes; smoke passes in Blender 5.2.3
-LTS and 5.3; the 2.3.0 zip imports, registers and unregisters in both. The
+Current results at 3.0.1: the unit suite passes; smoke passes in Blender 5.2.3
+LTS and 5.3; the 3.0.1 zip imports, registers and unregisters in both. The
 reference scene with the new toggles off matches the 2.0.4 export pixel for
 pixel.
 
@@ -841,6 +842,11 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 - [x] Cancel during a real export restores camera, excludes and render state.
 - [x] The release zip installs on clean 5.2 and 5.3 profiles.
 
+### 3.0.1
+
+- [x] An unchecked but expanded override group adds no blank row.
+- [x] The 3.0.1 zip installs, exports and unregisters in 5.2.3 and 5.3.
+
 ### 3.1.0
 
 - [ ] Two actions of one collection export over their own ranges.
@@ -893,7 +899,7 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 Stage C is complete and released as 3.0.0. The next work is stage A (3.1.0):
 
-1. Confirm the clean tree, `v3.0.0` and the 3.0.0 zip.
+1. Confirm the clean tree, `v3.0.1` and the 3.0.1 zip.
 2. Start A1: animation properties, frame sampling and action discovery.
 3. Keep the current view, override and naming behavior unchanged when
    `export_animations` is off.
