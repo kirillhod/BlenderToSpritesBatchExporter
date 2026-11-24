@@ -709,6 +709,8 @@ class PresetTest(unittest.TestCase):
             "keep_lights": True,
             "export_source": "ALL",
             "skip_empty": True,
+            "export_animations": False,
+            "animation_frame_step": 1,
             "name_template": "{collection}",
         }
         values.update(overrides)
@@ -733,6 +735,26 @@ class PresetTest(unittest.TestCase):
             ignored = logic.apply_preset(target, values)
             self.assertFalse(ignored)
             self.assertEqual(target.pixels_per_unit, 32.0)
+
+    def test_animation_settings_are_preset_and_analysis_fields(self):
+        for field in ("export_animations", "animation_frame_step"):
+            self.assertIn(field, logic.PRESET_FIELDS)
+            self.assertIn(field, logic.ANALYSIS_SETTING_ATTRS)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "preset.json")
+            settings = self.make_settings(
+                export_animations=True, animation_frame_step=3
+            )
+            logic.export_preset(settings, path)
+            values, ignored, _version, _description = logic.load_preset(path)
+            self.assertFalse(ignored)
+            self.assertTrue(values["export_animations"])
+            self.assertEqual(values["animation_frame_step"], 3)
+            target = self.make_settings()
+            ignored = logic.apply_preset(target, values)
+            self.assertFalse(ignored)
+            self.assertTrue(target.export_animations)
+            self.assertEqual(target.animation_frame_step, 3)
 
     def test_export_accepts_explicit_description(self):
         with tempfile.TemporaryDirectory() as tmp:

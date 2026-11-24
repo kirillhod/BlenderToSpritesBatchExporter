@@ -1497,6 +1497,32 @@ class _DrawHost:
         self.layout = _FakeLayout()
 
 
+def run_animation_property_test():
+    """Animation defaults and the frame step floor."""
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    load_addon()
+    scene = bpy.context.scene
+    settings = scene.bts_settings
+    check(
+        settings.export_animations is False,
+        "Export Animations is on by default",
+    )
+    check(
+        settings.animation_frame_step == 1,
+        "Animation frame step default is not 1",
+    )
+    settings.animation_frame_step = 0
+    check(
+        settings.animation_frame_step == 1,
+        "Animation frame step did not clamp 0 to 1",
+    )
+    settings.animation_frame_step = -5
+    check(
+        settings.animation_frame_step == 1,
+        "Animation frame step did not clamp a negative value to 1",
+    )
+
+
 def run_ui_draw_probe():
     """Call every panel draw path without a real UI layout."""
     from blender_to_sprites_batch_exporter import ui
@@ -1862,6 +1888,7 @@ def run_test():
     run_list_density_test()
     run_override_property_test()
     run_view_property_test()
+    run_animation_property_test()
     run_multi_view_export_test()
     run_view_override_export_test()
     run_override_export_test()

@@ -620,14 +620,14 @@ stable canvas.
 
 ### A1. Properties
 - **Depends:** G1.
-- **Files:** `properties.py`, `core/presets.py`.
+- **Files:** `properties.py`, `core/presets.py`, `core/job.py`.
 - **Actions:**
   1. Add `export_animations` (default false) and `animation_frame_step`
      (default 1, min 1).
   2. Add both to the analysis token and to `PRESET_FIELDS`.
   3. Keep all existing frame and scene settings untouched; the action defines
      its own range.
-- **Check:** defaults leave 3.0 output unchanged; invalid step is rejected.
+- **Check:** defaults leave 3.0 output unchanged; a step below 1 clamps to 1.
 - **Done:** animation settings are stable.
 
 ### A2. Action discovery

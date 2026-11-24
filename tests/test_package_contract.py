@@ -138,6 +138,8 @@ class RegistrationContractTest(unittest.TestCase):
             "keep_lights",
             "export_source",
             "skip_empty",
+            "export_animations",
+            "animation_frame_step",
         }
         self.assertEqual(set(properties.BTS_Settings.__annotations__), expected)
 

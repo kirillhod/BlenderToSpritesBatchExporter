@@ -689,3 +689,21 @@ class BTS_Settings(PropertyGroup):
         description="Skip collections without renderable geometry",
         default=True,
     )
+    export_animations: BoolProperty(
+        name="Export Animations",
+        description=(
+            "Export every action used by the collection's objects, one frame "
+            "per file. Each action defines its own frame range. Off by default"
+        ),
+        default=False,
+    )
+    animation_frame_step: IntProperty(
+        name="Frame Step",
+        description=(
+            "Export every Nth frame of each action. 1 exports every frame. "
+            "Default: 1"
+        ),
+        default=1,
+        min=1,
+        soft_max=60,
+    )

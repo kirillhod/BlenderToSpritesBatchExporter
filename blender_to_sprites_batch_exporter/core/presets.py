@@ -43,6 +43,8 @@ PRESET_FIELDS = (
     "keep_lights",
     "export_source",
     "skip_empty",
+    "export_animations",
+    "animation_frame_step",
     "name_template",
 )
 
