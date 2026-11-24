@@ -186,6 +186,157 @@ class FrameTest(unittest.TestCase):
         self.assertEqual((frame["res_x"], frame["res_y"]), (1, 1))
 
 
+class CanvasMathTest(unittest.TestCase):
+    def make_bounds(self, maximum=(1, 2, 3)):
+        return (
+            logic.mathutils.Vector((0, 0, 0)),
+            logic.mathutils.Vector(maximum),
+        )
+
+    def assertFrameEqual(self, first, second):
+        for key in ("res_x", "res_y", "ortho_scale", "width", "height"):
+            self.assertEqual(first[key], second[key])
+        self.assertEqual(
+            [first["center"][i] for i in range(3)],
+            [second["center"][i] for i in range(3)],
+        )
+
+    def test_axis_frame_matches_compute_frame(self):
+        bounds_min, bounds_max = self.make_bounds()
+        for axis in logic.VIEW_AXES:
+            with self.subTest(axis=axis):
+                settings = make_settings(camera_axis=axis)
+                self.assertFrameEqual(
+                    logic.compute_axis_frame(
+                        bounds_min, bounds_max, axis, settings
+                    ),
+                    logic.compute_frame(bounds_min, bounds_max, settings),
+                )
+
+    def test_collection_frame_fits_every_axis(self):
+        bounds_min, bounds_max = self.make_bounds()
+        settings = make_settings()
+        axes = ("TOP", "FRONT", "RIGHT")
+        canvas = logic.compute_collection_frame(
+            bounds_min, bounds_max, axes, settings
+        )
+        for axis in axes:
+            with self.subTest(axis=axis):
+                frame = logic.compute_axis_frame(
+                    bounds_min, bounds_max, axis, settings
+                )
+                self.assertGreaterEqual(canvas["res_x"], frame["res_x"])
+                self.assertGreaterEqual(canvas["res_y"], frame["res_y"])
+                self.assertGreaterEqual(
+                    canvas["ortho_scale"], frame["ortho_scale"]
+                )
+                self.assertEqual(
+                    [canvas["center"][i] for i in range(3)],
+                    [frame["center"][i] for i in range(3)],
+                )
+
+    def test_one_axis_matches_the_collection_canvas(self):
+        bounds_min, bounds_max = self.make_bounds()
+        settings = make_settings(
+            square_output=True,
+            min_resolution=16,
+            max_resolution=200,
+            resolution_multiple=8,
+        )
+        self.assertFrameEqual(
+            logic.compute_collection_frame(
+                bounds_min, bounds_max, ("FRONT",), settings
+            ),
+            logic.compute_axis_frame(
+                bounds_min, bounds_max, "FRONT", settings
+            ),
+        )
+
+    def test_constraints_are_applied_once_to_the_collection_canvas(self):
+        bounds_min, bounds_max = self.make_bounds(maximum=(100, 100, 100))
+        settings = make_settings(
+            square_output=True,
+            min_resolution=64,
+            max_resolution=200,
+            resolution_multiple=8,
+            pixels_per_unit=10.0,
+        )
+        canvas = logic.compute_collection_frame(
+            bounds_min, bounds_max, ("TOP", "FRONT", "LEFT"), settings
+        )
+        self.assertEqual(canvas["res_x"], canvas["res_y"])
+        self.assertGreaterEqual(canvas["res_x"], 64)
+        self.assertLessEqual(canvas["res_x"], 200)
+        self.assertEqual(canvas["res_x"] % 8, 0)
+
+    def test_empty_axes_have_no_canvas(self):
+        bounds_min, bounds_max = self.make_bounds()
+        self.assertIsNone(
+            logic.compute_collection_frame(
+                bounds_min, bounds_max, (), make_settings()
+            )
+        )
+
+
+class TaskExpansionTest(unittest.TestCase):
+    def test_one_task_per_axis_shares_the_collection_canvas(self):
+        canvas = {"res_x": 64, "res_y": 32}
+        body = SimpleNamespace(
+            collection="Body",
+            axes=("TOP", "FRONT"),
+            frame=canvas,
+            output_plan="body.png",
+            node_plans=["node"],
+            skip_reason="",
+        )
+        tasks = logic.expand_tasks([body])
+        self.assertEqual([task.axis for task in tasks], ["TOP", "FRONT"])
+        self.assertEqual([task.collection for task in tasks], ["Body", "Body"])
+        self.assertTrue(all(task.canvas is canvas for task in tasks))
+        self.assertTrue(all(task.output_plan == "body.png" for task in tasks))
+        self.assertTrue(all(task.node_plans == ("node",) for task in tasks))
+        self.assertTrue(all(task.action is None for task in tasks))
+        self.assertTrue(all(task.frame is None for task in tasks))
+
+    def test_target_without_axes_keeps_one_skipped_task(self):
+        weapon = SimpleNamespace(
+            collection="Weapon",
+            axes=(),
+            frame=None,
+            output_plan=None,
+            node_plans=(),
+            skip_reason="",
+        )
+        tasks = logic.expand_tasks([weapon])
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0].axis, "")
+        self.assertEqual(tasks[0].skip_reason, "no views")
+
+    def test_existing_skip_reason_is_kept(self):
+        body = SimpleNamespace(
+            collection="Body",
+            axes=("TOP",),
+            frame=None,
+            output_plan=None,
+            node_plans=(),
+            skip_reason="no renderable geometry",
+        )
+        tasks = logic.expand_tasks([body])
+        self.assertEqual(tasks[0].skip_reason, "no renderable geometry")
+
+    def test_single_axis_string_is_not_split_into_characters(self):
+        body = SimpleNamespace(
+            collection="Body",
+            axes="FRONT",
+            frame=None,
+            output_plan=None,
+            node_plans=(),
+            skip_reason="",
+        )
+        tasks = logic.expand_tasks([body])
+        self.assertEqual([task.axis for task in tasks], ["FRONT"])
+
+
 class OutputPlanningTest(unittest.TestCase):
     def make_output_settings(self, output_dir, **overrides):
         values = {

@@ -11,7 +11,7 @@ from .common import *  # noqa: F401,F403
 # CAMERA MATH
 # ============================================================
 
-def _axis_params(axis_enum):
+def axis_params(axis_enum):
     E = mathutils.Euler
     V = mathutils.Vector
     return {
@@ -34,14 +34,10 @@ def _round_up(value, multiple):
     return ((value + multiple - 1) // multiple) * multiple
 
 
-def compute_frame(bounds_min, bounds_max, settings):
-    _, _, (ax_w, ax_h) = _axis_params(settings.camera_axis)
-    ppu = max(settings.pixels_per_unit, 1e-6)
-    pad = padding_in_units(settings)
-    width = max((bounds_max[ax_w] - bounds_min[ax_w]) + pad * 2.0, 1e-6)
-    height = max((bounds_max[ax_h] - bounds_min[ax_h]) + pad * 2.0, 1e-6)
-    res_x = max(int(round(width * ppu)), 1)
-    res_y = max(int(round(height * ppu)), 1)
+def constrain_resolution(res_x, res_y, settings):
+    """Apply square, minimum, multiple and maximum constraints once."""
+    res_x = max(int(res_x), 1)
+    res_y = max(int(res_y), 1)
     if settings.square_output:
         res_x = res_y = max(res_x, res_y)
     res_x = max(res_x, settings.min_resolution)
@@ -58,6 +54,19 @@ def compute_frame(bounds_min, bounds_max, settings):
         res_y = min(res_y, cap)
     if settings.square_output:
         res_x = res_y = max(res_x, res_y)
+    return res_x, res_y
+
+
+def _axis_extents(bounds_min, bounds_max, axis, settings):
+    _, _, (ax_w, ax_h) = axis_params(axis)
+    pad = padding_in_units(settings)
+    width = max((bounds_max[ax_w] - bounds_min[ax_w]) + pad * 2.0, 1e-6)
+    height = max((bounds_max[ax_h] - bounds_min[ax_h]) + pad * 2.0, 1e-6)
+    return width, height
+
+
+def _frame_from_resolution(res_x, res_y, bounds_min, bounds_max, settings):
+    ppu = max(settings.pixels_per_unit, 1e-6)
     width = res_x / ppu
     height = res_y / ppu
     return {
@@ -70,9 +79,53 @@ def compute_frame(bounds_min, bounds_max, settings):
     }
 
 
-def configure_camera(cam_obj, bounds_min, bounds_max, settings):
-    offset_dir, rotation, (ax_w, ax_h) = _axis_params(settings.camera_axis)
-    frame = compute_frame(bounds_min, bounds_max, settings)
+def compute_axis_frame(bounds_min, bounds_max, axis, settings):
+    """Compute one axis at its own resolution."""
+    width, height = _axis_extents(bounds_min, bounds_max, axis, settings)
+    ppu = max(settings.pixels_per_unit, 1e-6)
+    res_x = max(int(round(width * ppu)), 1)
+    res_y = max(int(round(height * ppu)), 1)
+    res_x, res_y = constrain_resolution(res_x, res_y, settings)
+    return _frame_from_resolution(
+        res_x, res_y, bounds_min, bounds_max, settings
+    )
+
+
+def compute_collection_frame(bounds_min, bounds_max, axes, settings):
+    """Compute one canvas that fits every selected axis.
+
+    The maximum raw resolution is taken first, then the square, minimum,
+    multiple and maximum constraints are applied once. This is equivalent to
+    constraining each axis and taking the maximum, but avoids rounding twice.
+    """
+    axes = tuple(axes)
+    if not axes:
+        return None
+    ppu = max(settings.pixels_per_unit, 1e-6)
+    raw_x = 0
+    raw_y = 0
+    for axis in axes:
+        width, height = _axis_extents(bounds_min, bounds_max, axis, settings)
+        raw_x = max(raw_x, max(int(round(width * ppu)), 1))
+        raw_y = max(raw_y, max(int(round(height * ppu)), 1))
+    res_x, res_y = constrain_resolution(raw_x, raw_y, settings)
+    return _frame_from_resolution(
+        res_x, res_y, bounds_min, bounds_max, settings
+    )
+
+
+def compute_frame(bounds_min, bounds_max, settings):
+    """Single-axis frame for the legacy camera_axis value."""
+    return compute_axis_frame(
+        bounds_min, bounds_max, settings.camera_axis, settings
+    )
+
+
+def configure_camera_for_axis(cam_obj, bounds_min, bounds_max, axis, frame, settings):
+    """Place the camera for one axis using a shared collection canvas."""
+    if frame is None:
+        raise ValueError("A camera frame is required")
+    offset_dir, rotation, (ax_w, ax_h) = axis_params(axis)
     depth_axis = ({0, 1, 2} - {ax_w, ax_h}).pop()
     half_depth = (bounds_max[depth_axis] - bounds_min[depth_axis]) / 2.0
     margin = max(settings.camera_margin, 0.01)
@@ -88,6 +141,18 @@ def configure_camera(cam_obj, bounds_min, bounds_max, settings):
     cam.clip_start = 0.001
     cam.clip_end = distance + half_depth * 2.0 + margin
     return frame
+
+
+def configure_camera(cam_obj, bounds_min, bounds_max, settings):
+    frame = compute_frame(bounds_min, bounds_max, settings)
+    return configure_camera_for_axis(
+        cam_obj,
+        bounds_min,
+        bounds_max,
+        settings.camera_axis,
+        frame,
+        settings,
+    )
 
 
 def is_owned_camera(ob):

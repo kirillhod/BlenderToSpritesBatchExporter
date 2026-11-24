@@ -459,6 +459,8 @@ predictable names and content-sized lists.
 - **Check:** unit tests: one axis matches `compute_frame`; several axes fit every
   direction; square/min/max/multiple are applied once.
 - **Done:** one canvas per collection is pure and tested.
+- **Status:** implemented; unit tests pass and the existing smoke suite still
+  passes in Blender 5.3.0.
 
 ### V3. Preflight, task loop and node output
 - **Depends:** V2.
