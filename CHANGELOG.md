@@ -2,6 +2,12 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [3.0.3] - 2026-11-24
+
+### Added
+- Target rows show an override marker when any View, Framing or Resolution
+  group is on.
+
 ## [3.0.2] - 2026-11-24
 
 ### Changed
