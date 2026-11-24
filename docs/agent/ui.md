@@ -84,8 +84,9 @@ off target.
 
 The three Overrides groups belong to the visible active row. View, Framing and
 Resolution are full-width collapsible sections with the group checkbox in the
-header. View starts off and adds one header row; an off group draws no fields
-and no separate `Using global` row. When the active row is filtered out, one
+header. View starts off and adds one header row; an off group draws no fields,
+no separate `Using global` row, and collapses its empty body so an open but
+unchecked group leaves no blank row. When the active row is filtered out, one
 muted row says `Overrides: no target selected.`
 
 The target list shrinks to its visible rows. The Always Include list uses 1-3

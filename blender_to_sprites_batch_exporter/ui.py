@@ -166,8 +166,14 @@ def _draw_overrides(layout, item):
         )
         header.use_property_split = False
         header.prop(item, "override_" + group, text=label)
-        if body is not None and getattr(item, "override_" + group, False):
+        if body is None:
+            continue
+        if getattr(item, "override_" + group, False):
             draw(body, item)
+        else:
+            # A panel body is always allocated while the section is open.
+            # Collapse it so an unchecked group shows only its header row.
+            body.scale_y = 0.0
 
 
 class BTS_UL_Targets(UIList):
