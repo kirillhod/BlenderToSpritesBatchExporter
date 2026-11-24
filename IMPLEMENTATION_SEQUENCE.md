@@ -6,8 +6,9 @@ Baseline add-on version: 2.0.4
 Target releases: 2.1.0, 2.1.1, 2.1.2, 2.1.3, 2.2.0, 2.3.0, 3.0.0, 3.1.0,
 3.1.1, 3.1.2, 3.2.0, 3.2.1, 3.2.2, 3.2.3, 3.2.4, 3.3.0
 
-The repository uses `main` as its default branch. `feature/improvements-v3`
-was created from `origin/main` at `1710a0e`. Stage U is implemented and
+The repository uses `main` as its default and working branch. The v3 work
+started on `feature/improvements-v3` from `origin/main` at `1710a0e`, was
+merged into `main`, and continues there. Stage U is implemented and
 released as 2.1.0; its UI follow-up fixes are 2.1.1, 2.1.2 and 2.1.3. Stage O
 is implemented and released as 2.2.0.
 

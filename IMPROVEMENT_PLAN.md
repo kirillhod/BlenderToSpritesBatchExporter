@@ -3,7 +3,7 @@
 Date: 2026-11-11
 Baseline version: 2.0.4
 Base branch: `main` (the repository has no `master` branch)
-Work branch: `feature/improvements-v3`
+Work branch: `main`
 Status: in progress. Stage U is released as 2.1.0-2.1.3 and Stage O as 2.2.0.
 Next: 2.3.0, multi-view and naming.
 

@@ -46,7 +46,7 @@ python tools/doc.py sequence 14
 
 ## Environment
 
-- Work on the `feature/improvements-v3` branch. `main` is the base branch.
+- Work on `main`. It is the default branch and the working branch.
 - Use the system `python` for unit tests and tooling.
 - Unit tests are Blender-free and use `tests/stub_bpy.py`.
 - Smoke tests run inside Blender and load the working tree.
