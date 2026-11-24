@@ -674,36 +674,45 @@ class NodePathTest(unittest.TestCase):
 
 
 class PresetTest(unittest.TestCase):
-    def make_settings(self):
-        return SimpleNamespace(
-            output_dir="//sprites/",
-            file_format="PNG",
-            color_mode="RGBA",
-            color_depth="8",
-            use_transparent=True,
-            use_compositor_nodes=True,
-            node_naming="AUTO",
-            node_override_base=False,
-            write_main_output=False,
-            nodes_connected_only=True,
-            overwrite_policy="ASK",
-            camera_axis="TOP",
-            camera_margin=10.0,
-            auto_cleanup_camera=True,
-            padding_mode="PIXELS",
-            padding_pixels=16,
-            padding_units=0.1,
-            pixels_per_unit=100.0,
-            resolution_multiple=1,
-            square_output=False,
-            min_resolution=1,
-            max_resolution=0,
-            isolation_mode="EXCLUDE",
-            keep_lights=True,
-            export_source="ALL",
-            skip_empty=True,
-            name_template="{collection}",
-        )
+    def make_settings(self, **overrides):
+        values = {
+            "output_dir": "//sprites/",
+            "file_format": "PNG",
+            "color_mode": "RGBA",
+            "color_depth": "8",
+            "use_transparent": True,
+            "use_compositor_nodes": True,
+            "node_naming": "AUTO",
+            "node_override_base": False,
+            "write_main_output": False,
+            "nodes_connected_only": True,
+            "overwrite_policy": "ASK",
+            "camera_axis": "TOP",
+            "view_top": True,
+            "view_bottom": False,
+            "view_front": False,
+            "view_back": False,
+            "view_right": False,
+            "view_left": False,
+            "views_migrated": True,
+            "camera_margin": 10.0,
+            "auto_cleanup_camera": True,
+            "padding_mode": "PIXELS",
+            "padding_pixels": 16,
+            "padding_units": 0.1,
+            "pixels_per_unit": 100.0,
+            "resolution_multiple": 1,
+            "square_output": False,
+            "min_resolution": 1,
+            "max_resolution": 0,
+            "isolation_mode": "EXCLUDE",
+            "keep_lights": True,
+            "export_source": "ALL",
+            "skip_empty": True,
+            "name_template": "{collection}",
+        }
+        values.update(overrides)
+        return SimpleNamespace(**values)
 
     def test_export_and_load_roundtrip(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -732,6 +741,48 @@ class PresetTest(unittest.TestCase):
             logic.export_preset(settings, path, description="Custom description")
             _values, _ignored, _version, description = logic.load_preset(path)
             self.assertEqual(description, "Custom description")
+
+    def test_legacy_camera_axis_maps_to_one_view(self):
+        settings = self.make_settings()
+        ignored = logic.apply_preset(settings, {"camera_axis": "FRONT"})
+        self.assertFalse(ignored)
+        self.assertEqual(logic.active_view_axes(settings), ["FRONT"])
+        self.assertEqual(settings.camera_axis, "FRONT")
+
+    def test_four_directions_preset_keeps_its_view_set(self):
+        settings = self.make_settings()
+        ignored = logic.apply_preset(
+            settings, dict(logic.BUILTIN_PRESETS["4 Directions"])
+        )
+        self.assertFalse(ignored)
+        self.assertEqual(
+            logic.active_view_axes(settings),
+            ["FRONT", "BACK", "RIGHT", "LEFT"],
+        )
+        self.assertEqual(settings.name_template, "{collection}_{axis}")
+        self.assertEqual(settings.camera_axis, "FRONT")
+
+    def test_six_directions_preset_enables_every_view(self):
+        settings = self.make_settings()
+        logic.apply_preset(
+            settings, dict(logic.BUILTIN_PRESETS["6 Directions"])
+        )
+        self.assertEqual(logic.active_view_axes(settings), list(logic.VIEW_AXES))
+
+    def test_export_preset_uses_the_first_active_view_as_camera_axis(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "preset.json")
+            settings = self.make_settings(
+                camera_axis="TOP",
+                view_top=False,
+                view_front=True,
+                view_back=True,
+            )
+            logic.export_preset(settings, path)
+            values, _ignored, _version, _description = logic.load_preset(path)
+            self.assertEqual(values["camera_axis"], "FRONT")
+            self.assertTrue(values["view_front"])
+            self.assertTrue(values["view_back"])
 
     def test_unknown_fields_are_reported(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -226,7 +226,9 @@ def clear_view_axes(owner, keep=None):
     for axis in VIEW_AXES:
         if axis == keep:
             continue
-        setattr(owner, VIEW_FIELDS[axis], False)
+        field = VIEW_FIELDS[axis]
+        if hasattr(owner, field):
+            setattr(owner, field, False)
 
 
 def active_view_axes(owner):
@@ -248,8 +250,10 @@ def apply_view_migration(settings):
     # Enable the target first, then disable the others. Clearing first can leave
     # an old view temporarily alone and let its update callback overwrite
     # camera_axis with the previous axis.
-    setattr(settings, VIEW_FIELDS[axis], True)
-    clear_view_axes(settings, keep=axis)
+    field = VIEW_FIELDS[axis]
+    if hasattr(settings, field):
+        setattr(settings, field, True)
+        clear_view_axes(settings, keep=axis)
     return axis
 
 

@@ -1038,7 +1038,13 @@ def run_override_ui_test():
     settings.active_target_index = body_index
     item = ui._active_target_item(bpy.context, settings)
     check(item is not None and item.name == "Body", "Override box active row")
+    item.override_view = True
+    item.override_framing = True
+    item.override_resolution = True
     ui._draw_overrides(_DrawHost().layout, item)
+    item.override_view = False
+    item.override_framing = False
+    item.override_resolution = False
 
     settings.active_target_index = weapon_index
     item = ui._active_target_item(bpy.context, settings)
@@ -1301,6 +1307,12 @@ class _FakeOperator:
 
 
 class _FakeLayout:
+    def panel(self, *args, **kwargs):
+        return self, self
+
+    def panel_prop(self, *args, **kwargs):
+        return self, self
+
     def __getattr__(self, name):
         if name in (
             "use_property_split",

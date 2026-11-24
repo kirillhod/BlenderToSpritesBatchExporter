@@ -242,6 +242,23 @@ class UiTextContractTest(unittest.TestCase):
         self.assertNotIn("layout.alignment = 'LEFT'", source)
         self.assertNotIn("row.alignment = 'LEFT'", source)
 
+    def test_view_grid_and_collapsible_overrides(self):
+        source = (
+            ROOT / "blender_to_sprites_batch_exporter" / "ui.py"
+        ).read_text(encoding="utf-8")
+        camera = source.split("class BTS_PT_Camera", 1)[1].split(
+            "class BTS_PT_Resolution", 1
+        )[0]
+        self.assertIn("_draw_view_grid", camera)
+        self.assertNotIn('layout.prop(settings, "camera_axis")', camera)
+        self.assertIn('"bts_override_" + group', source)
+        self.assertIn('("view", "View"', source)
+        self.assertIn('("framing", "Framing"', source)
+        self.assertIn('("resolution", "Resolution"', source)
+        self.assertIn("layout.panel(", source)
+        self.assertNotIn("Using global", source)
+        self.assertNotIn('panel_prop(item, "override_', source)
+
     def test_output_lists_are_compact_and_scrollable(self):
         source = (
             ROOT / "blender_to_sprites_batch_exporter" / "ui.py"

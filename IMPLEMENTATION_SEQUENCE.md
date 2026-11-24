@@ -531,6 +531,8 @@ predictable names and content-sized lists.
   global toggles do not interfere; the 3x2 grid and three groups draw at 100%
   and 150% scale; the View group off adds one header row.
 - **Done:** multi-view is one click away.
+- **Status:** implemented; unit and smoke tests pass. The 100% and 150% visual
+  check is still pending.
 
 ### V5b. List density
 - **Depends:** V5.

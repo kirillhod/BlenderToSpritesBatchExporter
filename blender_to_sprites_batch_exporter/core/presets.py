@@ -5,6 +5,8 @@ import os
 
 import bpy
 
+from .targets import VIEW_FIELDS, active_view_axes, apply_view_migration
+
 
 PRESET_VERSION = 1
 
@@ -21,6 +23,12 @@ PRESET_FIELDS = (
     "nodes_connected_only",
     "overwrite_policy",
     "camera_axis",
+    "view_top",
+    "view_bottom",
+    "view_front",
+    "view_back",
+    "view_right",
+    "view_left",
     "camera_margin",
     "auto_cleanup_camera",
     "padding_mode",
@@ -38,8 +46,27 @@ PRESET_FIELDS = (
     "name_template",
 )
 
-# Only presets that are meaningful before stage 6 (multi-view) are enabled.
 BUILTIN_PRESETS = {
+    "4 Directions": {
+        "camera_axis": "FRONT",
+        "view_top": False,
+        "view_bottom": False,
+        "view_front": True,
+        "view_back": True,
+        "view_right": True,
+        "view_left": True,
+        "name_template": "{collection}_{axis}",
+    },
+    "6 Directions": {
+        "camera_axis": "TOP",
+        "view_top": True,
+        "view_bottom": True,
+        "view_front": True,
+        "view_back": True,
+        "view_right": True,
+        "view_left": True,
+        "name_template": "{collection}_{axis}",
+    },
     "Pixel Art Top": {
         "camera_axis": "TOP",
         "padding_mode": "PIXELS",
@@ -76,6 +103,8 @@ BUILTIN_PRESETS = {
 }
 
 BUILTIN_PRESET_DESCRIPTIONS = {
+    "4 Directions": "Front, back, right and left views; names include the axis.",
+    "6 Directions": "All six views; names include the axis.",
     "Pixel Art Top": "Top view, 32 px per unit, 1 px padding, square sprites.",
     "Platformer Front": "Front view, 64 px per unit, 2 px padding.",
     "High Resolution Top": "Top view, 128 px per unit, 8 px padding.",
@@ -102,9 +131,24 @@ def preset_path(name):
 
 
 def apply_preset(settings, values):
-    """Apply known fields; return ignored keys."""
+    """Apply known fields; return ignored keys.
+
+    Legacy presets contain camera_axis but no view fields. They are mapped to
+    one view. Presets with view fields apply camera_axis first for old readers,
+    then overwrite the view set without collapsing it.
+    """
     ignored = []
+    view_fields = set(VIEW_FIELDS.values())
+    has_views = any(key in view_fields for key in values)
+    ordered = []
+    if "camera_axis" in values:
+        ordered.append(("camera_axis", values["camera_axis"]))
     for key, value in values.items():
+        if key == "camera_axis":
+            continue
+        ordered.append((key, value))
+
+    for key, value in ordered:
         if key not in PRESET_FIELDS or not hasattr(settings, key):
             ignored.append(key)
             continue
@@ -112,6 +156,9 @@ def apply_preset(settings, values):
             setattr(settings, key, value)
         except (AttributeError, TypeError, ValueError):
             ignored.append(key)
+
+    if "camera_axis" in values and not has_views:
+        apply_view_migration(settings)
     return ignored
 
 
@@ -119,14 +166,18 @@ def export_preset(settings, filepath, description=""):
     description = str(
         description or getattr(settings, "preset_description", "") or ""
     ).strip()
+    values = {
+        key: getattr(settings, key)
+        for key in PRESET_FIELDS
+        if hasattr(settings, key)
+    }
+    views = active_view_axes(settings)
+    if views:
+        values["camera_axis"] = views[0]
     data = {
         "version": PRESET_VERSION,
         "description": description,
-        "values": {
-            key: getattr(settings, key)
-            for key in PRESET_FIELDS
-            if hasattr(settings, key)
-        },
+        "values": values,
     }
     directory = os.path.dirname(filepath)
     if directory:

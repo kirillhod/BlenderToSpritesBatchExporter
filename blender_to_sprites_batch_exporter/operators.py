@@ -390,7 +390,7 @@ def _builtin_preset_items():
 class BTS_OT_ApplyPreset(Operator):
     bl_idname = "bts.apply_preset"
     bl_label = "Apply Preset"
-    bl_description = "Apply a built-in framing and resolution preset to the global settings"
+    bl_description = "Apply a built-in view, framing and resolution preset to the global settings"
     bl_options = {'REGISTER', 'UNDO'}
 
     preset: EnumProperty(

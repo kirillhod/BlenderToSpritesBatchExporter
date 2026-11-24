@@ -18,6 +18,14 @@ from .logic import (
 _TARGET_NAME_FACTOR = 0.55
 _PREVIEW_NAME_FACTOR = 0.42
 _NODE_NAME_FACTOR = 0.42
+_VIEW_TOGGLES = (
+    ("view_top", "Top"),
+    ("view_bottom", "Bottom"),
+    ("view_front", "Front"),
+    ("view_back", "Back"),
+    ("view_right", "Right"),
+    ("view_left", "Left"),
+)
 
 
 def _left_checkbox(layout, owner, prop, text=None):
@@ -94,19 +102,16 @@ def _active_target_item(context, settings):
         return None
 
 
-def _using_global(layout):
-    row = layout.row()
-    row.use_property_split = False
-    row.active = False
-    row.label(text="Using global")
+def _draw_view_grid(layout, owner):
+    grid = layout.grid_flow(
+        row_major=True, columns=3, even_columns=True, align=True
+    )
+    for field, label in _VIEW_TOGGLES:
+        grid.prop(owner, field, text=label, toggle=True)
 
 
-def _draw_framing_override(box, item):
-    _left_checkbox(box, item, "override_framing", text="Framing")
-    if not item.override_framing:
-        _using_global(box)
-        return
-    col = box.column(align=True)
+def _draw_framing_override(layout, item):
+    col = layout.column(align=True)
     col.prop(item, "camera_margin")
     col.prop(item, "padding_mode", expand=True)
     col.prop(
@@ -115,12 +120,8 @@ def _draw_framing_override(box, item):
     )
 
 
-def _draw_resolution_override(box, item):
-    _left_checkbox(box, item, "override_resolution", text="Resolution")
-    if not item.override_resolution:
-        _using_global(box)
-        return
-    col = box.column(align=True)
+def _draw_resolution_override(layout, item):
+    col = layout.column(align=True)
     col.prop(item, "pixels_per_unit")
     col.prop(item, "resolution_multiple")
     col.prop(item, "square_output")
@@ -129,15 +130,24 @@ def _draw_resolution_override(box, item):
 
 
 def _draw_overrides(layout, item):
-    box = layout.box()
     if item is None:
-        box.active = False
-        box.label(text="Overrides")
-        box.label(text="No target selected.")
+        row = layout.row()
+        row.active = False
+        row.label(text="Overrides: no target selected", icon='INFO')
         return
-    box.label(text=f"Overrides: {item.name}", icon='OUTLINER_COLLECTION')
-    _draw_framing_override(box, item)
-    _draw_resolution_override(box, item)
+    groups = (
+        ("view", "View", _draw_view_grid),
+        ("framing", "Framing", _draw_framing_override),
+        ("resolution", "Resolution", _draw_resolution_override),
+    )
+    for group, label, draw in groups:
+        header, body = layout.panel(
+            "bts_override_" + group, default_closed=False
+        )
+        header.use_property_split = False
+        header.prop(item, "override_" + group, text=label)
+        if body is not None and getattr(item, "override_" + group, False):
+            draw(body, item)
 
 
 class BTS_UL_Targets(UIList):
@@ -344,7 +354,7 @@ class BTS_PT_Camera(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False
         settings = context.scene.bts_settings
-        layout.prop(settings, "camera_axis")
+        _draw_view_grid(layout, settings)
         layout.prop(settings, "camera_margin")
         layout.prop(settings, "auto_cleanup_camera")
         layout.separator(factor=0.5)
