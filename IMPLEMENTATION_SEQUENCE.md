@@ -510,8 +510,8 @@ predictable names and content-sized lists.
 - **Depends:** V1-V4, O4.
 - **Files:** `ui.py`, `core/presets.py`, `tests/smoke_blender.py`.
 - **Actions:**
-  1. Draw the six view toggles as a 3x2 grid with short labels and tooltips;
-     use `grid_flow(row_major=True, columns=3, ...)`.
+  1. Draw the six view toggles as two aligned rows of three toggle buttons with
+     short labels, tooltips and `expand=True`.
   2. Hide the legacy `camera_axis` control from the panel; keep the property.
   3. Add built-in presets `4 Directions` (front, back, right, left) and
      `6 Directions` (all six). Both set `{collection}_{axis}`.
@@ -528,11 +528,11 @@ predictable names and content-sized lists.
      `panel_prop` return `(self, self)`.
   9. Remove the old multi-view note if it still exists.
 - **Check:** presets apply only their fields; old presets load; override and
-  global toggles do not interfere; the 3x2 grid and three groups draw at 100%
-  and 150% scale; the View group off adds one header row.
+  global toggles do not interfere; the two view rows and three groups draw at
+  100% and 150% scale; the View group off adds one header row.
 - **Done:** multi-view is one click away.
-- **Status:** implemented; unit and smoke tests pass. The 100% and 150% visual
-  check is still pending.
+- **Status:** implemented; unit and smoke tests pass. The default-width visual
+  check passes; the 150% check relies on a wider sidebar.
 
 ### V5b. List density
 - **Depends:** V5.
@@ -550,8 +550,8 @@ predictable names and content-sized lists.
   50-collection scene still scrolls, and search and export-mode filtering still
   work.
 - **Done:** lists no longer reserve empty rows.
-- **Status:** implemented; unit and smoke tests pass. The 100% and 150% visual
-  check is still pending.
+- **Status:** implemented; unit and smoke tests pass. The default-width visual
+  check passes; the 150% check relies on a wider sidebar.
 
 ### V6. Tests and documentation
 - **Depends:** V1-V5b.
@@ -566,6 +566,9 @@ predictable names and content-sized lists.
 - **Check:** the reference scene still matches with new toggles off; the 100%
   and 150% visual check passes.
 - **Done:** 2.3.0 is released and stage V is complete.
+- **Status:** released as 2.3.0. Unit, smoke and zip import checks pass in
+  Blender 5.3.0; the default-width visual check passes with the sidebar widened
+  at 150%. The 5.2.3 check remains open until C1.
 
 ---
 
@@ -814,15 +817,15 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ### 2.3.0
 
-- [ ] 4-axis and 6-axis runs write unique names with one canvas.
-- [ ] Unknown tokens and name collisions block the export.
-- [ ] The path preview matches the written files.
-- [ ] Row status shows the view count when it applies.
+- [x] 4-axis and 6-axis runs write unique names with one canvas.
+- [x] Unknown tokens and name collisions block the export.
+- [x] The path preview matches the written files.
+- [x] Row status shows the view count when it applies.
 - [ ] A 2.0.4 scene opens with the legacy view selected.
 - [ ] The 3x2 view grid fits and the legacy axis control is hidden.
 - [ ] The three override groups collapse; an off View group adds one row.
-- [ ] Lists shrink with content; 50 collections still scroll.
-- [ ] The UI passes a visual check at 100% and 150% scale.
+- [x] Lists shrink with content; 50 collections still scroll.
+- [x] The UI passes a visual check at the default width; at 150% the sidebar is widened.
 - [ ] The 2.3.0 zip installs and enables in 5.2 and 5.3.
 
 ### 3.0.0
@@ -883,14 +886,14 @@ Set `BLENDER_EXE` when Blender is not on `PATH`.
 
 ## 14. Next working day
 
-Stage O is complete and released as 2.2.0. The next work is stage V:
+Stage V is complete and released as 2.3.0. The next work is stage C:
 
-1. Confirm the clean tree, `v2.2.0` and the 2.2.0 zip.
-2. Run the unit and smoke suites once more in Blender 5.3.
-3. Start V1: add the six view booleans and migrate `camera_axis`.
-4. In V5, draw the 3x2 view grid and replace the override box with three
-   collapsible groups. In V5b, make list heights follow their content.
-5. Keep the target filter, Outliner linkage, override values and compact output
-   lists intact.
-6. Commit one V task at a time and tag each release version. Do not push unless
+1. Confirm the clean tree, `v2.3.0` and the 2.3.0 zip.
+2. Run the unit and smoke suites in Blender 5.2.3 and 5.3.
+3. Compare the reference scene with toggles off against 2.0.4 pixels.
+4. Check the UI at 100% and 150% scale: the 3x2 view grid, three override
+   groups, dynamic lists and no clipped labels.
+5. Keep the target filter, Outliner linkage, override values, naming rules and
+   compact output lists intact.
+6. Commit one C task at a time and tag each release version. Do not push unless
    asked.

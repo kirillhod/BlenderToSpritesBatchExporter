@@ -124,11 +124,10 @@ def _active_target_item(context, settings):
 
 
 def _draw_view_grid(layout, owner):
-    grid = layout.grid_flow(
-        row_major=True, columns=3, even_columns=True, align=True
-    )
-    for field, label in _VIEW_TOGGLES:
-        grid.prop(owner, field, text=label, toggle=True)
+    for start in range(0, len(_VIEW_TOGGLES), 3):
+        row = layout.row(align=True)
+        for field, label in _VIEW_TOGGLES[start:start + 3]:
+            row.prop(owner, field, text=label, toggle=True, expand=True)
 
 
 def _draw_framing_override(layout, item):
@@ -384,8 +383,8 @@ class BTS_PT_Camera(Panel):
         layout.use_property_decorate = False
         settings = context.scene.bts_settings
         _draw_view_grid(layout, settings)
-        layout.prop(settings, "camera_margin")
-        layout.prop(settings, "auto_cleanup_camera")
+        layout.prop(settings, "camera_margin", text="Margin")
+        layout.prop(settings, "auto_cleanup_camera", text="Remove Camera")
         layout.separator(factor=0.5)
         layout.prop(settings, "padding_mode", expand=True)
         layout.prop(

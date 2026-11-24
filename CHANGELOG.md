@@ -2,6 +2,26 @@
 
 All notable changes to the project. Versions follow semantic versioning.
 
+## [2.3.0] - 2026-11-24
+
+### Added
+- Multi-view export from top, bottom, front, back, right and left. All views of
+  a collection share one canvas and one orthographic scale.
+- A **View** override group with six per-collection toggles.
+- **4 Directions** and **6 Directions** built-in presets.
+- `{axis}` names and strict template validation. Unknown tokens, empty names
+  and sanitized name collisions block the export before rendering.
+
+### Changed
+- The Overrides box is replaced by three full-width collapsible groups with the
+  checkbox in the header. The View group is off by default.
+- The legacy `camera_axis` control is hidden; the property remains for old
+  presets and scripts.
+- Target list, Always Include, Path Preview and File Output list heights follow
+  their content.
+- The path preview, report and row status include the view axis or view count.
+- The 3x2 view grid replaces the single axis control in Camera & Framing.
+
 ## [2.2.0] - 2026-11-19
 
 ### Added

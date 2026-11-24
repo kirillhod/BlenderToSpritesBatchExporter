@@ -17,8 +17,11 @@ Blender terms in this guide link to the
 - One sprite per
   [collection](https://docs.blender.org/manual/en/5.2/scene_layout/collections/index.html),
   framed automatically.
+- Multi-view export from top, bottom, front, back, right and left, with one
+  shared canvas per collection.
 - Checkbox list of collections with All, None and Active buttons.
-- Per-collection framing and resolution overrides for different asset scales.
+- Per-collection framing, resolution and view overrides for different asset
+  scales and directions.
 - Separate **Always Include** list for lights, props or shared parts.
 - Transparent background, padding, pixel scale and square output.
 - PNG, JPEG, WebP, EXR and other
@@ -30,12 +33,13 @@ Blender terms in this guide link to the
     nodes (PNG, JPEG, ...)
   - [Multi-Layer EXR](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
     nodes
-- Names built from the collection and the File Output socket:
-  `Body_Normal.png`.
+- Names built from the collection, the view axis and the File Output socket:
+  `Body_front_Normal.png`.
 - Path preview and a Problems panel before rendering.
 - Overwrite existing files by default. Ask, Error, Skip and Add Suffix are
   also available.
-- Built-in presets and your own JSON presets with descriptions.
+- Built-in presets, including 4 and 6 directions, and your own JSON presets
+  with descriptions.
 - Export report and log.
 
 ## Requirements
@@ -63,10 +67,11 @@ one.
 2. In the **Batch Export** tab, open
    [**Collections**](https://docs.blender.org/manual/en/5.2/scene_layout/collections/index.html)
    and tick the collections you want.
-3. Choose an **Output Directory**.
-4. Set **Pixels / Unit**, **Padding** and **Filter Size**.
-5. Press **Analyze** to check paths and problems.
-6. Press **Batch Export**.
+3. In **Camera & Framing**, choose one or more views.
+4. Choose an **Output Directory**.
+5. Set **Pixels / Unit**, **Padding** and **Filter Size**.
+6. Press **Analyze** to check paths and problems.
+7. Press **Batch Export**.
 
 ## Collections
 
@@ -85,17 +90,31 @@ Selecting a collection in the Outliner also selects its target row, and selectin
 a target row selects that collection in the Outliner.
 
 After **Analyze**, each row shows the canvas that will be produced, for example
-`512x304`. The row is empty before an analysis and after any setting change
-that invalidates it. World-unit bounds are not shown.
+`512x304` or `512x512, 4 views`. The row is empty before an analysis and after
+any setting change that invalidates it. World-unit bounds are not shown.
+
+### Views
+
+**Camera & Framing** shows six toggle buttons in a 3x2 grid: Top, Bottom,
+Front, Back, Right and Left. Select any combination. All selected views of one
+collection share the largest canvas and the same orthographic scale, so a wide
+side view does not produce a smaller sprite. The legacy **View Axis** value is
+kept for old presets and scripts but is no longer shown.
+
+At least one view is required for every target. An empty set blocks the export
+in preflight.
 
 ### Per-collection overrides
 
-Select a target row to open its **Overrides** box below the list.
+Select a target row to open its **View**, **Framing** and **Resolution**
+override groups below the list. Each group is a collapsible section with its
+checkbox in the header.
 
+- **View** overrides the six view toggles.
 - **Framing** overrides Camera Distance Margin, Padding Mode and Padding.
 - **Resolution** overrides Pixels / Unit, Round To Multiple Of, Square Output,
   Min Res and Max Res.
-- A group that is off uses the global value and shows `Using global`.
+- A group that is off uses the global value and draws no fields.
 - Turning a group on copies the current global values once. Later changes to
   the global settings do not affect that collection.
 - Turning the group off and on again copies the current global values again.
@@ -118,30 +137,44 @@ add, so the new name starts with defaults.
 
 ## Presets
 
-Built-in presets change the global framing and resolution settings. They do not
-touch the output directory, naming or file format. Collections with an active
-override keep their override values.
+Built-in presets change global settings. The framing presets do not touch the
+output directory, naming or file format. Collections with an active override
+keep their override values.
 
 | Preset | Settings | Best for |
 |---|---|---|
+| 4 Directions | Front, back, right and left views; `{collection}_{axis}` names | Characters and props with four sides |
+| 6 Directions | All six views; `{collection}_{axis}` names | Full turntable-style sprite sets |
 | Pixel Art Top | Top view, 32 px per unit, 1 px padding, square sprites | Crisp top-down tiles |
 | Platformer Front | Front view, 64 px per unit, 2 px padding | Side-view characters and props |
 | High Resolution Top | Top view, 128 px per unit, 8 px padding | Detailed top-down art |
 
 ## Output names
 
-Normal renders use the collection name:
+Normal renders use the **Name Template**. It supports `{collection}` and
+`{axis}`:
 
 ```text
-Body.png
+One view:      {collection}           -> Body.png
+Several views: {collection}_{axis}    -> Body_front.png
 ```
 
+If several views are selected and the template has no `{axis}`, the add-on
+appends `_{axis}` and reports it in Problems. Axis words are lowercase:
+`top`, `bottom`, `front`, `back`, `right`, `left`. When only one view is
+active, `{axis}` is omitted with its separator, so `{collection}_{axis}`
+writes `Body.png` for a single-view run.
+
+Unknown tokens, padding on string tokens, empty names and two targets that
+resolve to the same file block the export before rendering.
+
 [File Output nodes](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)
-use the collection and the node's socket name:
+use the same resolved stem and the node's socket name:
 
 ```text
-Body + socket Normal -> Body_Normal.png
-Body + empty socket  -> Body.png
+Body, socket Normal        -> Body_Normal.png
+Body_front, socket Normal  -> Body_front_Normal.png
+Body, empty socket         -> Body.png
 ```
 
 Node names and labels are not used. If a node has several sockets, each socket
@@ -149,7 +182,8 @@ gets its own file.
 
 ## Output modes
 
-- **Main render** - one file per collection in the selected format.
+- **Main render** - one file per collection and selected view in the chosen
+  format.
 - [**File Output nodes**](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html) -
   the compositor writes the files. Set the node's
   [Media Type](https://docs.blender.org/manual/en/5.2/compositing/types/output/file_output.html)

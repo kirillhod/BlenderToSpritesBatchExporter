@@ -76,7 +76,7 @@ The remaining friction is in daily use:
 6. **No animation.** Only the current frame is rendered.
 7. **Blender 5.3.** Released today; compatibility has to be verified.
 
-### 2.1. Current state after 2.2.0
+### 2.1. Current state after 2.3.0
 
 Stage U and its review fixes are complete:
 
@@ -85,28 +85,34 @@ Stage U and its review fixes are complete:
 - `export_source` filters both the visible target list and the export;
 - the active Outliner collection and the active target row follow each other;
 - enabled flags and the full target registry survive export-mode switches;
-- the target list is a fixed two-column table with `Collection` and
-  `Canvas / status` headers;
-- Path Preview is a hideable, scrollable compact list; File Output node
-  information is one compact, scrollable list;
-- the Report tab is now `Log`, is always open, and contains only `Copy Log` and
-  `Open Log`;
-- built-in preset explanations live in the preset menu tooltips.
+- Path Preview and File Output node information are compact, scrollable lists;
+- the Report tab is `Log`, is always open, and contains only `Copy Log` and
+  `Open Log`.
 
 Stage O added per-collection overrides:
 
 - Framing and Resolution can be overridden independently for each target;
 - a group seeds from the globals on first enable and survives a `.blend` reload;
-- preflight, the render loop and the export report use the same resolved values;
-- the Collections panel shows an Overrides box for the visible active row.
+- preflight, the render loop and the export report use the same resolved values.
 
-Verification at 2.2.0: the unit suite passes, the Blender 5.3 smoke suite
-passes, and the 2.2.0 zip imports, registers and unregisters. Blender 5.2.3 was
-not installed in the test environment, so the 5.2 side of the matrix remains
-open until C1.
+Stage V added multi-view and the 2.3.0 UI:
 
-Next work starts at stage V: multi-view, one canvas per collection, naming and
-list density.
+- six view toggles in a 3x2 grid; the legacy `camera_axis` is hidden;
+- all selected views of a collection share one canvas and orthographic scale;
+- tasks, paths, node outputs and the report carry the axis;
+- View, Framing and Resolution overrides are three collapsible groups;
+- list heights follow their content;
+- `{collection}` and `{axis}` names are validated; unknown tokens and
+  sanitized collisions block the export.
+
+Verification at 2.3.0: the unit suite passes, the Blender 5.3 smoke suite
+passes, and the 2.3.0 zip imports, registers and unregisters in 5.3. The
+default-width visual check passes; at 150% the sidebar needs to be widened
+because the two view rows and property labels share a narrow column. The 5.2.3
+side of the matrix remains open until C1. The reference 2.0.4 comparison also
+runs in C1.
+
+Next work starts at stage C: Blender 5.2.3 and 5.3 verification, then 3.0.0.
 
 ---
 

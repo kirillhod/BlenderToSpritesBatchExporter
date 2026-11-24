@@ -1,6 +1,6 @@
 # UI improvement proposals
 
-Status: proposals and decisions. P1.1, P1.2 and P1.7 are planned for 2.3.0
+Status: proposals and decisions. P1.1, P1.2 and P1.7 are implemented in 2.3.0
 (V5b and V5); the rest is not approved. P4 records the Outliner and hierarchy
 options from the later review; it is not scheduled. The current rules and
 current state are in [ui.md](ui.md); read that before changing `ui.py`.
@@ -51,12 +51,12 @@ Constraints:
 
 Status after the 2.3.0 decision:
 
-- P1.1 is adopted as V5b.
-- P1.2 and P1.7 are adopted in V5.
+- P1.1 is implemented as V5b.
+- P1.2 and P1.7 are implemented in V5.
 - P1.3-P1.6 and P1.8-P1.11 are not scheduled.
 - P2 and P3 are not scheduled; do not put P2 into 3.0.0.
 
-### P1.1. Dynamic list heights (adopted as V5b)
+### P1.1. Dynamic list heights (implemented as V5b)
 
 `template_list(rows=...)` is the actual height, not a maximum. Compute it from
 the visible count:
@@ -80,7 +80,7 @@ the count changes is acceptable.
 Do not use `template_list(type='COMPACT')` for the target list: it disables
 `filter_items`, so search and export-mode filtering stop working.
 
-### P1.2. Collapsible Overrides groups (adopted in V5)
+### P1.2. Collapsible Overrides groups (implemented in V5)
 
 Replace the always-open `layout.box()` with two full-width sections. Put the
 group checkbox in the header:
@@ -168,7 +168,7 @@ while a job runs; do not hide it in a menu. Use `layout.progress(factor=...,
 type='BAR')` for the job instead of the two-row status box. Keep the summary
 label and the analysis warning row.
 
-### P1.7. Pair short fields (adopted in V5)
+### P1.7. Pair short fields (implemented in V5)
 
 - Min and Max resolution in one row with short labels.
 - Use `grid_flow(columns=2)` for adjacent short checkboxes in the same panel.

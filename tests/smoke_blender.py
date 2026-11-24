@@ -841,6 +841,15 @@ def run_multi_view_export_test():
 
     result = bpy.ops.bts.batch_export()
     check(result == {"FINISHED"}, "Multi-view export: %r" % (result,))
+    preview_paths = {
+        os.path.basename(item.path.replace("\\", "/")) for item in settings.preview_items
+    }
+    expected_paths = {name + ".png" for name in expected}
+    check(
+        preview_paths == expected_paths,
+        "Path Preview does not match multi-view files: %r vs %r"
+        % (preview_paths, expected_paths),
+    )
     for name in expected:
         path = os.path.join(out_dir, name + ".png")
         check(os.path.exists(path), "Missing multi-view file: %s" % path)
@@ -890,6 +899,105 @@ def run_multi_view_export_test():
     for name in expected:
         path = os.path.join(out_dir, name, "Sprite.exr")
         check(os.path.exists(path), "Missing node output: %s" % path)
+
+    shutil.rmtree(out_dir)
+
+
+def run_view_override_export_test():
+    """Six global views and a collection that overrides to two views."""
+    from blender_to_sprites_batch_exporter import logic
+
+    bpy.ops.wm.read_factory_settings(use_empty=True)
+    load_addon()
+    scene = bpy.context.scene
+    set_engine(scene)
+    body = make_collection("Body")
+    weapon = make_collection("Weapon")
+    body_cube = add_cube(body, "BodyCube")
+    body_cube.scale = (1.0, 2.0, 3.0)
+    weapon_cube = add_cube(weapon, "WeaponCube")
+    weapon_cube.scale = (1.0, 1.0, 2.0)
+
+    out_dir = tempfile.mkdtemp(prefix="bts_views_override_")
+    settings = scene.bts_settings
+    settings.output_dir = out_dir
+    settings.file_format = "PNG"
+    settings.color_mode = "RGBA"
+    settings.color_depth = "8"
+    settings.use_transparent = True
+    settings.use_compositor_nodes = False
+    settings.export_source = "ALL"
+    settings.isolation_mode = "EXCLUDE"
+    settings.keep_lights = False
+    settings.keep_collections = ""
+    settings.skip_empty = True
+    settings.overwrite_policy = "OVERWRITE"
+    settings.camera_axis = "TOP"
+    settings.camera_margin = 10.0
+    settings.padding_mode = "PIXELS"
+    settings.padding_pixels = 0
+    settings.padding_units = 0.0
+    settings.pixels_per_unit = 16.0
+    settings.resolution_multiple = 1
+    settings.square_output = False
+    settings.min_resolution = 1
+    settings.max_resolution = 0
+    settings.views_migrated = True
+    for field, _label in (
+        ("view_top", "Top"),
+        ("view_bottom", "Bottom"),
+        ("view_front", "Front"),
+        ("view_back", "Back"),
+        ("view_right", "Right"),
+        ("view_left", "Left"),
+    ):
+        setattr(settings, field, True)
+
+    logic.rebuild_target_items(bpy.context, settings)
+    weapon_item = next(
+        item for item in settings.target_items if item.name == "Weapon"
+    )
+    weapon_item.override_view = True
+    weapon_item.view_top = False
+    weapon_item.view_bottom = False
+    weapon_item.view_back = False
+    weapon_item.view_left = False
+
+    analysis, _ = logic.analyze_scene(bpy.context, settings, use_cache=False)
+    check(not analysis.errors, "View override analysis: %r" % (analysis.problems,))
+    body_target = next(target for target in analysis.targets if target.name == "Body")
+    weapon_target = next(
+        target for target in analysis.targets if target.name == "Weapon"
+    )
+    check(
+        body_target.axes == logic.VIEW_AXES,
+        "Global six-view axes: %r" % (body_target.axes,),
+    )
+    check(
+        weapon_target.axes == ("FRONT", "RIGHT"),
+        "Weapon overridden axes: %r" % (weapon_target.axes,),
+    )
+    check(len(analysis.tasks) == 8, "View override task count: %r" % (len(analysis.tasks),))
+
+    result = bpy.ops.bts.batch_export()
+    check(result == {"FINISHED"}, "View override export: %r" % (result,))
+    expected = [
+        "Body_top", "Body_bottom", "Body_front", "Body_back",
+        "Body_right", "Body_left", "Weapon_front", "Weapon_right",
+    ]
+    for name in expected:
+        path = os.path.join(out_dir, name + ".png")
+        check(os.path.exists(path), "Missing override view file: %s" % path)
+    body_sizes = {
+        image_size(os.path.join(out_dir, "Body_%s.png" % axis.lower()))
+        for axis in logic.VIEW_AXES
+    }
+    weapon_sizes = {
+        image_size(os.path.join(out_dir, "Weapon_%s.png" % axis.lower()))
+        for axis in ("FRONT", "RIGHT")
+    }
+    check(len(body_sizes) == 1, "Body axes use different canvases: %r" % (body_sizes,))
+    check(len(weapon_sizes) == 1, "Weapon axes use different canvases: %r" % (weapon_sizes,))
 
     shutil.rmtree(out_dir)
 
@@ -1580,6 +1688,7 @@ def run_test():
     run_override_property_test()
     run_view_property_test()
     run_multi_view_export_test()
+    run_view_override_export_test()
     run_override_export_test()
     run_override_ui_test()
     run_target_sync_test()

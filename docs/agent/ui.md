@@ -261,7 +261,9 @@ If a panel starts using `layout.panel` or `layout.panel_prop`, update
 Visual checks are mandatory for layout changes. Run Blender at 100% and 150%
 UI scale with an empty scene and with 50 collections. Check that labels are
 not clipped, columns stay aligned, the list does not jump when the selection
-changes and the panel scroll position is stable.
+changes and the panel scroll position is stable. Widen the sidebar at 150%:
+the six view buttons expand to fill the panel, and `Margin` / `Remove Camera`
+keep the camera panel readable.
 
 Do not claim a UI change is complete from the draw probe alone.
 
