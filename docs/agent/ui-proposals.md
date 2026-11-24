@@ -1,8 +1,9 @@
 # UI improvement proposals
 
 Status: proposals and decisions. P1.1, P1.2 and P1.7 are planned for 2.3.0
-(V5b and V5); the rest is not approved. The current rules and current state are
-in [ui.md](ui.md); read that before changing `ui.py`.
+(V5b and V5); the rest is not approved. P4 records the Outliner and hierarchy
+options from the later review; it is not scheduled. The current rules and
+current state are in [ui.md](ui.md); read that before changing `ui.py`.
 
 Recorded after 2.2.0 during the UI density review.
 
@@ -273,6 +274,47 @@ Main only if the menu is considered discoverable enough.
 A radial menu for the same actions is optional. It does not reduce panel
 height; it only speeds up repeat use. A keymap entry is required.
 
+## P4. Outliner and hierarchy
+
+Status: recorded after the 2.3.0 scope decision. Not scheduled; do not add it to
+2.3.0. Candidate increment of about 2-3 days after that release.
+
+Facts:
+
+- The Outliner takes no custom columns, rows or widgets.
+  `SpaceOutliner.draw_handler_add` exists in 5.2 but is a pixel overlay without
+  row or scroll data.
+- `Collection.hide_render` as the selection store is rejected: it changes F12,
+  is inherited by children, and needs a new restore path in the job.
+- The target list is an export queue (canvas/status, overrides, enabled,
+  search), not a hierarchy browser. Keep it.
+
+| ID | Proposal | Cost |
+|---|---|---:|
+| P4.1 | `Render Enabled` filter on `hide_render == False`; no writes, overrides persist | 0.5 day |
+| P4.2 | Display order follows the collection tree via `filter_items`; registry order unchanged | 0.5 day |
+| P4.3 | Registry and export order follow the tree; rebuild items, keep the active index | 1 day |
+| P4.4 | Depth indent in target rows | 0.5 day |
+| P4.5 | Preflight warning for an enabled parent with an enabled descendant | 0.5 day |
+| P4.6 | Hide direct objects of ancestors in EXCLUDE isolation | 1 day |
+| P4.7 | Per-target `include_children`, default True | 2 days |
+
+Nested: a parent target includes its subtree, so an enabled parent duplicates
+its children; disabling the parent is the current answer. A parent with its own
+objects can leak them into a child render in EXCLUDE mode because the ancestor
+layer must be included; confirm with smoke, then fix with P4.6.
+
+Order: no drag in the list (new operator IDs are forbidden in v3), no reliable
+read of the Outliner's per-editor `use_sort_alpha`, and no reverse write to
+`Collection.children`.
+
+Filters: keep `ALL`, `INCLUDED`, `ACTIVE` and `TOPLEVEL`. `INCLUDED` uses the
+per-view-layer exclude; P4.1 would use the global render flag. Add smoke for
+`INCLUDED` and `TOPLEVEL`, which have none.
+
+Recommended subset after 2.3.0: P4.2, P4.4, P4.5 and P4.6. P4.1 and P4.3 are
+optional; P4.7 is a separate data-model decision.
+
 ## Variants
 
 | Variant | Contents | Estimated default rows | Risk |
@@ -296,7 +338,7 @@ memory and primary actions.
 4. In V6, run the unit suite, smoke, and visual checks at 100% and 150% scale.
 5. Update `ui.md` and mark P1.1, P1.2 and P1.7 implemented.
 6. After 2.3.0, measure and decide on the rest of P1. Do not add P2 to 3.0.0;
-   leave P3 open unless requested.
+   leave P3 open unless requested. P4 is a separate candidate after 2.3.0.
 
 ## Implementation notes
 
@@ -320,3 +362,5 @@ memory and primary actions.
 - Should Problems stay open by default when errors exist?
 - Which remaining P1 items should be scheduled after 2.3.0?
 - Is the 30-35 row target still the goal after the measured A0 result?
+- Is P4 worth one hierarchy increment after 2.3.0, or should the list stay
+  independent of the Outliner?
